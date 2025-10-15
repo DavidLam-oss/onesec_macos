@@ -16,10 +16,14 @@ struct CommandParser: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "设置鉴权 Token")
     var authToken: String
+    
+    @Option(name: .shortAndLong, help: "设置 Debug 模式")
+    var debugMode: Bool = true
 
     mutating func run() throws {
         Config.UDS_CHANNEL = udsChannel
         Config.SERVER = server
         Config.AUTH_TOKEN = authToken
+        Config.DEBUG_MODE = debugMode
     }
 }

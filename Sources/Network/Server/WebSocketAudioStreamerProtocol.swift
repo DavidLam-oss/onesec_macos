@@ -88,7 +88,7 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
         // 401/403 停止重连，交由上层刷新凭证后在 connect
         if status == 401 || status == 403 {
             let reason = status == 401 ? "auth_token invaild" : "permission denied"
-//            CommunicationManager.shared.sendAuthTokenFailed(reason: reason, statusCode: status)
+            // CommunicationManager.shared.sendAuthTokenFailed(reason: reason, statusCode: status)
         }
     }
 }

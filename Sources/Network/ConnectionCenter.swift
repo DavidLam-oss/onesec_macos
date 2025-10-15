@@ -17,6 +17,8 @@ actor ConnectionCenter {
         udsClient = UDSClient()
         udsClient!.connect()
 
+        // 使用示例
+
 //        wssClient = WebSocketAudioStreamer()
 //        wssClient!.connect()
     }

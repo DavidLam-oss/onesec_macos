@@ -9,4 +9,5 @@ actor Config {
     static var UDS_CHANNEL: String = ""
     static var SERVER: String = ""
     static var AUTH_TOKEN: String = ""
+    static var DEBUG_MODE: Bool = true
 }
