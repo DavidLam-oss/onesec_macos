@@ -19,10 +19,10 @@ struct CommandParser: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "设置 Debug 模式")
     var debugMode: Bool = true
-    
+
     @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn, Fn+Space)")
     var normalKeys: String = "Fn"
-    
+
     @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+Return)")
     var commandKeys: String = "Fn+Space"
 
@@ -31,19 +31,20 @@ struct CommandParser: ParsableCommand {
         Config.SERVER = server
         Config.AUTH_TOKEN = authToken
         Config.DEBUG_MODE = debugMode
-        
-        // 解析普通模式按键
-        if let normalKeyCodes = KeyMapper.parseKeyString(normalKeys) {
-            Config.NORMAL_KEY_CODES = normalKeyCodes
-        } else {
-            throw ValidationError("无效的普通模式按键配置: \(normalKeys)")
+
+        guard ServerValidator.isValid(Config.SERVER) else {
+            throw ValidationError("无效的服务器配置: \(server)")
         }
-        
-        // 解析命令模式按键
-        if let commandKeyCodes = KeyMapper.parseKeyString(commandKeys) {
-            Config.COMMAND_KEY_CODES = commandKeyCodes
-        } else {
-            throw ValidationError("无效的命令模式按键配置: \(commandKeys)")
+
+        // 验证并设置按键配置
+        Config.NORMAL_KEY_CODES = try parseKeys(normalKeys, name: "普通模式按键")
+        Config.COMMAND_KEY_CODES = try parseKeys(commandKeys, name: "命令模式按键")
+    }
+
+    private func parseKeys(_ keyString: String, name: String) throws -> [Int64] {
+        guard let codes = KeyMapper.parseKeyString(keyString) else {
+            throw ValidationError("无效的\(name)配置: \(keyString)")
         }
+        return codes
     }
 }

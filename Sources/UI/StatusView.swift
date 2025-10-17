@@ -59,8 +59,6 @@ struct StatusView: View {
     
     var body: some View {
         ZStack {
-            
-            // 内外圈层 - 只有圆形区域响应鼠标事件
             VStack {
                 Spacer()
                 

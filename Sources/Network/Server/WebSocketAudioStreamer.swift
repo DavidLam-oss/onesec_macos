@@ -10,14 +10,87 @@ import Combine
 import Foundation
 import Starscream
 
-class WebSocketAudioStreamer {
+class WebSocketAudioStreamer: @unchecked Sendable {
     private var ws: WebSocket?
 
     private var cancellables = Set<AnyCancellable>()
 
     var connectionState: ConnState = .disconnected
 
+    // Reconnect 配置
+    let maxRetryCount = 10
+    var currentRetryCount = 0
+
     init() {
+        initializeMessageListener()
+    }
+
+    func connect() {
+        guard connectionState != .connecting else {
+            log.info("WebSocket already connecting")
+            return
+        }
+
+        if ws != nil { disconnect() }
+        connectionState = .connecting
+
+        let serverURL = URL(string: "wss://\(Config.SERVER)")!
+
+        var request = URLRequest(url: serverURL, timeoutInterval: 60)
+        request.setValue("Bearer \(Config.AUTH_TOKEN)", forHTTPHeaderField: "Authorization")
+
+        // 创建 Starscream WebSocket
+        // 使用更宽松的SSL配置来支持自签名证书
+        let pinner = FoundationSecurity(allowSelfSigned: true)
+        ws = WebSocket(request: request, certPinner: pinner)
+        ws?.delegate = self
+        ws?.connect()
+
+        log.info("WebSocket start connect with token \(Config.AUTH_TOKEN) \(serverURL)")
+    }
+
+    func disconnect() {
+        connectionState = .disconnected
+        currentRetryCount = 0
+        ws?.disconnect()
+        ws = nil
+
+        log.info("WebSocket disconnect")
+    }
+
+    /// 重新连接触发时机为
+    /// - 连接错误（error）
+    /// - 服务器建议重连（reconnectSuggested）
+    /// - 对端关闭连接（peerClosed）
+    /// - 用户配置变更 (userConfigChanged)
+    func scheduleReconnect(reason: String) {
+        guard connectionState != .connecting else {
+            log.warning("Already connecting, skip reconnect")
+            return
+        }
+
+        currentRetryCount += 1
+
+        if currentRetryCount > maxRetryCount {
+            log.error("WebSocket reached max retry count, stop reconnecting")
+            return
+        }
+
+        // 指数退避策略：1s, 2s, 4s, 8s, 16s，最多 30s
+        let delay = min(pow(2.0, Double(currentRetryCount - 1)), 30.0)
+
+        log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(currentRetryCount)")
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.connect()
+        }
+    }
+}
+
+// MARK: - 消息处理
+
+extension WebSocketAudioStreamer {
+    func initializeMessageListener() {
         EventBus.shared.events
             .sink { [weak self] event in
                 guard let self else { return }
@@ -39,6 +112,10 @@ class WebSocketAudioStreamer {
 
                 case .audioDataReceived(let data): sendAudioData(data)
 
+                case .userConfigChanged:
+                    currentRetryCount = 0
+                    connect()
+
                 default:
                     break
                 }
@@ -46,49 +123,12 @@ class WebSocketAudioStreamer {
             .store(in: &cancellables)
     }
 
-    private func createServerURL() -> URL? {
-        guard let url = URL(string: "wss://\(Config.SERVER)") else {
-            log.error("Create webSocket server URL failed")
-            return nil
-        }
-        return url
-    }
-
-    func connect() {
-        disconnect()
-
-        guard let serverURL = createServerURL() else {
-            return
-        }
-
-        var request = URLRequest(url: serverURL)
-        request.timeoutInterval = 60
-        request.setValue("Bearer \(Config.AUTH_TOKEN)", forHTTPHeaderField: "Authorization")
-
-        // 创建 Starscream WebSocket
-        // 使用更宽松的SSL配置来支持自签名证书
-        let pinner = FoundationSecurity(allowSelfSigned: true)
-        ws = WebSocket(request: request, certPinner: pinner)
-        ws?.delegate = self
-        ws?.connect()
-
-        log.info("WebSocket start connect with token \(Config.AUTH_TOKEN) \(serverURL)")
-    }
-
-    func disconnect() {
-        connectionState = .disconnected
-        ws?.disconnect()
-        ws = nil
-
-        log.info("WebSocket disconnect")
-    }
-
     // TODO: 发到队列
     func sendAudioData(_ audioData: Data) {
         guard connectionState == .connected, let ws else {
             return
         }
-        
+
         ws.write(data: audioData)
     }
 
