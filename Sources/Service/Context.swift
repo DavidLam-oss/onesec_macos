@@ -45,7 +45,7 @@ class ContextService {
         let pasteboard = NSPasteboard.general
         let oldContents = pasteboard.string(forType: .string)
         
-        log.info("oldContents \(oldContents ?? "")")
+        log.info("Old pasteboard contents \(oldContents ?? "")")
         
         // 将文本复制到剪贴板
         pasteboard.clearContents()

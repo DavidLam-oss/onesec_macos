@@ -18,8 +18,12 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     var connectionState: ConnState = .disconnected
 
     // Reconnect 配置
+    var curRetryCount = 0
     let maxRetryCount = 10
-    var currentRetryCount = 0
+
+    // Server 超时配置
+    private var responseTimeoutTimer: DispatchWorkItem?
+    private let responseTimeoutDuration: TimeInterval = 10.0
 
     init() {
         initializeMessageListener()
@@ -51,7 +55,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     func disconnect() {
         connectionState = .disconnected
-        currentRetryCount = 0
+        curRetryCount = 0
         ws?.disconnect()
         ws = nil
 
@@ -69,17 +73,17 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             return
         }
 
-        currentRetryCount += 1
+        curRetryCount += 1
 
-        if currentRetryCount > maxRetryCount {
-            log.error("WebSocket reached max retry count, stop reconnecting")
+        guard curRetryCount <= maxRetryCount else {
+            log.error("The server is unavailable, stopping reconnection.")
             return
         }
 
         // 指数退避策略：1s, 2s, 4s, 8s, 16s，最多 30s
-        let delay = min(pow(2.0, Double(currentRetryCount - 1)), 30.0)
+        let delay = min(pow(2.0, Double(curRetryCount - 1)), 30.0)
 
-        log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(currentRetryCount)")
+        log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
 
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.connect()
@@ -113,7 +117,7 @@ extension WebSocketAudioStreamer {
                 case .audioDataReceived(let data): sendAudioData(data)
 
                 case .userConfigChanged:
-                    currentRetryCount = 0
+                    curRetryCount = 0
                     connect()
 
                 default:
@@ -165,6 +169,7 @@ extension WebSocketAudioStreamer {
 
     func sendStopRecording() {
         sendWebSocketMessage(type: .stopRecording)
+        startResponseTimeoutTimer()
     }
 
     func sendModeUpgrade(fromMode: RecordMode, toMode: RecordMode, focusContext: FocusContext? = nil) {
@@ -186,20 +191,36 @@ extension WebSocketAudioStreamer {
             return
         }
 
-        log.debug("Send to server \(type): \(jsonStr)")
+        log.debug("Send to server: \(jsonStr)")
         sendMessage(jsonStr)
     }
 
     func didReceiveMessage(_ json: [String: Any]) {
-        guard let data = json["data"] as? [String: Any] else {
-            return
-        }
+        cancelResponseTimeoutTimer()
 
-        guard let summary = data["summary"] as? String else {
-            return
-        }
+        guard let data = json["data"] as? [String: Any],
+              let summary = data["summary"] as? String else { return }
 
         let serverTime = data["server_time"] as? Int
         EventBus.shared.publish(.serverResultReceived(summary: summary, serverTime: serverTime))
+    }
+
+    private func startResponseTimeoutTimer() {
+        cancelResponseTimeoutTimer()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            log.warning("Recording response timed out after \(responseTimeoutDuration) seconds")
+            EventBus.shared.publish(.serverTimedout)
+        }
+
+        responseTimeoutTimer = workItem
+        DispatchQueue.global().asyncAfter(deadline: .now() + responseTimeoutDuration, execute: workItem)
+        log.debug("Started response timeout timer (\(responseTimeoutDuration)s)")
+    }
+
+    private func cancelResponseTimeoutTimer() {
+        responseTimeoutTimer?.cancel()
+        responseTimeoutTimer = nil
     }
 }

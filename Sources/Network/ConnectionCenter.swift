@@ -7,7 +7,7 @@
 
 import Foundation
 
-actor ConnectionCenter {
+class ConnectionCenter: @unchecked Sendable {
     static let shared = ConnectionCenter()
 
     private var wssClient: WebSocketAudioStreamer?
@@ -19,5 +19,9 @@ actor ConnectionCenter {
 
         wssClient = WebSocketAudioStreamer()
         wssClient!.connect()
+    }
+
+    func isWssServerConnected() -> Bool {
+        wssClient?.connectionState == .connected
     }
 }

@@ -15,9 +15,16 @@ enum AppEvent {
     case audioDataReceived(data: Data)
     case serverResultReceived(summary: String, serverTime: Int?)
     case modeUpgraded(from: RecordMode, to: RecordMode, focusContext: FocusContext?)
-    case authTokenFailed(reason: String, statusCode: Int?)
     case notificationReceived(title: String, content: String)
+    case serverTimedout
+    //
+    case authTokenFailed(reason: String, statusCode: Int?)
     case userConfigChanged(authToken: String, hotkeyConfigs: [[String: Any]])
+    //
+    case hotkeySettingStarted(mode: RecordMode)
+    case hotkeySettingEnded(mode: RecordMode, hotkeyCombination: [String])
+    case hotkeySettingUpdated(mode: RecordMode, hotkeyCombination: [String])
+    case hotkeySettingResulted(mode: RecordMode, hotkeyCombination: [String])
 }
 
 class EventBus: @unchecked Sendable {
@@ -52,15 +59,6 @@ extension EventBus {
             .compactMap { event in
                 guard case .volumeChanged(let volume) = event else { return nil }
                 return volume
-            }
-            .eraseToAnyPublisher()
-    }
-
-    var serverResultReceived: AnyPublisher<String, Never> {
-        eventSubject
-            .compactMap { event in
-                guard case .serverResultReceived(let summary, let serverTime) = event else { return nil }
-                return summary
             }
             .eraseToAnyPublisher()
     }

@@ -33,18 +33,22 @@ final class UDSClient: @unchecked Sendable {
 
     /// Reconnect 配置
     private var maxRetryCount = 10
-    private var currentRetryCount = 0
+    private var curRetryCount = 0
 
     private var cancellables = Set<AnyCancellable>()
 
     init() {
         EventBus.shared.events
             .sink { [weak self] event in
-                guard let self else { return }
-
                 switch event {
-                case .authTokenFailed(let reason, let statusCode):
-                    sendAuthTokenFailed(reason: reason, statusCode: statusCode)
+                case let .authTokenFailed(reason, statusCode):
+                    self?.sendAuthTokenFailed(reason: reason, statusCode: statusCode)
+
+                case let .hotkeySettingEnded(mode, hotkeyCombination):
+                    self?.sendHotkeySettingResult(mode: mode, hotkeyCombination: hotkeyCombination)
+
+                case let .hotkeySettingUpdated(mode, hotkeyCombination):
+                    self?.sendHotkeySettingUpdate(mode: mode, hotkeyCombination: hotkeyCombination)
 
                 default:
                     break
@@ -63,7 +67,7 @@ final class UDSClient: @unchecked Sendable {
 
         guard FileManager.default.fileExists(atPath: udsChannel) else {
             log.warning("socket file not exist")
-            if isRetry, currentRetryCount < maxRetryCount {
+            if isRetry, curRetryCount < maxRetryCount {
                 scheduleReconnect(reason: "socket文件不存在")
             }
             return
@@ -95,6 +99,28 @@ final class UDSClient: @unchecked Sendable {
         connection!.start(queue: queue)
     }
 
+    private func scheduleReconnect(reason: String) {
+        curRetryCount += 1
+
+        guard curRetryCount <= maxRetryCount else {
+            log.error("The server is unavailable, stopping reconnection.")
+            return
+        }
+
+        // 更快的重连：0.5s, 1s, 2s, 4s, 最多 5s
+        let delay = min(0.5 * pow(2.0, Double(curRetryCount - 1)), 5.0)
+
+        log.info("Reconnecting in \(delay) seconds \(reason), attempt \(curRetryCount)")
+
+        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.connect(isRetry: true)
+        }
+    }
+}
+
+// MARK: - 消息处理
+
+extension UDSClient {
     private func startMessagePolling() {
         guard let connection else { return }
 
@@ -168,9 +194,10 @@ final class UDSClient: @unchecked Sendable {
             log.error("UDS 客户端: 快捷键设置消息格式错误")
             return
         }
+
+        EventBus.shared.publish(.hotkeySettingStarted(mode: mode == "normal" ? .normal : .command))
     }
 
-    /// 处理快捷键设置结束消息
     private func handleHotkeySettingEndMessage(json: [String: Any], timestamp: Int64) {
         guard let data = json["data"] as? [String: Any],
               let mode = data["mode"] as? String,
@@ -179,6 +206,8 @@ final class UDSClient: @unchecked Sendable {
             log.error("UDS 客户端: 快捷键设置结束消息格式错误")
             return
         }
+
+        EventBus.shared.publish(.hotkeySettingEnded(mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination))
     }
 
     private func handleInitConfigMessage(json: [String: Any], timestamp: Int64) {
@@ -192,9 +221,7 @@ final class UDSClient: @unchecked Sendable {
 
         EventBus.shared.publish(.userConfigChanged(authToken: authToken, hotkeyConfigs: hotkeyConfigs))
     }
-}
 
-extension UDSClient {
     func sendAuthTokenFailed(reason: String, statusCode: Int? = nil) {
         guard connectionState == .connected else {
             log.warning("Client not connected, cant send auth token failed")
@@ -211,6 +238,36 @@ extension UDSClient {
 
         sendJSONMessage(WebSocketMessage.create(type: .authTokenFailed, data: data).toJSON())
         log.info("Client send auth token failed: \(reason), code: \(statusCode ?? 0)")
+    }
+
+    func sendHotkeySettingUpdate(mode: RecordMode, hotkeyCombination: [String]) {
+        guard connectionState == .connected else {
+            log.warning("Client not connected, cant send hotkey setting update")
+            return
+        }
+
+        let data: [String: Any] = [
+            "mode": mode.rawValue,
+            "hotkey_combination": hotkeyCombination
+        ]
+
+        sendJSONMessage(WebSocketMessage.create(type: .hotkeySettingUpdate, data: data).toJSON())
+        log.debug("Client send hotkey setting update: mode=\(mode), combination=\(hotkeyCombination)")
+    }
+
+    func sendHotkeySettingResult(mode: RecordMode, hotkeyCombination: [String]) {
+        guard connectionState == .connected else {
+            log.warning("Client not connected, cant send hotkey setting result")
+            return
+        }
+
+        let data: [String: Any] = [
+            "mode": mode.rawValue,
+            "hotkey_combination": hotkeyCombination
+        ]
+
+        sendJSONMessage(WebSocketMessage.create(type: .hotkeySettingResult, data: data).toJSON())
+        log.info("Client send hotkey setting result: mode=\(mode), combination=\(hotkeyCombination)")
     }
 
     func sendJSONMessage(_ message: [String: Any]) {
@@ -236,25 +293,5 @@ extension UDSClient {
                 log.error("Connection send message err: - \(error)")
             }
         })
-    }
-}
-
-extension UDSClient {
-    private func scheduleReconnect(reason: String) {
-        currentRetryCount += 1
-
-        if currentRetryCount > maxRetryCount {
-            log.error("The server is unavailable, stopping reconnection.")
-            return
-        }
-
-        // 更快的重连：0.5s, 1s, 2s, 4s, 最多 5s
-        let delay = min(0.5 * pow(2.0, Double(currentRetryCount - 1)), 5.0)
-
-        log.info("Reconnecting in \(delay) seconds \(reason), attempt \(currentRetryCount)")
-
-        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.connect(isRetry: true)
-        }
     }
 }

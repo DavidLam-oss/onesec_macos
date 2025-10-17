@@ -5,6 +5,7 @@
 //  Created by 王晓雨 on 2025/10/15.
 //
 
+import Combine
 import CoreGraphics
 import Foundation
 
@@ -22,8 +23,9 @@ class KeyStateTracker {
     private var pressedKeys: Set<Int64> = []
     private var currentModifiers: CGEventFlags = []
     private let modifierMasks: [CGEventFlags] = [.maskCommand, .maskAlternate, .maskControl, .maskShift, .maskSecondaryFn]
+    private var cancellables = Set<AnyCancellable>()
 
-    /// 追踪当前是否处于匹配状态
+    /// 当前是否为匹配状态
     private var isCurrentlyMatched: Bool = false
     
     /// 追踪当前激活的模式
@@ -34,28 +36,56 @@ class KeyStateTracker {
         KeyConfig(keyCodes: Config.COMMAND_KEY_CODES, description: "command", mode: .command)
     ]
     
+    init() {
+        EventBus.shared.events
+            .filter {
+                if case .hotkeySettingResulted = $0 { return true }
+                if case .hotkeySettingEnded = $0 { return true }
+                return false
+            }
+            .sink { [weak self] _ in
+                self?.reloadKeyConfigs()
+            }
+            .store(in: &cancellables)
+    }
+    
     /// 处理键盘事件（用于快捷键设置模式）
-    /// - Returns: 当松开键时返回完整的快捷键组合，否则返回空
-    func handleKeyEvent(type: CGEventType, event: CGEvent) -> [Int64]? {
+    /// - Returns: 返回元组 (是否完成快捷键设置, 当前按下的按键组合)
+    func handleKeyEvent(type: CGEventType, event: CGEvent) -> (completed: Bool, currentKeys: [Int64]) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         
         switch type {
         case .flagsChanged:
-            return handleModifierChange(keyCode: keyCode, newModifiers: event.flags)
+            let completedKeys = handleModifierChange(keyCode: keyCode, newModifiers: event.flags)
+            if let completedKeys {
+                // 修饰键松开，完成设置
+                return (true, completedKeys)
+            }
+            // 修饰键按下，返回当前按键组合
+            return (false, Array(pressedKeys))
             
         case .keyDown:
             addKey(keyCode)
+            // 按键按下，返回当前按键组合
+            return (false, Array(pressedKeys))
             
         case .keyUp:
             // 松开普通键时，如果有修饰键被按下，则完成快捷键设置
+            let keysBeforeRemove = Array(pressedKeys)
             removeKey(keyCode)
-            return currentModifiers.isEmpty ? nil : Array(pressedKeys)
+            if currentModifiers.isEmpty {
+                // 无修饰键，返回当前按键组合
+                return (false, Array(pressedKeys))
+            } else {
+                // 有修饰键，完成设置
+                return (true, keysBeforeRemove)
+            }
             
         default:
             break
         }
         
-        return nil
+        return (false, Array(pressedKeys))
     }
     
     /// 处理键盘事件并检查匹配状态（用于录音控制模式）
@@ -88,9 +118,10 @@ class KeyStateTracker {
         if isPressed {
             addKey(keyCode)
         } else if isReleased {
+            let keysBeforeRemove = Array(pressedKeys) // 松开修饰键前保存完整组合
             removeKey(keyCode)
             currentModifiers = newModifiers
-            return Array(pressedKeys) // 松开修饰键时返回快捷键组合
+            return keysBeforeRemove // 返回松开前的完整快捷键组合
         }
         
         currentModifiers = newModifiers
@@ -120,7 +151,7 @@ class KeyStateTracker {
         
         // 检查是否匹配任何配置
         let matchedConfig = keyConfigs.first { config in
-            config.matches(Array(pressedKeys))
+            Set(config.keyCodes.sorted()) == Set(Array(pressedKeys).sorted())
         }
         
         let isNowMatched = matchedConfig != nil
@@ -146,7 +177,7 @@ class KeyStateTracker {
             // 持续匹配状态，但需要检查是否有模式转换
             if let currentMode = currentActiveMode, let newMode, currentMode != newMode {
                 // 模式转换发生
-                log.info("🔄 模式转换: \(currentMode.description) → \(newMode.description)")
+                log.info("🔄 模式转换: \(currentMode.rawValue) → \(newMode.rawValue)")
                 
                 currentActiveMode = newMode
                 return .modeUpgrade(from: currentMode, to: newMode)
@@ -163,5 +194,13 @@ class KeyStateTracker {
         currentModifiers = []
         isCurrentlyMatched = false
         currentActiveMode = nil
+    }
+
+    func reloadKeyConfigs() {
+        keyConfigs = [
+            KeyConfig(keyCodes: Config.NORMAL_KEY_CODES, description: "normal", mode: .normal),
+            KeyConfig(keyCodes: Config.COMMAND_KEY_CODES, description: "command", mode: .command)
+        ]
+        log.info("✅ KeyStateTracker reload key configs")
     }
 }

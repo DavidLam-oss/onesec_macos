@@ -19,7 +19,7 @@ class InputController {
     private var eventTap: CFMachPort?
     /// 运行循环源
     private var runLoopSource: CFRunLoopSource?
-    /// 事件订阅管理
+
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -83,9 +83,8 @@ class InputController {
 
         // 拦截快捷键的设置
         if keyEventProcessor.isHotkeySetting {
-            if keyEventProcessor.handleHotkeySettingEvent(type: type, event: event) {
-                return nil
-            }
+            keyEventProcessor.handleHotkeySettingEvent(type: type, event: event)
+            return nil
         }
 
         // 正常处理按键监听
@@ -123,25 +122,35 @@ class InputController {
 
 extension InputController {
     func initializeEventHandler() {
-        EventBus.shared.serverResultReceived
-            .sink { summary in
-                ContextService.pasteTextToActiveApp(summary)
-            }
-            .store(in: &cancellables)
-
         EventBus.shared.events
             .sink { [weak self] event in
-                guard case .userConfigChanged(let authToken, let hotkeyConfigs) = event else { return }
-                self?.handleConfigInitialized(authToken: authToken, hotkeyConfigs: hotkeyConfigs)
+                switch event {
+                case .userConfigChanged(let authToken, let hotkeyConfigs):
+                    self?.handleConfigInitialized(authToken: authToken, hotkeyConfigs: hotkeyConfigs)
+                case .hotkeySettingStarted(let mode):
+                    self?.handleHotkeySettingStarted(mode: mode)
+                case .hotkeySettingEnded(let mode, let hotkeyCombination):
+                    self?.handleHotkeySettingEnded(mode: mode, hotkeyCombination: hotkeyCombination)
+                case .serverResultReceived(let summary, _):
+                    ContextService.pasteTextToActiveApp(summary)
+                default:
+                    break
+                }
             }
             .store(in: &cancellables)
     }
 
+    private func handleHotkeySettingStarted(mode: RecordMode) {
+        keyEventProcessor.startHotkeySetting(mode: mode)
+    }
+
+    private func handleHotkeySettingEnded(mode: RecordMode, hotkeyCombination: [String]) {
+        keyEventProcessor.endHotkeySetting()
+        Config.saveHotkeySetting(mode: mode, hotkeyCombination: hotkeyCombination)
+    }
+
     private func handleConfigInitialized(authToken: String, hotkeyConfigs: [[String: Any]]) {
         Config.AUTH_TOKEN = authToken
-
-        var normalKeyCodes: [Int64]?
-        var commandKeyCodes: [Int64]?
 
         for config in hotkeyConfigs {
             guard let mode = config["mode"] as? String,
@@ -150,20 +159,7 @@ extension InputController {
                 continue
             }
 
-            let keyCodes = hotkeyCombination.compactMap { KeyMapper.stringToKeyCodeMap[$0] }
-
-            if mode == "normal" {
-                normalKeyCodes = keyCodes
-            } else if mode == "command" {
-                commandKeyCodes = keyCodes
-            }
+            Config.saveHotkeySetting(mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination)
         }
-
-        if let normal = normalKeyCodes, let command = commandKeyCodes {
-            Config.NORMAL_KEY_CODES = normal
-            Config.COMMAND_KEY_CODES = command
-        }
-
-        log.info("Config Updated: normal=\(normalKeyCodes), command=\(commandKeyCodes) token=\(authToken)")
     }
 }

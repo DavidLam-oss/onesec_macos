@@ -9,88 +9,33 @@ import Carbon
 import Cocoa
 import Foundation
 
-enum RecordMode: String, CaseIterable {
+enum RecordMode: String {
     case normal
     case command
-
-    var description: String {
-        switch self {
-        case .normal:
-            "普通模式"
-        case .command:
-            "命令模式"
-        }
-    }
 }
 
 struct KeyConfig {
-    let keyCodes: [Int64] // 按键组合的键码数组
+    let keyCodes: [Int64] // 按键键码数组
     let description: String // 配置描述
-    let mode: RecordMode // 识别模式
+    let mode: RecordMode
 
     init(keyCodes: [Int64], description: String, mode: RecordMode) {
         self.keyCodes = keyCodes.sorted()
         self.description = description
         self.mode = mode
     }
-
-    /// 检查是否匹配指定的按键组合
-    func matches(_ pressedKeys: [Int64]) -> Bool {
-        let sortedPressedKeys = Set(pressedKeys.sorted())
-        let sortedConfigKeys = Set(keyCodes.sorted())
-        return sortedPressedKeys == sortedConfigKeys
-    }
-}
-
-struct DualModeKeyConfig {
-    let normalModeConfig: KeyConfig
-    let commandModeConfig: KeyConfig
-
-    init(normalKeyCodes: [Int64], commandKeyCodes: [Int64]) {
-        let normalDescription = normalKeyCodes
-            .compactMap { KeyMapper.keyCodeMap[$0] }
-            .joined(separator: "+")
-
-        let commandDescription = commandKeyCodes
-            .compactMap { KeyMapper.keyCodeMap[$0] }
-            .joined(separator: "+")
-
-        self.normalModeConfig = KeyConfig(
-            keyCodes: normalKeyCodes,
-            description: "普通模式 \(normalDescription)",
-            mode: .normal,
-        )
-        self.commandModeConfig = KeyConfig(
-            keyCodes: commandKeyCodes,
-            description: "命令模式 \(commandDescription)",
-            mode: .command,
-        )
-    }
 }
 
 class KeyEventProcessor {
-    var dualModeConfig: DualModeKeyConfig
     var isHotkeySetting = false
-    var hotkeySettingMode: String?
+    var hotkeySettingMode: RecordMode = .normal
 
     private var keyStateTracker: KeyStateTracker = .init()
 
-    init() {
-        self.dualModeConfig = DualModeKeyConfig(
-            normalKeyCodes: Config.NORMAL_KEY_CODES,
-            commandKeyCodes: Config.COMMAND_KEY_CODES,
-        )
-
-        log.debug("initialized")
-        log.debug("普通模式: \(dualModeConfig.normalModeConfig.description)")
-        log.debug("命令模式: \(dualModeConfig.commandModeConfig.description)")
-    }
-
-    func startHotkeySetting(mode: String) {
+    func startHotkeySetting(mode: RecordMode) {
         log.info("Hotkey setting start: \(mode)")
 
-        keyStateTracker.clear() // 自动重置匹配状态
-
+        keyStateTracker.clear()
         isHotkeySetting = true
         hotkeySettingMode = mode
     }
@@ -101,17 +46,26 @@ class KeyEventProcessor {
         log.info("Hotkey setting done")
 
         isHotkeySetting = false
-        hotkeySettingMode = nil
     }
 
-    func handleHotkeySettingEvent(type: CGEventType, event: CGEvent) -> Bool {
-        guard isHotkeySetting else { return false }
+    func handleHotkeySettingEvent(type: CGEventType, event: CGEvent) {
+        guard isHotkeySetting else { return }
 
-        return keyStateTracker.handleKeyEvent(type: type, event: event) != nil
+        let (completed, currentKeys) = keyStateTracker.handleKeyEvent(type: type, event: event)
+
+        // 实时发送当前按键组合
+        let hotkeyCombination = currentKeys.compactMap { KeyMapper.keyCodeMap[$0] }
+        EventBus.shared.publish(.hotkeySettingUpdated(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination))
+
+        // 如果完成了快捷键设置
+        if completed {
+            Config.saveHotkeySetting(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination)
+            EventBus.shared.publish(.hotkeySettingResulted(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination))
+            endHotkeySetting()
+        }
     }
 
     func handlekeyEvent(type: CGEventType, event: CGEvent) -> KeyMatchResult {
-        // 直接返回 KeyStateTracker 的匹配结果
-        return keyStateTracker.handleKeyEventWithMatch(type: type, event: event)
+        keyStateTracker.handleKeyEventWithMatch(type: type, event: event)
     }
 }

@@ -35,7 +35,7 @@ extension Color {
             red: Double(r) / 255,
             green: Double(g) / 255,
             blue: Double(b) / 255,
-            opacity: Double(a) / 255
+            opacity: Double(a) / 255,
         )
     }
 
@@ -49,7 +49,17 @@ extension Color {
             red: Double((hex >> 16) & 0xFF) / 255,
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255,
-            opacity: alpha
+            opacity: alpha,
         )
+    }
+}
+
+extension Image {
+    static func systemSymbol(_ name: String) -> Image {
+        if #available(macOS 11.0, *) {
+            Image(systemName: name)
+        } else {
+            Image(nsImage: NSImage(named: NSImage.Name(name)) ?? NSImage())
+        }
     }
 }

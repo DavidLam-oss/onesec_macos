@@ -26,22 +26,21 @@ class StatusPanel: NSPanel {
         self.contentView = NSHostingView(rootView: StatusView())
         
         positionAtBottomCenter()
-//        Task { @MainActor
-//            EventBus.shared.events
-//                .sink { [weak self] event in
-//                    guard let self else { return }
-//
-//                    switch event {
-//                    case .notification(let title, let content):
-//                        // 调整窗口大小为 130 高度
-//                        adjustPanelHeight()
-//
-//                    default:
-//                        break
-//                    }
-//                }
-//                .store(in: &cancellables)
-//        }
+        
+        EventBus.shared.events
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] event in
+                guard let self else { return }
+
+                switch event {
+                case .notificationReceived(_, _):
+                    adjustPanelHeight()
+
+                default:
+                    break
+                }
+            }
+            .store(in: &cancellables)
     }
     
     func positionAtBottomCenter() {

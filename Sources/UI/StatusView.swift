@@ -7,7 +7,6 @@ struct StatusView: View {
     
     @State var recordState: RecordState = .idle
     @State var mode: RecordMode = .normal
-    @State var showNotification: Bool = false
     
     let minInnerRatio: CGFloat = 0.2 // 内圆最小为外圆的20%
     let maxInnerRatio: CGFloat = 0.7 // 内圆最大为外圆的70%
@@ -57,16 +56,82 @@ struct StatusView: View {
         }
     }
     
+    @State var showNotification: Bool = false
+    @State var notificationTitle: String = ""
+    @State var notificationContent: String = ""
+    
+    private var notificationCard: some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Image.systemSymbol("bell.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(modeColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                // 标题
+                Text(notificationTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                // 内容
+                Text(notificationContent)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.85))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(width: 190)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.black)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1),
+                ),
+        )
+        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 0)
+    }
+    
+    // 显示通知的方法
+    private func showNotificationMessage(title: String, content: String, autoHide: Bool = true) {
+        notificationTitle = title
+        notificationContent = content
+        
+        Task {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                showNotification = true
+            }
+            
+            if autoHide {
+                // 再等3秒后隐藏
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    showNotification = false
+                }
+            }
+        }
+    }
+    
     var body: some View {
         ZStack {
-            VStack {
+            VStack(spacing: 8) {
                 Spacer()
                 
                 if showNotification {
-                    Color.clear
-                        .frame(width: outerSize, height: outerSize)
+                    notificationCard.transition(.opacity)
                 }
                 
+                // 状态指示器
                 HStack {
                     Spacer()
                     ZStack {
@@ -108,10 +173,13 @@ struct StatusView: View {
                 }
             }
         }
-        .onReceive(EventBus.shared.events) { event in
+        .onReceive(
+            EventBus.shared.events
+                .receive(on: DispatchQueue.main),
+        ) { event in
             switch event {
             case .volumeChanged(let volume):
-                // 确保音量值在 0-1 范围内，防止内圈超过最大比例
+                // 确保音量值在 0-1 范围
                 self.volume = min(1.0, max(0.0, CGFloat(volume)))
             case .recordingStarted(_, _, _, let recordMode):
                 mode = recordMode
@@ -122,13 +190,13 @@ struct StatusView: View {
                 recordState = .idle
             case .modeUpgraded(let from, let to, _):
                 log.info("statusView receive modeUpgraded \(from) \(to)")
-                if (to == .command) {
+                if to == .command {
                     mode = to
                 }
-                
-                
             case .notificationReceived(let title, let content):
-                showNotification = true
+                showNotificationMessage(title: title, content: content)
+            case .serverTimedout:
+                showNotificationMessage(title: "服务超时", content: "服务器响应超时，请稍后重试")
             default:
                 break
             }

@@ -8,7 +8,7 @@
 import ArgumentParser
 
 struct CommandParser: ParsableCommand {
-    @Option(name: .shortAndLong, help: "")
+    @Option(name: .shortAndLong, help: "UDS服务器地址")
     var udsChannel: String = "/tmp/com.ripplestars.miaoyan.uds.test"
 
     @Option(name: .shortAndLong, help: "服务器主机地址")
@@ -20,11 +20,11 @@ struct CommandParser: ParsableCommand {
     @Option(name: .shortAndLong, help: "设置 Debug 模式")
     var debugMode: Bool = true
 
-    @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn, Fn+Space)")
+    @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn)")
     var normalKeys: String = "Fn"
 
-    @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+Return)")
-    var commandKeys: String = "Fn+Space"
+    @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+LCmd)")
+    var commandKeys: String = "Fn+LCmd"
 
     mutating func run() throws {
         Config.UDS_CHANNEL = udsChannel
@@ -33,17 +33,18 @@ struct CommandParser: ParsableCommand {
         Config.DEBUG_MODE = debugMode
 
         guard ServerValidator.isValid(Config.SERVER) else {
-            throw ValidationError("无效的服务器配置: \(server)")
+            throw ValidationError("Invalid Server: \(server)")
         }
 
-        // 验证并设置按键配置
         Config.NORMAL_KEY_CODES = try parseKeys(normalKeys, name: "普通模式按键")
         Config.COMMAND_KEY_CODES = try parseKeys(commandKeys, name: "命令模式按键")
+
+        log.info("Hotkey inited with normal: \(normalKeys), command: \(commandKeys)")
     }
 
     private func parseKeys(_ keyString: String, name: String) throws -> [Int64] {
         guard let codes = KeyMapper.parseKeyString(keyString) else {
-            throw ValidationError("无效的\(name)配置: \(keyString)")
+            throw ValidationError("Invalid \(name) Config: \(keyString)")
         }
         return codes
     }

@@ -30,10 +30,6 @@ class AudioSinkNodeRecorder {
     private var totalBytesSent = 0
     private var recordingStartTime: Date?
     
-    // 音频文件调试
-    private var audioFile: AVAudioFile?
-    private var recordingURL: URL?
-    
     // 识别结果存储
     private var recognitionResults: [String] = []
     private var currentRecognitionText: String = ""
@@ -54,8 +50,6 @@ class AudioSinkNodeRecorder {
     }
     
     private func setupSinkNodeAudioEngine() {
-        log.info("🚀 设置 AVAudioSinkNode 低延迟录音器...")
-        
         let inputNode = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
         
@@ -80,7 +74,7 @@ class AudioSinkNodeRecorder {
         audioEngine.attach(sinkNode)
         audioEngine.connect(inputNode, to: sinkNode, format: inputFormat)
         
-        log.info("✅ AVAudioSinkNode 音频引擎设置完成")
+        log.info("✅ SinkNode 音频引擎设置完成")
     }
     
     /// 处理SinkNode接收到的音频缓冲区
@@ -112,7 +106,7 @@ class AudioSinkNodeRecorder {
         guard let inputData = inputBuffer.audioBufferList.pointee.mBuffers.mData,
               let sourceData = audioBuffer.mData
         else {
-            log.warning("音频缓冲区数据指针为空")
+            log.error("音频缓冲区数据指针为空")
             return
         }
         
@@ -193,30 +187,20 @@ class AudioSinkNodeRecorder {
 
     func startRecording(appInfo: AppInfo? = nil, focusContext: FocusContext? = nil, focusElementInfo: FocusElementInfo? = nil, recordMode: RecordMode = .normal) {
         guard recordState != .recording else {
-            log.warning("录音已在进行中")
+            log.warning("Recording is in progress")
             return
         }
         
-        log.info("🎙️ 开始SinkNode录音...")
-        
-        // 重置状态
-        bufferCount = 0
-        firstBufferTime = nil
-        pendingAudioBuffers.removeAll()
-        
-        // 重置统计数据
-        totalPacketsSent = 0
-        totalBytesSent = 0
-        recordingStartTime = Date()
-        
-        // 创建调试音频文件（仅在调试模式下）
-        if Config.DEBUG_MODE {
-            createAudioFile()
+        guard ConnectionCenter.shared.isWssServerConnected() else {
+            log.warning("Websocket Server not connected")
+            // TODO: send event
+            return
         }
         
-        // 确保WebSocket连接
-//        ConnectionCenter.shared.ensureWebSocketConnection()
+        log.info("🎙️ 开始录音...")
         
+        // 重置状态
+        resetState()
         recordState = .recording
         EventBus.shared.publish(.recordingStarted(
             appInfo: appInfo,
@@ -227,20 +211,18 @@ class AudioSinkNodeRecorder {
         
         do {
             try audioEngine.start()
-            log.info("✅ SinkNode录音启动成功")
         } catch {
-            log.error("SinkNode录音启动失败: \(error.localizedDescription)")
+            log.error("🙅 录音启动失败: \(error.localizedDescription)")
         }
     }
     
-    /// 停止录音
     func stopRecording() {
         guard recordState == .recording else {
             log.warning("录音未在进行中")
             return
         }
         
-        log.info("🛑 停止SinkNode录音...")
+        log.info("🛑 停止录音...")
         recordState = .stopping
         
         // 停止音频引擎
@@ -274,15 +256,20 @@ class AudioSinkNodeRecorder {
             log.info("   🎯 数据完整性: \(String(format: "%.1f", efficiency))% (理论: \(String(format: "%.2f", Double(theoreticalBytes) / 1024.0)) KB)")
         }
         
+        log.info("✅ 录音停止")
+    }
+    
+    func resetState() {
         // 重置状态
         recordState = .idle
         bufferCount = 0
         firstBufferTime = nil
+        pendingAudioBuffers.removeAll()
+        
+        // 重置统计数据
         totalPacketsSent = 0
         totalBytesSent = 0
-        recordingStartTime = nil
-        
-        log.info("✅ SinkNode录音已停止")
+        recordingStartTime = Date()
     }
     
     /// 获取当前识别结果
@@ -293,51 +280,6 @@ class AudioSinkNodeRecorder {
     /// 获取所有识别结果
     func getAllRecognitionResults() -> [String] {
         recognitionResults
-    }
-    
-    // MARK: - 私有辅助方法
-    
-    /// 创建音频文件
-    private func createAudioFile() {
-        // 先关闭之前的文件
-        audioFile = nil
-        
-        // 生成文件名（包含毫秒，确保唯一性）
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss-SSS"
-        let fileName = "SinkNode_录音_\(formatter.string(from: Date())).wav"
-        
-        // 获取用户主目录
-        let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
-        recordingURL = homeDirectory.appendingPathComponent(fileName)
-        
-        guard let url = recordingURL else {
-            log.error("无法创建录音文件 URL")
-            return
-        }
-        
-        // 删除已存在的文件（确保从空白开始）
-        if FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
-        }
-        
-        // 使用 PCM 格式保存，便于查看位深度信息
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatLinearPCM), // PCM 未压缩格式
-            AVSampleRateKey: targetFormat.sampleRate, // 16000Hz
-            AVNumberOfChannelsKey: targetFormat.channelCount, // 1声道
-            AVLinearPCMBitDepthKey: 16, // 16位深度
-            AVLinearPCMIsBigEndianKey: false, // 小端序
-            AVLinearPCMIsFloatKey: false, // 整数格式
-            AVLinearPCMIsNonInterleaved: false // 交错格式
-        ]
-        
-        do {
-            audioFile = try AVAudioFile(forWriting: url, settings: settings)
-            log.debug("录音文件创建成功: \(url.path)")
-        } catch {
-            log.error("录音文件创建失败: \(error.localizedDescription)")
-        }
     }
     
     /// 计算音频缓冲区的音量

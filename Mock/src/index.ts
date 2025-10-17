@@ -93,6 +93,16 @@ const server = net.createServer((socket) => {
   //     ]
   //   }));
   // },4000)
+  const timestamp = Date.now()
+  // const startHotkeySetting =
+  //   setTimeout(() => {
+  //     sendMessage(socket, createMessage('hotkey_setting', {
+  //         type: 'hotkey_setting',
+  //         timestamp,
+  //         mode: 'normal',
+  //       }
+  //     ));
+  //   }, 3000)
 
   return
 

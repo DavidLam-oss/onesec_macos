@@ -13,12 +13,12 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
     func didReceive(event: WebSocketEvent, client: WebSocketClient) {
         switch event {
         case .connected:
-            log.info("WebSocket connected")
+            log.debug("WebSocket connected")
             connectionState = .connected
-            currentRetryCount = 0 // 连接成功，重置重试计数
+            curRetryCount = 0
 
         case .disconnected(let reason, let code):
-            log.info("WebSocket disconnect with: \(reason) code: \(code)")
+            log.debug("WebSocket disconnect with: \(reason) code: \(code)")
             connectionState = .disconnected
             // 正常断开连接时触发重连
             scheduleReconnect(reason: "Disconnected: \(reason)")
@@ -92,16 +92,14 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
         log.error("WebSocket handshake failed with: \(status)，message: \(message)")
         connectionState = .disconnected
 
-        // 401/403 停止重连，交由上层刷新凭证后再 connect
-        if status == 401 || status == 403 {
-            let reason = status == 401 ? "auth_token invalid" : "permission denied"
-            // 重置重试计数，不触发自动重连
-            currentRetryCount = 0
+        guard ![401, 403].contains(status) else {
+            curRetryCount = 0
+            let reason = status == 401 ? "auth invalid" : "permission denied"
             log.warning("WebSocket auth failed (\(status)), stop auto-reconnect")
             EventBus.shared.publish(.authTokenFailed(reason: reason, statusCode: status))
-        } else {
-            // 其他HTTP错误，触发重连
-            scheduleReconnect(reason: "HTTP upgrade failed: \(status)")
+            return
         }
+
+        scheduleReconnect(reason: "HTTP upgrade failed: \(status)")
     }
 }
