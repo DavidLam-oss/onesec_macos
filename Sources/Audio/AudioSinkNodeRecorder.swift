@@ -263,7 +263,7 @@ class AudioSinkNodeRecorder {
             log.info("📊 录音统计报告:")
             log.info("   📦 总包数: \(totalPacketsSent) 个")
             log.info("   📁 总数据量: \(String(format: "%.2f", Double(totalBytesSent) / 1024.0)) KB (\(totalBytesSent) 字节)")
-            log.info("   ⏱️ 录音时长: \(String(format: "%.2f", duration)) 秒")
+            log.info("   🤡 录音时长: \(String(format: "%.2f", duration)) 秒")
             log.info("   📊 平均包大小: \(String(format: "%.1f", avgPacketSize)) 字节")
             log.info("   📈 发送频率: \(String(format: "%.1f", packetsPerSecond)) 包/秒")
             log.info("   📈 数据速率: \(String(format: "%.1f", bytesPerSecond / 1024.0)) KB/秒")
@@ -368,30 +368,4 @@ class AudioSinkNodeRecorder {
         let rms = sqrt(sum / Float(frameCount))
         return min(1.0, rms * 10.0) // 放大音量并限制在 0-1 范围内
     }
-    
-    // MARK: - WebSocketRecognitionDelegate
-    
-//    func didReceiveMessage(_ summary: String, serverTime: Int?) {
-//        log.info("收到识别汇总: \(summary)")
-//
-//        // 记录服务端耗时
-//        if let serverTime {
-//            log.info("服务端耗时: \(serverTime)ms")
-//        }
-//
-//        // 将汇总结果也添加到识别结果中
-//        if !summary.isEmpty, summary != "未获取到识别结果" {
-//            recognitionResults.append(summary)
-//            currentRecognitionText = summary
-//            log.info("识别汇总已添加到结果列表")
-//
-//            performTextInputWithResult(summary, serverTime: serverTime)
-//
-//        } else {
-//            log.warning("识别汇总为空或无效")
-//            // 即使没有有效结果，也要发送通知到UDS
-//            performTextInputWithResult("未获取到识别结果", serverTime: serverTime)
-//        }
-//    }
-
 }

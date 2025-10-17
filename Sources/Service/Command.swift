@@ -19,11 +19,31 @@ struct CommandParser: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "设置 Debug 模式")
     var debugMode: Bool = true
+    
+    @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn, Fn+Space)")
+    var normalKeys: String = "Fn"
+    
+    @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+Return)")
+    var commandKeys: String = "Fn+Space"
 
     mutating func run() throws {
         Config.UDS_CHANNEL = udsChannel
         Config.SERVER = server
         Config.AUTH_TOKEN = authToken
         Config.DEBUG_MODE = debugMode
+        
+        // 解析普通模式按键
+        if let normalKeyCodes = KeyMapper.parseKeyString(normalKeys) {
+            Config.NORMAL_KEY_CODES = normalKeyCodes
+        } else {
+            throw ValidationError("无效的普通模式按键配置: \(normalKeys)")
+        }
+        
+        // 解析命令模式按键
+        if let commandKeyCodes = KeyMapper.parseKeyString(commandKeys) {
+            Config.COMMAND_KEY_CODES = commandKeyCodes
+        } else {
+            throw ValidationError("无效的命令模式按键配置: \(commandKeys)")
+        }
     }
 }

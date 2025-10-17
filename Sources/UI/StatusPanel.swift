@@ -3,12 +3,12 @@ import Combine
 import SwiftUI
 
 class StatusPanel: NSPanel {
-    var panelSize = NSSize(width: 200, height: 30)
+    var panelSize = NSSize(width: 200, height: 40)
     private var cancellables = Set<AnyCancellable>()
     
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 200, height: 30),
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 40),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,

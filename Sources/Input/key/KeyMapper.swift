@@ -65,7 +65,72 @@ class KeyMapper {
     /// - Parameter keyCode: 键码
     /// - Returns: 对应的字符串描述
     static func keyCodeToString(_ keyCode: Int64) -> String {
-        return keyCodeMap[keyCode] ?? "Key(\(keyCode))"
+        keyCodeMap[keyCode] ?? "Key(\(keyCode))"
+    }
+    
+    /// 反向映射：从字符串到键码
+    static let stringToKeyCodeMap: [String: Int64] = {
+        var map: [String: Int64] = [:]
+        for (code, name) in keyCodeMap {
+            // 保存原始名称
+            map[name] = code
+            // 同时保存大写版本
+            map[name.uppercased()] = code
+            // 为修饰键添加简化版本
+            if name.contains("Left Command") {
+                map["Left Cmd"] = code
+                map["LCmd"] = code
+            } else if name.contains("Right Command") {
+                map["Right Cmd"] = code
+                map["RCmd"] = code
+            } else if name.contains("Left Shift") {
+                map["LShift"] = code
+            } else if name.contains("Right Shift") {
+                map["RShift"] = code
+            } else if name.contains("Left Option") {
+                map["LOpt"] = code
+                map["Left Alt"] = code
+            } else if name.contains("Right Option") {
+                map["ROpt"] = code
+                map["Right Alt"] = code
+            } else if name.contains("Left Control") {
+                map["LCtrl"] = code
+            } else if name.contains("Right Control") {
+                map["RCtrl"] = code
+            }
+        }
+        return map
+    }()
+    
+    /// 将字符串组合转换为键码数组
+    /// - Parameter keyString: 按键组合字符串，如 "Fn+Space" 或 "Fn"
+    /// - Returns: 对应的键码数组，如果有无效按键则返回 nil
+    static func parseKeyString(_ keyString: String) -> [Int64]? {
+        // 去除首尾空格
+        let trimmed = keyString.trimmingCharacters(in: .whitespaces)
+        
+        // 按 + 分割
+        let keys = trimmed.split(separator: "+").map { $0.trimmingCharacters(in: .whitespaces) }
+        
+        var keyCodes: [Int64] = []
+        for key in keys {
+            // 尝试在映射表中查找
+            if let keyCode = stringToKeyCodeMap[key] {
+                keyCodes.append(keyCode)
+            } else {
+                return nil
+            }
+        }
+        
+        return keyCodes
+    }
+    
+    /// 将键码数组转换为组合按键字符串
+    /// - Parameter keyCodes: 键码集合
+    /// - Returns: 用 "+" 连接的按键描述字符串，如 "Fn+Space"
+    static func keyCodesToString(_ keyCodes: some Collection<Int64>) -> String {
+        keyCodes
+            .compactMap { keyCodeMap[$0] }
+            .joined(separator: "+")
     }
 }
-

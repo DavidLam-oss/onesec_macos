@@ -14,9 +14,10 @@ enum AppEvent {
     case recordingStopped
     case audioDataReceived(data: Data)
     case serverResultReceived(summary: String, serverTime: Int?)
-    case modeUpgraded(fromMode: RecordMode, toMode: RecordMode, focusContext: FocusContext?)
+    case modeUpgraded(from: RecordMode, to: RecordMode, focusContext: FocusContext?)
     case authTokenFailed(reason: String, statusCode: Int?)
     case notificationReceived(title: String, content: String)
+    case userConfigChanged(authToken: String, hotkeyConfigs: [[String: Any]])
 }
 
 class EventBus: @unchecked Sendable {
@@ -46,11 +47,20 @@ class EventBus: @unchecked Sendable {
 }
 
 extension EventBus {
-    var volumeChange: AnyPublisher<Float, Never> {
+    var volumeChanged: AnyPublisher<Float, Never> {
         eventSubject
             .compactMap { event in
                 guard case .volumeChanged(let volume) = event else { return nil }
                 return volume
+            }
+            .eraseToAnyPublisher()
+    }
+
+    var serverResultReceived: AnyPublisher<String, Never> {
+        eventSubject
+            .compactMap { event in
+                guard case .serverResultReceived(let summary, let serverTime) = event else { return nil }
+                return summary
             }
             .eraseToAnyPublisher()
     }

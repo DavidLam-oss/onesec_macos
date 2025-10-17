@@ -38,7 +38,7 @@ struct WebSocketMessage {
     let data: [String: Any]?
 
     static func create(type: MessageType, data: [String: Any]? = nil) -> WebSocketMessage {
-        return WebSocketMessage(
+        WebSocketMessage(
             type: type,
             timestamp: Int64(Date().timeIntervalSince1970 * 1000),
             data: data
@@ -53,7 +53,7 @@ extension WebSocketMessage {
             "timestamp": timestamp
         ]
 
-        if let data = data {
+        if let data {
             json["data"] = data
         }
 
@@ -81,7 +81,7 @@ struct AppInfo {
     let shortVersion: String
 
     func toJSON() -> [String: Any] {
-        return [
+        [
             "app_name": appName,
             "bundle_id": bundleID,
             "short_version": shortVersion
@@ -96,7 +96,7 @@ struct FocusContext {
     let selectedText: String
 
     func toJSON() -> [String: Any] {
-        return [
+        [
             "input_content": inputContent,
             "selected_text": selectedText
         ]
@@ -113,7 +113,7 @@ struct FocusElementInfo {
     let axDescription: String
 
     func toJSON() -> [String: Any] {
-        return [
+        [
             "window_title": windowTitle,
             "ax_role": axRole,
             "ax_role_description": axRoleDescription,

@@ -59,26 +59,6 @@ struct StatusView: View {
     
     var body: some View {
         ZStack {
-            // 背景层 - 不响应鼠标事件
-            VStack {
-                Spacer()
-                
-                if showNotification {
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: outerSize, height: outerSize)
-                }
-               
-                HStack {
-                    Spacer()
-                    Color.clear
-                        .frame(width: outerSize, height: outerSize)
-                    Spacer()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.clear)
-            .allowsHitTesting(false)
             
             // 内外圈层 - 只有圆形区域响应鼠标事件
             VStack {
@@ -142,11 +122,15 @@ struct StatusView: View {
                 recordState = .processing
             case .serverResultReceived:
                 recordState = .idle
-            case .modeUpgraded(_, let toMode, _):
-                mode = toMode
+            case .modeUpgraded(let from, let to, _):
+                log.info("statusView receive modeUpgraded \(from) \(to)")
+                if (to == .command) {
+                    mode = to
+                }
+                
+                
             case .notificationReceived(let title, let content):
                 showNotification = true
-                log.info("title \(title)\n \(content)")
             default:
                 break
             }

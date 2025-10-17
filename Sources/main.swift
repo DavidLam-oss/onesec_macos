@@ -10,6 +10,6 @@ PermissionManager.shared.checkAllPermissions { results in
 
 
 log.info(ConnectionCenter.shared)
-let voiceInputController = VoiceInputController()
+let voiceInputController = InputController()
 
 RunLoop.main.run()
