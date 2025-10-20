@@ -89,104 +89,99 @@ struct StatusView: View {
     }
     
     var body: some View {
-        Circle()
-            .fill(Color.blue)
-            .frame(width: outerSize, height: outerSize).onTapGesture {
-                print("111 - NotificationCard tapped!")
-            }
-//        ZStack {
-//            VStack(spacing: 8) {
-//                Spacer()
-//
-//                if showNotification {
-//                    NotificationCard(
-//                        title: notificationTitle,
-//                        content: notificationContent,
-//                        iconColor: modeColor,
-//                        showCloseButton: true,
-//                        onClose: {
-//                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-//                                showNotification = false
-//                            }
-//                        },
-//                    )
-//                    .fixedSize()
-//                    .contentShape(Rectangle())
-//                    .onTapGesture {
-//                        print("111 - NotificationCard tapped!")
-//                    }
-//                    .transition(.opacity)
-//                }
-//
-//                // 状态指示器
-//                HStack {
-//                    Spacer()
-//                    ZStack {
-//                        // 外圆背景
-//                        Circle()
-//                            .fill(outerBackgroundColor)
-//                            .frame(width: outerSize, height: outerSize)
-//
-//                        // 外圆
-//                        Circle()
-//                            .strokeBorder(borderColor, lineWidth: 1)
-//                            .frame(width: outerSize, height: outerSize)
-//
-//                        // 内圆
-//                        Group {
-//                            if recordState == .idle {
-//                                Circle()
-//                                    .fill(Color(hex: "#888888B2"))
-//                                    .frame(width: innerSize, height: innerSize)
-//                            } else if recordState == .recording {
-//                                Circle()
-//                                    .fill(modeColor)
-//                                    .frame(width: innerSize, height: innerSize)
-//                            } else if recordState == .processing {
-//                                Spinner(
-//                                    color: modeColor,
-//                                    size: 13,
-//                                )
-//                            }
-//                        }
-//                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
-//                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
-//                    }
-//                    .frame(width: outerSize, height: outerSize)
-//                    .contentShape(Circle())
-//                    .offset(y: recordState == .idle ? 0 : -4)
-//                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
-//                    Spacer()
-//                }
-//            }
-//        }
-//        .onReceive(
-//            EventBus.shared.events
-//                .receive(on: DispatchQueue.main),
-//        ) { event in
-//            switch event {
-//            case .volumeChanged(let volume):
-//                // 确保音量值在 0-1 范围
-//                self.volume = min(1.0, max(0.0, CGFloat(volume)))
-//            case .recordingStarted(_, _, _, let recordMode):
-//                mode = recordMode
-//                recordState = .recording
-//            case .recordingStopped:
-//                recordState = .processing
-//            case .serverResultReceived:
-//                recordState = .idle
-//            case .modeUpgraded(let from, let to, _):
-//                log.info("statusView receive modeUpgraded \(from) \(to)")
-//                if to == .command {
-//                    mode = to
-//                }
-//            case .notificationReceived(let messageType):
-//                showNotificationMessage(messageType)
-//            case .serverTimedout:
-//                showNotificationMessage(.serverTimeout)
-//            default:
-//                break
-//            }
-//        }
+       ZStack {
+           VStack(spacing: 8) {
+               Spacer()
+
+               if showNotification {
+                   NotificationCard(
+                       title: notificationTitle,
+                       content: notificationContent,
+                       iconColor: modeColor,
+                       showCloseButton: true,
+                       onClose: {
+                           withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                               showNotification = false
+                           }
+                       },
+                   )
+                   .fixedSize()
+                   .contentShape(Rectangle())
+                   .onTapGesture {
+                       print("111 - NotificationCard tapped!")
+                   }
+                   .transition(.opacity)
+               }
+
+               // 状态指示器
+               HStack {
+                   Spacer()
+                   ZStack {
+                       // 外圆背景
+                       Circle()
+                           .fill(outerBackgroundColor)
+                           .frame(width: outerSize, height: outerSize)
+
+                       // 外圆
+                       Circle()
+                           .strokeBorder(borderColor, lineWidth: 1)
+                           .frame(width: outerSize, height: outerSize)
+
+                       // 内圆
+                       Group {
+                           if recordState == .idle {
+                               Circle()
+                                   .fill(Color(hex: "#888888B2"))
+                                   .frame(width: innerSize, height: innerSize)
+                           } else if recordState == .recording {
+                               Circle()
+                                   .fill(modeColor)
+                                   .frame(width: innerSize, height: innerSize)
+                           } else if recordState == .processing {
+                               Spinner(
+                                   color: modeColor,
+                                   size: 13,
+                               )
+                           }
+                       }
+                       .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
+                       .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
+                   }
+                   .frame(width: outerSize, height: outerSize)
+                   .contentShape(Circle())
+                   .offset(y: recordState == .idle ? 0 : -4)
+                   .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
+                   Spacer()
+               }
+           }
+       }
+       .onReceive(
+           EventBus.shared.events
+               .receive(on: DispatchQueue.main),
+       ) { event in
+           switch event {
+           case .volumeChanged(let volume):
+               // 确保音量值在 0-1 范围
+               self.volume = min(1.0, max(0.0, CGFloat(volume)))
+           case .recordingStarted(_, _, _, let recordMode):
+               mode = recordMode
+               recordState = .recording
+           case .recordingStopped:
+               recordState = .processing
+           case .serverResultReceived:
+               recordState = .idle
+           case .modeUpgraded(let from, let to, _):
+               log.info("statusView receive modeUpgraded \(from) \(to)")
+               if to == .command {
+                   mode = to
+               }
+           case .notificationReceived(let messageType):
+               showNotificationMessage(messageType)
+           case .serverTimedout:
+               showNotificationMessage(.serverTimeout)
+           default:
+               break
+           }
+       }
     }
 }
