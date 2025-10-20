@@ -1,11 +1,22 @@
 import Foundation
+import Cocoa
 
-CommandParser.main()
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var connectionCenter: ConnectionCenter?
+    var inputController: InputController?
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        CommandParser.main()
+        
+        SoundService.shared.initialize()
+        SignalHandler.shared.setupSignalHandlers()
+        
+        connectionCenter = ConnectionCenter.shared
+        inputController = InputController()
+    }
+}
 
-SoundService.shared.initialize()
-SignalHandler.shared.setupSignalHandlers()
-
-let connectionCenter = ConnectionCenter.shared
-let inputController = InputController()
-
-RunLoop.main.run()
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.run()
