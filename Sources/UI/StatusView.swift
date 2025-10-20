@@ -60,46 +60,12 @@ struct StatusView: View {
     @State var notificationTitle: String = ""
     @State var notificationContent: String = ""
     
-    private var notificationCard: some View {
-        HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Image.systemSymbol("bell.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(modeColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                // 标题
-                Text(notificationTitle)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                
-                // 内容
-                Text(notificationContent)
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.85))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(width: 190)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1),
-                ),
-        )
-        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 0)
+    // 显示通知的方法
+    private func showNotificationMessage(_ messageType: NotificationMessageType, autoHide: Bool = true) {
+        showNotificationMessage(title: messageType.title, content: messageType.content, autoHide: autoHide)
     }
     
-    // 显示通知的方法
+    // 显示通知的方法 - 支持自定义标题和内容
     private func showNotificationMessage(title: String, content: String, autoHide: Bool = true) {
         notificationTitle = title
         notificationContent = content
@@ -111,95 +77,116 @@ struct StatusView: View {
                 showNotification = true
             }
             
-            if autoHide {
-                // 再等3秒后隐藏
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            // if autoHide {
+            //     // 再等3秒后隐藏
+            //     try? await Task.sleep(nanoseconds: 3_000_000_000)
                 
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    showNotification = false
-                }
-            }
+            //     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            //         showNotification = false
+            //     }
+            // }
         }
     }
     
     var body: some View {
-        ZStack {
-            VStack(spacing: 8) {
-                Spacer()
-                
-                if showNotification {
-                    notificationCard.transition(.opacity)
-                }
-                
-                // 状态指示器
-                HStack {
-                    Spacer()
-                    ZStack {
-                        // 外圆背景
-                        Circle()
-                            .fill(outerBackgroundColor)
-                            .frame(width: outerSize, height: outerSize)
-                        
-                        // 外圆
-                        Circle()
-                            .strokeBorder(borderColor, lineWidth: 1)
-                            .frame(width: outerSize, height: outerSize)
-                        
-                        // 内圆
-                        Group {
-                            if recordState == .idle {
-                                Circle()
-                                    .fill(Color(hex: "#888888B2"))
-                                    .frame(width: innerSize, height: innerSize)
-                            } else if recordState == .recording {
-                                Circle()
-                                    .fill(modeColor)
-                                    .frame(width: innerSize, height: innerSize)
-                            } else if recordState == .processing {
-                                Spinner(
-                                    color: modeColor,
-                                    size: 13,
-                                )
-                            }
-                        }
-                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
-                    }
-                    .frame(width: outerSize, height: outerSize)
-                    .contentShape(Circle())
-                    .offset(y: recordState == .idle ? 0 : -4)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
-                    Spacer()
-                }
+        Circle()
+            .fill(Color.blue)
+            .frame(width: outerSize, height: outerSize).onTapGesture {
+                print("111 - NotificationCard tapped!")
             }
-        }
-        .onReceive(
-            EventBus.shared.events
-                .receive(on: DispatchQueue.main),
-        ) { event in
-            switch event {
-            case .volumeChanged(let volume):
-                // 确保音量值在 0-1 范围
-                self.volume = min(1.0, max(0.0, CGFloat(volume)))
-            case .recordingStarted(_, _, _, let recordMode):
-                mode = recordMode
-                recordState = .recording
-            case .recordingStopped:
-                recordState = .processing
-            case .serverResultReceived:
-                recordState = .idle
-            case .modeUpgraded(let from, let to, _):
-                log.info("statusView receive modeUpgraded \(from) \(to)")
-                if to == .command {
-                    mode = to
-                }
-            case .notificationReceived(let title, let content):
-                showNotificationMessage(title: title, content: content)
-            case .serverTimedout:
-                showNotificationMessage(title: "服务超时", content: "服务器响应超时，请稍后重试")
-            default:
-                break
-            }
-        }
+//        ZStack {
+//            VStack(spacing: 8) {
+//                Spacer()
+//
+//                if showNotification {
+//                    NotificationCard(
+//                        title: notificationTitle,
+//                        content: notificationContent,
+//                        iconColor: modeColor,
+//                        showCloseButton: true,
+//                        onClose: {
+//                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+//                                showNotification = false
+//                            }
+//                        },
+//                    )
+//                    .fixedSize()
+//                    .contentShape(Rectangle())
+//                    .onTapGesture {
+//                        print("111 - NotificationCard tapped!")
+//                    }
+//                    .transition(.opacity)
+//                }
+//
+//                // 状态指示器
+//                HStack {
+//                    Spacer()
+//                    ZStack {
+//                        // 外圆背景
+//                        Circle()
+//                            .fill(outerBackgroundColor)
+//                            .frame(width: outerSize, height: outerSize)
+//
+//                        // 外圆
+//                        Circle()
+//                            .strokeBorder(borderColor, lineWidth: 1)
+//                            .frame(width: outerSize, height: outerSize)
+//
+//                        // 内圆
+//                        Group {
+//                            if recordState == .idle {
+//                                Circle()
+//                                    .fill(Color(hex: "#888888B2"))
+//                                    .frame(width: innerSize, height: innerSize)
+//                            } else if recordState == .recording {
+//                                Circle()
+//                                    .fill(modeColor)
+//                                    .frame(width: innerSize, height: innerSize)
+//                            } else if recordState == .processing {
+//                                Spinner(
+//                                    color: modeColor,
+//                                    size: 13,
+//                                )
+//                            }
+//                        }
+//                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
+//                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
+//                    }
+//                    .frame(width: outerSize, height: outerSize)
+//                    .contentShape(Circle())
+//                    .offset(y: recordState == .idle ? 0 : -4)
+//                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
+//                    Spacer()
+//                }
+//            }
+//        }
+//        .onReceive(
+//            EventBus.shared.events
+//                .receive(on: DispatchQueue.main),
+//        ) { event in
+//            switch event {
+//            case .volumeChanged(let volume):
+//                // 确保音量值在 0-1 范围
+//                self.volume = min(1.0, max(0.0, CGFloat(volume)))
+//            case .recordingStarted(_, _, _, let recordMode):
+//                mode = recordMode
+//                recordState = .recording
+//            case .recordingStopped:
+//                recordState = .processing
+//            case .serverResultReceived:
+//                recordState = .idle
+//            case .modeUpgraded(let from, let to, _):
+//                log.info("statusView receive modeUpgraded \(from) \(to)")
+//                if to == .command {
+//                    mode = to
+//                }
+//            case .notificationReceived(let messageType):
+//                showNotificationMessage(messageType)
+//            case .serverTimedout:
+//                showNotificationMessage(.serverTimeout)
+//            default:
+//                break
+//            }
+//        }
     }
 }

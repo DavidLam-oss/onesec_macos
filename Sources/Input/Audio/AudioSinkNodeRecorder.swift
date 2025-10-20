@@ -326,6 +326,7 @@ extension AudioSinkNodeRecorder {
         else if let startTime = queueStartTime, Date().timeIntervalSince(startTime) >= 3.0 {
             log.error("Audio queue timeout: failed to establish connection within 3 seconds.")
             stopRecording()
+            EventBus.shared.publish(.notificationReceived(.recordingTimeout))
         }
     }
 }

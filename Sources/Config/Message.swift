@@ -73,6 +73,41 @@ extension WebSocketMessage {
     }
 }
 
+// MARK: - 通知消息类型
+
+enum NotificationMessageType {
+    case serverTimeout          // 服务超时
+    case recordingFailed        // 录音失败
+    case recordingTimeout       // 录音超时
+    case custom(title: String, content: String)  // 自定义消息
+    
+    var title: String {
+        switch self {
+        case .serverTimeout:
+            return "服务超时"
+        case .recordingFailed:
+            return "录音失败"
+        case .recordingTimeout:
+            return "录音超时"
+        case .custom(let title, _):
+            return title
+        }
+    }
+    
+    var content: String {
+        switch self {
+        case .serverTimeout:
+            return "服务器响应超时，请稍后重试"
+        case .recordingFailed:
+            return "服务器响应超时或权限消失"
+        case .recordingTimeout:
+            return "服务器未连接或缺失权限"
+        case .custom(_, let content):
+            return content
+        }
+    }
+}
+
 // MARK: - 记录当前激活应用的基本信息
 
 struct AppInfo {

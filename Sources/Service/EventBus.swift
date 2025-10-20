@@ -15,7 +15,7 @@ enum AppEvent {
     case audioDataReceived(data: Data)
     case serverResultReceived(summary: String, serverTime: Int?)
     case modeUpgraded(from: RecordMode, to: RecordMode, focusContext: FocusContext?)
-    case notificationReceived(title: String, content: String)
+    case notificationReceived(NotificationMessageType)
     case serverTimedout
     //
     case authTokenFailed(reason: String, statusCode: Int?)
