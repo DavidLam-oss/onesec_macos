@@ -23,7 +23,7 @@ enum AppEvent {
     case hotkeySettingStarted(mode: RecordMode)
     case hotkeySettingEnded(mode: RecordMode, hotkeyCombination: [String])
     case hotkeySettingUpdated(mode: RecordMode, hotkeyCombination: [String])
-    case hotkeySettingResulted(mode: RecordMode, hotkeyCombination: [String])
+    case hotkeySettingResulted(mode: RecordMode, hotkeyCombination: [String], isConflict: Bool = false)
 }
 
 class EventBus: @unchecked Sendable {

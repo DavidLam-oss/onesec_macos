@@ -17,37 +17,49 @@ struct StatusIndicator: View {
 
     let minInnerRatio: CGFloat = 0.2  // 内圆最小为外圆的20%
     let maxInnerRatio: CGFloat = 0.7  // 内圆最大为外圆的70%
+    
+    @State private var isHovered: Bool = false
+    @State private var tooltipVisible: Bool = false
+    @State private var tooltipOpacity: Double = 0
+    @State private var isAnimating: Bool = false
 
     private var modeColor: Color {
         mode == .normal ? auroraGreen : starlightYellow
     }
 
-    // 外圆大小
-    private var outerSize: CGFloat {
+    // 基准大小
+    private let baseSize: CGFloat = 20
+    
+    // 外圆缩放比例
+    private var outerScale: CGFloat {
         switch recordState {
         case .idle:
-            20
+            1.0
         case .recording, .processing:
-            25
+            1.25  // 25/20 = 1.25，放大25%
         default:
-            20
+            1.0
         }
     }
 
     private var innerSize: CGFloat {
         let ratio = minInnerRatio + (maxInnerRatio - minInnerRatio) * volume
-        return outerSize * ratio
+        return baseSize * ratio
     }
 
     // 外圆背景颜色
     private var outerBackgroundColor: Color {
+        if isHovered {
+            return Color.black
+        }
+        
         switch recordState {
         case .idle:
-            Color.clear
+            return Color.clear
         case .recording, .processing:
-            Color.black
+            return Color.black
         default:
-            Color.clear
+            return Color.clear
         }
     }
 
@@ -77,52 +89,121 @@ struct StatusIndicator: View {
     }
 
     var body: some View {
-        ZStack {
-            // 点击响应层
-            Circle()
-                .fill(Color.white.opacity(0.001))
-                .frame(width: outerSize, height: outerSize)
-
-            // 外圆背景
-            Circle()
-                .fill(outerBackgroundColor)
-                .frame(width: outerSize, height: outerSize)
-
-            // 外圆
-            Circle()
-                .strokeBorder(borderColor, lineWidth: 1)
-                .frame(width: outerSize, height: outerSize)
-
-            // 内圆
-            Group {
-                if recordState == .idle {
-                    Circle()
-                        .fill(Color(hex: "#888888B2"))
-                        .frame(width: innerSize, height: innerSize)
-                } else if recordState == .recording {
-                    Circle()
-                        .fill(modeColor)
-                        .frame(width: innerSize, height: innerSize)
-                } else if recordState == .processing {
-                    Spinner(
-                        color: modeColor,
-                        size: 13,
-                    )
+        ZStack(alignment: .bottom) {
+            // Tooltip
+            if tooltipVisible {
+                VStack(spacing: 0) {
+                    Text("按住 fn 开始语音输入 或  点击进行设置")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.black)
+                        .cornerRadius(6)
+                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                        .opacity(tooltipOpacity).fixedSize()
+                    
+                    Spacer()
+                        .frame(height: baseSize * outerScale * (isHovered ? 1.5 : 1.0) + 8)
                 }
             }
-            .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
-        }
-        .frame(width: outerSize, height: outerSize)
-        .contentShape(Circle())
-        .onHover { isHovering in
-            if isHovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
+            
+            // StatusIndicator
+            ZStack {
+                // 点击响应层
+                Circle()
+                    .fill(Color.white.opacity(0.001))
+                    .frame(width: baseSize, height: baseSize)
+
+                // 外圆背景
+                Circle()
+                    .fill(outerBackgroundColor)
+                    .frame(width: baseSize, height: baseSize)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovered)
+
+                // 外圆
+                Circle()
+                    .strokeBorder(borderColor, lineWidth: 1)
+                    .frame(width: baseSize, height: baseSize)
+
+                // 内圆
+                Group {
+                    if recordState == .idle {
+                        Circle()
+                            .fill(Color(hex: "#888888B2"))
+                            .frame(width: innerSize, height: innerSize)
+                    } else if recordState == .recording {
+                        Circle()
+                            .fill(modeColor)
+                            .frame(width: innerSize, height: innerSize)
+                    } else if recordState == .processing {
+                        Spinner(
+                            color: modeColor,
+                            size: 10,
+                        )
+                    }
+                }
+                .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
             }
+            .frame(width: baseSize, height: baseSize)
+            .contentShape(Circle())
+            .scaleEffect(outerScale, anchor: .bottom)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: outerScale)
+            .scaleEffect(isHovered ? 1.5 : 1.0, anchor: .bottom)
+            .onHover { isHovering in
+                // 防止重复触发
+                guard isHovering != isHovered || !isAnimating else { return }
+                
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    isHovered = isHovering
+                }
+                
+                if isHovering {
+                    NSCursor.pointingHand.push()
+                    
+                    // 防止重复执行动画
+                    guard !isAnimating && !tooltipVisible else { return }
+                    isAnimating = true
+                    
+                    // 显示tooltip：先占位等resize完成再淡入
+                    Task {
+                        // 立即显示tooltip占位（触发窗口resize，但tooltip是透明的）
+                        tooltipVisible = true
+                        tooltipOpacity = 0
+                        
+                        // 等待布局和resize完成
+                        try? await Task.sleep(nanoseconds: 300_000_000) // 100ms
+                        
+                        // 淡入tooltip（此时窗口已经resize完成，不会影响布局）
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            tooltipOpacity = 1
+                        }
+                        
+                        isAnimating = false
+                    }
+                } else {
+                    NSCursor.pop()
+                    
+                    // 防止重复执行动画
+                    guard !isAnimating && tooltipVisible else { return }
+                    isAnimating = true
+                    
+                    // 隐藏tooltip：先淡出再移除
+                    Task {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            tooltipOpacity = 0
+                        }
+                        
+                        // 等待动画完成
+                        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+                        tooltipVisible = false
+                        isAnimating = false
+                    }
+                }
+            }
+            .offset(y: recordState == .idle ? 0 : -4)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
         }
-        .offset(y: recordState == .idle ? 0 : -4)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
     }
 }

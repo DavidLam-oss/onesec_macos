@@ -59,8 +59,24 @@ class KeyEventProcessor {
 
         // 如果完成了快捷键设置
         if completed {
-            Config.saveHotkeySetting(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination)
-            EventBus.shared.publish(.hotkeySettingResulted(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination))
+            // 检测是否与另一个模式的快捷键冲突
+            let newKeyCodes = hotkeyCombination.compactMap { KeyMapper.stringToKeyCodeMap[$0] }.sorted()
+            let otherKeyCodes: [Int64]
+            
+            if hotkeySettingMode == .normal {
+                otherKeyCodes = Config.COMMAND_KEY_CODES.sorted()
+            } else {
+                otherKeyCodes = Config.NORMAL_KEY_CODES.sorted()
+            }
+            
+            let isConflict = newKeyCodes == otherKeyCodes
+            
+            // 只有不冲突时才保存
+            if !isConflict {
+                Config.saveHotkeySetting(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination)
+            }
+            
+            EventBus.shared.publish(.hotkeySettingResulted(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination, isConflict: isConflict))
             endHotkeySetting()
         }
     }

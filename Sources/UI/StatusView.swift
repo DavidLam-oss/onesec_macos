@@ -59,7 +59,7 @@ struct StatusView: View {
             notification.opacity = 0
 
             // 等待布局和 resize 完成
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
 
             // 淡入通知卡片（此时窗口已经 resize 完成，不会影响布局）
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -108,7 +108,8 @@ struct StatusView: View {
             ).onTapGesture {
                 showMenu()
             }
-        }.padding([.top, .leading, .trailing], 10)
+        }.padding([.top, .leading, .trailing], 12)
+            .padding(.bottom, 4)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onReceive(
                 EventBus.shared.events
@@ -137,9 +138,7 @@ struct StatusView: View {
             }
         case .notificationReceived(let notificationType):
             log.info("notificationReceived: \(notificationType)")
-            if notificationType == .recordingTimeout {
-                recording.state = .idle
-            }
+            recording.state = .idle
             showNotificationMessage(
                 title: notificationType.title, content: notificationType.content,
             )

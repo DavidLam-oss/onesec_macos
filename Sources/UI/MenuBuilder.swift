@@ -49,16 +49,6 @@ class MenuBuilder {
             // 描述文字
             let descItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
             let descAttr = NSMutableAttributedString(string: mode.description)
-            descAttr.addAttribute(
-                .foregroundColor,
-                value: NSColor.secondaryLabelColor,
-                range: NSRange(location: 0, length: descAttr.length),
-            )
-            descAttr.addAttribute(
-                .font,
-                value: NSFont.systemFont(ofSize: 11),
-                range: NSRange(location: 0, length: descAttr.length),
-            )
             descItem.attributedTitle = descAttr
             descItem.isEnabled = false
             textModeSubmenu.addItem(descItem)
@@ -71,6 +61,13 @@ class MenuBuilder {
 
         textModeItem.submenu = textModeSubmenu
         menu.addItem(textModeItem)
+
+        // 显示当前选择的风格
+        let currentModeDescItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        let currentModeAttr = NSMutableAttributedString(string: "\(Config.TEXT_PROCESS_MODE.displayName) \(Config.TEXT_PROCESS_MODE.description)")
+        currentModeDescItem.attributedTitle = currentModeAttr
+        currentModeDescItem.isEnabled = false
+        menu.addItem(currentModeDescItem)
 
         menu.addItem(NSMenuItem.separator())
 

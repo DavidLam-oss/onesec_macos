@@ -8,34 +8,34 @@
 // MARK: - 文本处理模式
 
 enum TextProcessMode: String, CaseIterable {
-    case auto = "AUTO" // 自动模式
-    case raw = "RAW" // 原样输出
-    case clean = "CLEAN" // 清理模式
-    case format = "FORMAT" // 整理模式
+    case auto = "AUTO"
+    case raw = "RAW"
+    case clean = "CLEAN"
+    case format = "FORMAT"
 
     var displayName: String {
         switch self {
         case .auto:
-            "自动模式"
+            "自动风格"
         case .raw:
-            "原样输出"
+            "极速风格"
         case .clean:
-            "清理模式"
+            "清理风格"
         case .format:
-            "整理模式"
+            "整理风格"
         }
     }
 
     var description: String {
         switch self {
         case .auto:
-            "自动选择最佳处理方式"
+            "智能判断，一键省心"
         case .raw:
-            "直接返回 ASR 识别结果，不做任何处理"
+            "快速识别，原样呈现"
         case .clean:
-            "清理口语化表达，去除停顿词、重复词"
+            "去噪理顺，轻度优化"
         case .format:
-            "整理文本结构，重组句子，更适合阅读"
+            "结构重组，深度优化"
         }
     }
 }
