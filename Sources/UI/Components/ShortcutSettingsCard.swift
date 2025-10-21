@@ -191,8 +191,8 @@ struct ShortcutSettingsCard: View {
                         .fill(Color(white: 0.12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                        )
+                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1),
+                        ),
                 )
             }
             .padding(20)
@@ -209,7 +209,7 @@ struct ShortcutSettingsCard: View {
                         .frame(width: 80, height: 28)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.white.opacity(0.15))
+                                .fill(Color.white.opacity(0.15)),
                         )
                 }
                 .buttonStyle(.plain)
@@ -220,13 +220,13 @@ struct ShortcutSettingsCard: View {
         .frame(width: 380)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(white: 0.18))
+                .fill(Color(white: 0.18)),
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1),
         )
-        .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.5), radius: 5, x: 0, y: 8)
         .onAppear {
             // 加载快捷键配置
             normalKeyCodes = Config.NORMAL_KEY_CODES

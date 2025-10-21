@@ -35,7 +35,10 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             return
         }
 
-        if ws != nil { disconnect() }
+        if ws != nil {
+            ws?.disconnect()
+            ws = nil
+        }
         connectionState = .connecting
 
         let serverURL = URL(string: "wss://\(Config.SERVER)")!
@@ -83,7 +86,8 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         // 指数退避策略：1s, 2s, 4s, 8s, 16s，最多 30s
         let delay = min(pow(2.0, Double(curRetryCount - 1)), 30.0)
 
-        log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
+        log.info(
+            "WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
 
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.connect()
@@ -100,7 +104,8 @@ extension WebSocketAudioStreamer {
                 guard let self else { return }
 
                 switch event {
-                case .recordingStarted(let appInfo, let focusContext, let focusElementInfo, let recordMode):
+                case .recordingStarted(
+                    let appInfo, let focusContext, let focusElementInfo, let recordMode):
                     sendStartRecording(
                         appInfo: appInfo,
                         focusContext: focusContext,
@@ -150,7 +155,10 @@ extension WebSocketAudioStreamer {
         focusElementInfo: FocusElementInfo? = nil,
         recordMode: RecordMode = .normal
     ) {
-        var data: [String: Any] = ["recognition_mode": recordMode.rawValue]
+        var data: [String: Any] = [
+            "recognition_mode": recordMode.rawValue,
+            "mode": Config.TEXT_PROCESS_MODE.rawValue,
+        ]
 
         if let appInfo {
             data["app_info"] = appInfo.toJSON()
@@ -172,10 +180,12 @@ extension WebSocketAudioStreamer {
         startResponseTimeoutTimer()
     }
 
-    func sendModeUpgrade(fromMode: RecordMode, toMode: RecordMode, focusContext: FocusContext? = nil) {
+    func sendModeUpgrade(
+        fromMode: RecordMode, toMode: RecordMode, focusContext: FocusContext? = nil
+    ) {
         var data: [String: Any] = [
             "from_mode": fromMode.rawValue,
-            "to_mode": toMode.rawValue
+            "to_mode": toMode.rawValue,
         ]
 
         if let focusContext {
@@ -199,7 +209,8 @@ extension WebSocketAudioStreamer {
         cancelResponseTimeoutTimer()
 
         guard let data = json["data"] as? [String: Any],
-              let summary = data["summary"] as? String else { return }
+            let summary = data["summary"] as? String
+        else { return }
 
         let serverTime = data["server_time"] as? Int
         EventBus.shared.publish(.serverResultReceived(summary: summary, serverTime: serverTime))
@@ -211,11 +222,12 @@ extension WebSocketAudioStreamer {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             log.warning("Recording response timed out after \(responseTimeoutDuration) seconds")
-            EventBus.shared.publish(.serverTimedout)
+            EventBus.shared.publish(.notificationReceived(.serverTimeout))
         }
 
         responseTimeoutTimer = workItem
-        DispatchQueue.global().asyncAfter(deadline: .now() + responseTimeoutDuration, execute: workItem)
+        DispatchQueue.global().asyncAfter(
+            deadline: .now() + responseTimeoutDuration, execute: workItem)
         log.debug("Started response timeout timer (\(responseTimeoutDuration)s)")
     }
 

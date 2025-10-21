@@ -75,35 +75,35 @@ extension WebSocketMessage {
 
 // MARK: - 通知消息类型
 
-enum NotificationMessageType {
-    case serverTimeout          // 服务超时
-    case recordingFailed        // 录音失败
-    case recordingTimeout       // 录音超时
-    case custom(title: String, content: String)  // 自定义消息
-    
+enum NotificationMessageType: Equatable {
+    case serverTimeout
+    case recordingFailed
+    case recordingTimeout
+    case custom(title: String, content: String)
+
     var title: String {
         switch self {
         case .serverTimeout:
-            return "服务超时"
+            "服务超时"
         case .recordingFailed:
-            return "录音失败"
+            "录音失败"
         case .recordingTimeout:
-            return "录音超时"
+            "录音超时"
         case .custom(let title, _):
-            return title
+            title
         }
     }
-    
+
     var content: String {
         switch self {
         case .serverTimeout:
-            return "服务器响应超时，请稍后重试"
+            "服务器响应超时，请稍后重试"
         case .recordingFailed:
-            return "服务器响应超时或权限消失"
+            "服务器响应超时或权限消失"
         case .recordingTimeout:
-            return "服务器未连接或缺失权限"
+            "服务器未连接或缺失权限"
         case .custom(_, let content):
-            return content
+            content
         }
     }
 }

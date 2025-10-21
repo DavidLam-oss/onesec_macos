@@ -13,12 +13,12 @@ struct StatusView: View {
         if menuBuilder == nil {
             menuBuilder = MenuBuilder(onShortcutSettings: toggleShortcutSettings)
         }
-        
+
         if let button = NSApp.windows.first?.contentView {
             menuBuilder?.showMenu(in: button)
         }
     }
-    
+
     // 切换快捷键设置卡片显示/隐藏
     private func toggleShortcutSettings() {
         toggleCard(isVisible: shortcutSettings.isVisible) { visible, opacity in
@@ -26,7 +26,7 @@ struct StatusView: View {
             shortcutSettings.opacity = opacity
         }
     }
-    
+
     // 通用的卡片显示/隐藏切换方法
     private func toggleCard(isVisible: Bool, update: @escaping (Bool, Double) -> Void) {
         if isVisible {
@@ -59,7 +59,7 @@ struct StatusView: View {
             notification.opacity = 0
 
             // 等待布局和 resize 完成
-            try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
 
             // 淡入通知卡片（此时窗口已经 resize 完成，不会影响布局）
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -88,7 +88,7 @@ struct StatusView: View {
                     .opacity(shortcutSettings.opacity)
                 Spacer().frame(height: 8)
             }
-            
+
             // 通知区域
             if notification.isVisible {
                 NotificationCard(
@@ -137,10 +137,12 @@ struct StatusView: View {
             }
         case .notificationReceived(let notificationType):
             log.info("notificationReceived: \(notificationType)")
+            if notificationType == .recordingTimeout {
+                recording.state = .idle
+            }
             showNotificationMessage(
-                title: notificationType.title, content: notificationType.content)
-        case .serverTimedout:
-            showNotificationMessage(title: "服务超时", content: "服务器响应超时，请稍后重试")
+                title: notificationType.title, content: notificationType.content,
+            )
         default:
             break
         }

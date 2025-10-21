@@ -81,13 +81,7 @@ struct StatusIndicator: View {
             // 点击响应层
             Circle()
                 .fill(Color.white.opacity(0.001))
-                .frame(width: outerSize, height: outerSize).onHover { isHovering in
-                    if isHovering {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
+                .frame(width: outerSize, height: outerSize)
 
             // 外圆背景
             Circle()
@@ -121,6 +115,13 @@ struct StatusIndicator: View {
         }
         .frame(width: outerSize, height: outerSize)
         .contentShape(Circle())
+        .onHover { isHovering in
+            if isHovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
         .offset(y: recordState == .idle ? 0 : -4)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
     }

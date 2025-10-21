@@ -16,7 +16,6 @@ enum AppEvent {
     case serverResultReceived(summary: String, serverTime: Int?)
     case modeUpgraded(from: RecordMode, to: RecordMode, focusContext: FocusContext?)
     case notificationReceived(NotificationMessageType)
-    case serverTimedout
     //
     case authTokenFailed(reason: String, statusCode: Int?)
     case userConfigChanged(authToken: String, hotkeyConfigs: [[String: Any]])
