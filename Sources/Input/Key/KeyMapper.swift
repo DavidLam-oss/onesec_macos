@@ -119,4 +119,27 @@ class KeyMapper {
             .compactMap { keyCodeMap[$0] }
             .joined(separator: "+")
     }
+    
+    /// 按标准顺序排序按键码：Fn -> Control -> Option -> Shift -> Command -> 其他键
+    /// - Parameter keyCodes: 要排序的按键码数组
+    /// - Returns: 排序后的按键码数组
+    static func sortKeyCodes(_ keyCodes: [Int64]) -> [Int64] {
+        keyCodes.sorted { code1, code2 in
+            let key1 = keyCodeToString(code1)
+            let key2 = keyCodeToString(code2)
+            return keyPriority(key1) < keyPriority(key2)
+        }
+    }
+    
+    /// 获取按键的优先级（用于排序）
+    /// - Parameter keyName: 按键名称
+    /// - Returns: 优先级数值，越小越靠前
+    private static func keyPriority(_ keyName: String) -> Int {
+        if keyName.contains("Fn") { return 0 }
+        if keyName.contains("Control") || keyName.contains("⌃") { return 1 }
+        if keyName.contains("Option") || keyName.contains("⌥") { return 2 }
+        if keyName.contains("Shift") || keyName.contains("⇧") { return 3 }
+        if keyName.contains("Command") || keyName.contains("⌘") { return 4 }
+        return 5 // 其他键（字母、数字等）
+    }
 }

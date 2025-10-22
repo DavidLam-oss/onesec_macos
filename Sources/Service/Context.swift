@@ -67,7 +67,7 @@ class ContextService {
         vUp?.flags = .maskCommand
         
         // 释放 Cmd
-        let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false)
+        _ = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false)
         
         // 发送事件
         vDown?.post(tap: .cghidEventTap)

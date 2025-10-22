@@ -5,8 +5,10 @@ import SwiftUI
 struct StatusView: View {
     @State var recording = RecordingState()
     @State var menuBuilder: MenuBuilder?
+    @State var settingsPanelId: UUID?
+    @State var notificationPanelId: UUID?
 
-    private let overlay = FloatingPanelController.shared
+    private let overlay = OverlayController.shared
 
     // 显示菜单
     private func showMenu() {
@@ -21,32 +23,40 @@ struct StatusView: View {
 
     // 切换快捷键设置卡片显示/隐藏
     private func toggleShortcutSettings() {
-        if overlay.isVisible {
-            overlay.hideOverlay()
+        if let panelId = settingsPanelId, overlay.isVisible(uuid: panelId) {
+            overlay.hideOverlay(uuid: panelId)
+            settingsPanelId = nil
         } else {
-            overlay.showOverlay(type: .settings) {
+            let uuid = overlay.showOverlay {
                 ShortcutSettingsCard(onClose: {
-                    overlay.hideOverlay(type: .settings)
+                    if let panelId = settingsPanelId {
+                        overlay.hideOverlay(uuid: panelId)
+                        settingsPanelId = nil
+                    }
                 })
             }
+            settingsPanelId = uuid
         }
     }
 
     // 显示通知的方法
     private func showNotificationMessage(title: String, content: String, autoHide: Bool = true) {
-        overlay.showOverlay(type: .notification) {
+        // 关闭之前的通知
+        if let panelId = notificationPanelId {
+            overlay.hideOverlay(uuid: panelId)
+        }
+
+        let uuid = overlay.showOverlay {
             NotificationCard(
                 title: title,
                 content: content,
                 modeColor: recording.modeColor,
             )
         }
+        notificationPanelId = uuid
 
         if autoHide {
-            Task {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                overlay.hideOverlay(type: .notification)
-            }
+            overlay.setAutoHide(uuid: uuid, after: 3.0)
         }
     }
 
@@ -58,8 +68,8 @@ struct StatusView: View {
                 volume: recording.volume,
                 mode: recording.mode,
             ).onTapGesture {
-                // 点击时隐藏 tooltip 并显示菜单
-                overlay.hideOverlay(type: .tooltip)
+                // 点击时隐藏所有 overlay 并显示菜单
+                overlay.hideAllOverlays()
                 showMenu()
             }
         }.padding([.top, .leading, .trailing], 12)

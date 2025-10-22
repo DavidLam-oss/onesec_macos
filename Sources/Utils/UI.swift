@@ -7,8 +7,10 @@
 
 import SwiftUI
 
-let auroraGreen = Color(hex: "#2EDDA8") // 绿色 - normal mode
-let starlightYellow = Color(hex: "#ffd479") // 黄色 - command mode
+let auroraGreen = Color(hex: "#2EDDA8") 
+let starlightYellow = Color(hex: "#ffd479")
+let borderGrey = Color(hex: "#888888B2")
+let bgBlack = Color(hex: "#0A0A0A") 
 
 extension Color {
     /// 使用16进制字符串初始化颜色

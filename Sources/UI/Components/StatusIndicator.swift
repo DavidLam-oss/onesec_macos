@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RecordingState {
-    var volume: CGFloat = 0 // 音量值 (0-1)
+    var volume: CGFloat = 0  // 音量值 (0-1)
     var state: RecordState = .idle
     var mode: RecordMode = .normal
 
@@ -15,11 +15,12 @@ struct StatusIndicator: View {
     let volume: CGFloat
     let mode: RecordMode
 
-    let minInnerRatio: CGFloat = 0.2 // 内圆最小为外圆的20%
-    let maxInnerRatio: CGFloat = 0.7 // 内圆最大为外圆的70%
+    let minInnerRatio: CGFloat = 0.2  // 内圆最小为外圆的20%
+    let maxInnerRatio: CGFloat = 0.7  // 内圆最大为外圆的70%
 
-    private let overlay = FloatingPanelController.shared
+    private let overlay = OverlayController.shared
     @State private var isHovered: Bool = false
+    @State private var tooltipPanelId: UUID?
 
     private var modeColor: Color {
         mode == .normal ? auroraGreen : starlightYellow
@@ -34,7 +35,7 @@ struct StatusIndicator: View {
         case .idle:
             1.0
         case .recording, .processing:
-            1.25 // 25/20 = 1.25，放大25%
+            1.25  // 25/20 = 1.25，放大25%
         default:
             1.0
         }
@@ -65,9 +66,9 @@ struct StatusIndicator: View {
     private var borderColor: Color {
         switch recordState {
         case .idle:
-            Color(hex: "#888888B2")
+            borderGrey
         case .recording:
-            Color(hex: "#888888B2")
+            borderGrey
         default:
             Color.white.opacity(0.8)
         }
@@ -108,7 +109,7 @@ struct StatusIndicator: View {
             Group {
                 if recordState == .idle {
                     Circle()
-                        .fill(Color(hex: "#888888B2"))
+                        .fill(borderGrey)
                         .frame(width: innerSize, height: innerSize)
                 } else if recordState == .recording {
                     Circle()
@@ -136,24 +137,28 @@ struct StatusIndicator: View {
             isHovered = hovering
 
             if hovering {
-                overlay.showOverlay(type: .tooltip) {
+                let uuid = overlay.showOverlay {
                     Text("按住 fn 开始语音输入 或  点击进行设置")
                         .font(.system(size: 12))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.black)
-                        .cornerRadius(6)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.white.opacity(0.15), lineWidth: 1),
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(bgBlack)
                         )
-                        .shadow(color: Color.white.opacity(0.08), radius: 8, x: 0, y: 0)
-                        .shadow(color: Color.black.opacity(0.6), radius: 12, x: 0, y: 4)
-                        .fixedSize()
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(borderGrey, lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 2)
                 }
+                tooltipPanelId = uuid
             } else {
-                overlay.hideOverlay(type: .tooltip)
+                if let panelId = tooltipPanelId {
+                    overlay.hideOverlay(uuid: panelId)
+                    tooltipPanelId = nil
+                }
             }
         }
     }

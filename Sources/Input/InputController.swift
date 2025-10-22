@@ -28,8 +28,8 @@ class InputController {
 
         Task {
             await StatusPanelManager.shared.showPanel()
-//            try? await Task.sleep(nanoseconds: 2_000_000_000)
-//            EventBus.shared.publish(.notificationReceived(.recordingFailed))
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            EventBus.shared.publish(.notificationReceived(.recordingFailed))
         }
 
         log.info("InputController initialized")
@@ -73,7 +73,9 @@ class InputController {
         return CGEventMask(eventMask)
     }
 
-    private func handleCGEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    private func handleCGEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent)
+        -> Unmanaged<CGEvent>?
+    {
         guard type != .tapDisabledByTimeout else {
             log.warning("CGEventType tapDisabledByTimeout")
             return nil
@@ -107,7 +109,9 @@ class InputController {
 
     private func startRecording(mode: RecordMode) {
         let appInfo = ContextService.getAppInfo()
-        audioRecorder.startRecording(appInfo: appInfo, focusContext: nil, focusElementInfo: nil, recordMode: mode)
+        audioRecorder.startRecording(
+            appInfo: appInfo, focusContext: nil, focusElementInfo: nil, recordMode: mode,
+        )
     }
 
     private func stopRecording() {
@@ -128,7 +132,9 @@ extension InputController {
             .sink { [weak self] event in
                 switch event {
                 case .userConfigChanged(let authToken, let hotkeyConfigs):
-                    self?.handleConfigInitialized(authToken: authToken, hotkeyConfigs: hotkeyConfigs)
+                    self?.handleConfigInitialized(
+                        authToken: authToken, hotkeyConfigs: hotkeyConfigs,
+                    )
                 case .hotkeySettingStarted(let mode):
                     self?.handleHotkeySettingStarted(mode: mode)
                 case .hotkeySettingEnded(let mode, let hotkeyCombination):
@@ -161,7 +167,9 @@ extension InputController {
                 continue
             }
 
-            Config.saveHotkeySetting(mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination)
+            Config.saveHotkeySetting(
+                mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination,
+            )
         }
     }
 }

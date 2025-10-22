@@ -39,8 +39,8 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     // 录音统计数据
     private var totalPacketsSent = 0
-    private var totalBytesSent = 0  // Opus 压缩后的数据
-    private var totalRawBytesSent = 0  // 原始 PCM 数据
+    private var totalBytesSent = 0 // Opus 压缩后的数据
+    private var totalRawBytesSent = 0 // 原始 PCM 数据
     private var recordingStartTime: Date?
 
     // 目标音频格式
@@ -115,7 +115,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         // 确保数据流有效
         guard let inputData = inputBuffer.audioBufferList.pointee.mBuffers.mData,
-            let sourceData = audioBuffer.mData
+              let sourceData = audioBuffer.mData
         else {
             log.error("null input buffer pointer")
             return
@@ -180,7 +180,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     private func convertBufferToData(_ buffer: AVAudioPCMBuffer) -> Data {
         guard buffer.frameLength > 0,
-            let audioBuffer = buffer.audioBufferList.pointee.mBuffers.mData
+              let audioBuffer = buffer.audioBufferList.pointee.mBuffers.mData
         else {
             return Data()
         }
@@ -288,13 +288,13 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         var sum: Float = 0.0
 
-        if bytesPerSample == 2 {  // 16-bit
+        if bytesPerSample == 2 { // 16-bit
             let samples = audioBuffer.assumingMemoryBound(to: Int16.self)
             for i in 0..<frameCount {
                 let sample = Float(samples[i]) / Float(Int16.max)
                 sum += sample * sample
             }
-        } else if bytesPerSample == 4 {  // 32-bit float
+        } else if bytesPerSample == 4 { // 32-bit float
             let samples = audioBuffer.assumingMemoryBound(to: Float.self)
             for i in 0..<frameCount {
                 sum += samples[i] * samples[i]
@@ -391,14 +391,14 @@ extension AudioSinkNodeRecorder {
         let packetsPerSecond = Double(totalPacketsSent) / duration
         let bytesPerSecond = Double(totalBytesSent) / duration
 
-        let theoreticalBytes = Int(duration * 16000 * 2)  // 16kHz * 2字节/样本
+        let theoreticalBytes = Int(duration * 16000 * 2) // 16kHz * 2字节/样本
 
         // 计算压缩相关统计
         let compressionRatio =
             totalRawBytesSent > 0 ? Double(totalRawBytesSent) / Double(totalBytesSent) : 1.0
         let compressionPercentage =
             totalRawBytesSent > 0
-            ? (1.0 - Double(totalBytesSent) / Double(totalRawBytesSent)) * 100.0 : 0.0
+                ? (1.0 - Double(totalBytesSent) / Double(totalRawBytesSent)) * 100.0 : 0.0
         let bandwidthSaved = totalRawBytesSent - totalBytesSent
 
         log.info(

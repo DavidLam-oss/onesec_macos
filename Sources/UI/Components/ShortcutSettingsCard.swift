@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import SwiftUI
 
@@ -37,19 +38,15 @@ struct KeyCapView: View {
     
     var body: some View {
         Text(displayText)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.white)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(Color(red: 161/255, green: 161/255, blue: 161/255))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.white.opacity(0.15))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(Color.white.opacity(0.3), lineWidth: 1),
-                    ),
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(red: 38/255, green: 38/255, blue: 38/255)),
             )
-            .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -68,6 +65,11 @@ struct ShortcutInputField: View {
         mode == .normal ? auroraGreen : starlightYellow
     }
     
+    // 按照标准顺序排序快捷键
+    var sortedKeyCodes: [Int64] {
+        KeyMapper.sortKeyCodes(keyCodes)
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
@@ -76,10 +78,10 @@ struct ShortcutInputField: View {
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.5))
                 } else {
-                    ForEach(Array(keyCodes.enumerated()), id: \.offset) { index, keyCode in
+                    ForEach(Array(sortedKeyCodes.enumerated()), id: \.offset) { index, keyCode in
                         KeyCapView(keyName: KeyMapper.keyCodeToString(keyCode))
                         
-                        if index < keyCodes.count - 1 {
+                        if index < sortedKeyCodes.count - 1 {
                             Text("+")
                                 .font(.system(size: 10))
                                 .foregroundColor(.white.opacity(0.5))
@@ -96,20 +98,27 @@ struct ShortcutInputField: View {
                 }
             }
             .frame(height: 24)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isEditing ? modeColor.opacity(0.2) : Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(
-                                isEditing ? modeColor.opacity(0.6) : Color.white.opacity(0.2),
-                                lineWidth: isEditing ? 2 : 1,
-                            ),
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isEditing ? modeColor.opacity(0.15) : Color.white.opacity(0.08)),
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(
+                        isEditing ? modeColor.opacity(0.3) : Color.white.opacity(0.15),
+                        lineWidth: 1,
                     ),
             )
             .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering && !isEditing {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
             .onTapGesture {
                 guard !isEditing else { return }
                 // 清除错误提示
@@ -189,6 +198,14 @@ struct ShortcutSettingsCard: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    print("hovering: \(hovering)")
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -231,13 +248,21 @@ struct ShortcutSettingsCard: View {
         }
         .frame(width: 280)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1),
+            RoundedRectangle(cornerRadius: 18)
+                .fill(bgBlack),
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(
+                    currentEditingMode != nil 
+                        ? (currentEditingMode == .normal ? auroraGreen : starlightYellow).opacity(0.3)
+                        : Color.white.opacity(0.3),
+                    lineWidth: 1
                 ),
         )
+        .shadow(color: Color.black.opacity(0.3), radius: 12, x: 0, y: 2)
+        .animation(.easeInOut(duration: 0.2), value: currentEditingMode)
         .contentShape(Rectangle())
         .onTapGesture {
             // 点击卡片的任何地方都取消编辑
@@ -270,7 +295,7 @@ struct ShortcutSettingsCard: View {
     }
     
     private func handleHotkeySettingResulted(mode: RecordMode, combination: [String], isConflict: Bool) {
-        let newKeyCodes = combination.compactMap { KeyMapper.stringToKeyCodeMap[$0] }
+        let newKeyCodes = KeyMapper.sortKeyCodes(combination.compactMap { KeyMapper.stringToKeyCodeMap[$0] })
         
         if isConflict {
             // 冲突：恢复原来的快捷键
