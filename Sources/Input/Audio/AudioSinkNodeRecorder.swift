@@ -52,7 +52,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     init() {
         setupAudioEngine()
-        setupAudioStreamHandler()
+        setupAudioEventListener()
         setupOpusEncoder()
     }
 
@@ -205,8 +205,8 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         appInfo: AppInfo? = nil, focusContext: FocusContext? = nil,
         focusElementInfo: FocusElementInfo? = nil, recordMode: RecordMode = .normal,
     ) {
-        guard recordState != .recording else {
-            log.warning("Recording is in progress")
+        guard recordState == .idle else {
+            log.warning("Cant Start recording, now state: \(recordState)")
             return
         }
 
@@ -252,6 +252,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
             printRecordingStatistics()
         }
 
+        recordState = .processing
         log.info("✅ Stop Recording")
     }
 
@@ -312,11 +313,24 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 // 处理连接不稳定或无连接情况
 
 extension AudioSinkNodeRecorder {
-    private func setupAudioStreamHandler() {
+    private func setupAudioEventListener() {
         ConnectionCenter.shared.$wssState
             .combineLatest(ConnectionCenter.shared.$permissionsState)
             .sink { [weak self] _, _ in
                 self?.handleConnectionStateChange()
+            }
+            .store(in: &cancellables)
+
+        EventBus.shared.events
+            .sink { [weak self] event in
+                switch event {
+                case .serverResultReceived,
+                     .notificationReceived(.serverTimeout),
+                     .notificationReceived(.recordingTimeout): self?.recordState = .idle
+
+                default:
+                    break
+                }
             }
             .store(in: &cancellables)
     }

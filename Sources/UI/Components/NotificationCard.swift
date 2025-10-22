@@ -12,7 +12,7 @@ struct NotificationCard: View {
     let content: String
     let modeColor: Color
     let onClose: (() -> Void)?
-    
+
     @State private var isCloseHovered = false
 
     var body: some View {
@@ -46,21 +46,17 @@ struct NotificationCard: View {
             .frame(width: 240)
             .background(
                 RoundedRectangle(cornerRadius: 18)
-                    .fill(Color.overlayBackground)
+                    .fill(Color.overlayBackground),
             )
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(modeColor.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(modeColor.opacity(0.3), lineWidth: 1),
             )
             .shadow(color: Color.black.opacity(0.3), radius: 12, x: 0, y: 2)
-            
-        
-            if let onClose = onClose {
-                Button(action: {
-                    print("关闭按钮被点击")
-                    onClose()
-                }) {
+
+            if let onClose {
+                Button(action: onClose) {
                     Image.systemSymbol("xmark.circle.fill")
                         .font(.system(size: 16))
                         .foregroundColor(isCloseHovered ? Color.red.opacity(0.8) : Color.gray.opacity(0.5))
