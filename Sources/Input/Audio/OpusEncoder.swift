@@ -52,7 +52,7 @@ class OpusEncoder {
             let bytesEncoded = try encoder.encode(buffer, to: &output)
             // 截取实际编码的数据
             output = output.prefix(bytesEncoded)
-            log.debug("Opus encode success: \(buffer.frameLength) samples -> \(bytesEncoded) bytes")
+            // log.debug("Opus encode success: \(buffer.frameLength) samples -> \(bytesEncoded) bytes")
             return output
         } catch {
             log.error("Opus encode failed: \(error)")
@@ -81,7 +81,7 @@ class OpusEncoder {
         let samples = UnsafeBufferPointer(start: channelData, count: Int(inputBuffer.frameLength))
         sampleBuffer.append(contentsOf: samples)
 
-        log.debug("buffer status: \(sampleBuffer.count) samples (need \(frameSize) samples/frame)")
+        // log.debug("buffer status: \(sampleBuffer.count) samples (need \(frameSize) samples/frame)")
 
         // 处理缓冲区中所有完整的帧
         var frameCount = 0
