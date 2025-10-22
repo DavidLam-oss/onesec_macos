@@ -115,7 +115,7 @@ class OpusEncoder {
             }
         }
 
-        log.debug("Encode \(frameCount) frames, remaining \(sampleBuffer.count) samples")
+        // log.debug("Encode \(frameCount) frames, remaining \(sampleBuffer.count) samples")
         return encodedFrames
     }
 

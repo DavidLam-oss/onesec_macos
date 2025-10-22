@@ -41,13 +41,14 @@ struct NotificationCard: View {
         .padding(.vertical, 10)
         .frame(width: 240)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 18)
                 .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1),
-                ),
         )
-        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 0)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(modeColor.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.25), radius: 10, x: 0, y: 3)
     }
 }

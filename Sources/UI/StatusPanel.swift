@@ -27,7 +27,7 @@ class StatusPanel: NSPanel {
 
         // 设置窗口属性
         self.isOpaque = false
-        // self.backgroundColor = .clear
+        self.backgroundColor = .clear
         self.level = .floating
         self.hasShadow = false
         self.isMovableByWindowBackground = false
@@ -63,14 +63,14 @@ class StatusPanel: NSPanel {
         contentView.layoutSubtreeIfNeeded()
         let newSize = contentView.fittingSize
 
-        // 检查尺寸是否真的变化了（允许 1 像素的误差）
+        // 检查尺寸是否真的变化（允许 1 像素的误差）
         let sizeChanged =
             abs(newSize.width - lastContentSize.width) > 1.0
                 || abs(newSize.height - lastContentSize.height) > 1.0
 
         guard sizeChanged else { return }
 
-        log.debug("size change: width \(newSize.width) height: \(newSize.height)")
+        // log.debug("size change: width \(newSize.width) height: \(newSize.height)")
 
         lastContentSize = newSize
 
@@ -88,26 +88,26 @@ class StatusPanel: NSPanel {
     override var canBecomeKey: Bool {
         true
     }
-    
+
     override func setFrame(_ frameRect: NSRect, display flag: Bool) {
-        logFrameChange(from: frame, to: frameRect)
+        // logFrameChange(from: frame, to: frameRect)
         super.setFrame(frameRect, display: flag)
     }
-    
+
     override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
-        logFrameChange(from: frame, to: frameRect)
+        // logFrameChange(from: frame, to: frameRect)
         super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
     }
-    
+
     private func logFrameChange(from oldFrame: NSRect, to newFrame: NSRect) {
-        let sizeChanged = abs(oldFrame.size.width - newFrame.size.width) > 1.0 
-                       || abs(oldFrame.size.height - newFrame.size.height) > 1.0
-        
+        let sizeChanged = abs(oldFrame.size.width - newFrame.size.width) > 1.0
+            || abs(oldFrame.size.height - newFrame.size.height) > 1.0
+
         if sizeChanged {
             if isResizing {
-                log.warning("FRAME SIZE: | \(oldFrame.size.width) \(oldFrame.size.height) to \(newFrame.size.width) \(newFrame.size.height) [由用户代码触发]")
+                log.warning("FRAME SIZE: | \(oldFrame.origin) \(oldFrame.size) to \(newFrame.origin) \(newFrame.size) [由用户代码触发]")
             } else {
-                log.warning("FRAME SIZE: | \(oldFrame.size.width) \(oldFrame.size.height) to \(newFrame.size.width) \(newFrame.size.height) [由 NSHostingView 自动触发]")
+                log.warning("FRAME SIZE: | \(oldFrame.origin) \(oldFrame.size) to \(newFrame.origin) \(newFrame.size) [由 NSHostingView 自动触发]")
             }
         }
     }
@@ -148,5 +148,10 @@ class StatusPanelManager {
                 self.panel?.orderOut(nil)
             },
         )
+    }
+    
+    /// 获取 StatusPanel 的 frame
+    func getPanelFrame() -> NSRect? {
+        return panel?.frame
     }
 }

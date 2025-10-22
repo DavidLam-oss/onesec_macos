@@ -138,7 +138,6 @@ struct ShortcutInputField: View {
     }
     
     private func setupEventListeners() {
-        // 监听快捷键更新事件（实时显示）
         EventBus.shared.events.receive(on: DispatchQueue.main)
             .sink { event in
                 switch event {
@@ -233,7 +232,11 @@ struct ShortcutSettingsCard: View {
         .frame(width: 280)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(white: 0.18)),
+                .fill(Color.black)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1),
+                ),
         )
         .contentShape(Rectangle())
         .onTapGesture {

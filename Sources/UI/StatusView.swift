@@ -4,9 +4,9 @@ import SwiftUI
 
 struct StatusView: View {
     @State var recording = RecordingState()
-    @State var notification = NotificationState()
-    @State var shortcutSettings = ShortcutSettingsState()
     @State var menuBuilder: MenuBuilder?
+
+    private let overlay = FloatingPanelController.shared
 
     // 显示菜单
     private func showMenu() {
@@ -21,91 +21,45 @@ struct StatusView: View {
 
     // 切换快捷键设置卡片显示/隐藏
     private func toggleShortcutSettings() {
-        toggleCard(isVisible: shortcutSettings.isVisible) { visible, opacity in
-            shortcutSettings.isVisible = visible
-            shortcutSettings.opacity = opacity
-        }
-    }
-
-    // 通用的卡片显示/隐藏切换方法
-    private func toggleCard(isVisible: Bool, update: @escaping (Bool, Double) -> Void) {
-        if isVisible {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                update(true, 0)
-            }
-            Task {
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                update(false, 0)
-            }
+        if overlay.isVisible {
+            overlay.hideOverlay()
         } else {
-            update(true, 0)
-            Task {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    update(true, 1)
-                }
+            overlay.showOverlay(type: .settings) {
+                ShortcutSettingsCard(onClose: {
+                    overlay.hideOverlay(type: .settings)
+                })
             }
         }
     }
 
     // 显示通知的方法
     private func showNotificationMessage(title: String, content: String, autoHide: Bool = true) {
-        notification.title = title
-        notification.content = content
+        overlay.showOverlay(type: .notification) {
+            NotificationCard(
+                title: title,
+                content: content,
+                modeColor: recording.modeColor,
+            )
+        }
 
-        Task {
-            // 立即显示通知占位（触发窗口 resize，但通知是透明的）
-            notification.isVisible = true
-            notification.opacity = 0
-
-            // 等待布局和 resize 完成
-            try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
-
-            // 淡入通知卡片（此时窗口已经 resize 完成，不会影响布局）
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                notification.opacity = 1
-            }
-
-            if autoHide {
-                // 等3秒后隐藏
+        if autoHide {
+            Task {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
-
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    notification.opacity = 0
-                }
-
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                notification.isVisible = false
+                overlay.hideOverlay(type: .notification)
             }
         }
     }
 
     var body: some View {
         VStack {
-            // 快捷键设置卡片
-            if shortcutSettings.isVisible {
-                ShortcutSettingsCard(onClose: toggleShortcutSettings)
-                    .opacity(shortcutSettings.opacity)
-                Spacer().frame(height: 8)
-            }
-
-            // 通知区域
-            if notification.isVisible {
-                NotificationCard(
-                    title: notification.title,
-                    content: notification.content,
-                    modeColor: recording.modeColor,
-                )
-                .opacity(notification.opacity)
-                Spacer().frame(height: 8)
-            }
-
             // 状态指示器
             StatusIndicator(
                 recordState: recording.state,
                 volume: recording.volume,
                 mode: recording.mode,
             ).onTapGesture {
+                // 点击时隐藏 tooltip 并显示菜单
+                overlay.hideOverlay(type: .tooltip)
                 showMenu()
             }
         }.padding([.top, .leading, .trailing], 12)

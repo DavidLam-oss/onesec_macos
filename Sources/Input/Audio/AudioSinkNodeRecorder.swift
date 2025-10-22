@@ -39,7 +39,8 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     // 录音统计数据
     private var totalPacketsSent = 0
-    private var totalBytesSent = 0
+    private var totalBytesSent = 0  // Opus 压缩后的数据
+    private var totalRawBytesSent = 0  // 原始 PCM 数据
     private var recordingStartTime: Date?
 
     // 目标音频格式
@@ -101,7 +102,6 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
     ) {
         // 创建输入缓冲区
         let inputFormat = audioEngine.inputNode.outputFormat(forBus: 0)
-        log.debug("📥 输入: \(frameCount) 帧 @ \(inputFormat.sampleRate)Hz")
         guard let inputBuffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: frameCount)
         else {
             return
@@ -115,7 +115,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         // 确保数据流有效
         guard let inputData = inputBuffer.audioBufferList.pointee.mBuffers.mData,
-              let sourceData = audioBuffer.mData
+            let sourceData = audioBuffer.mData
         else {
             log.error("null input buffer pointer")
             return
@@ -163,11 +163,16 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
             for opusData in encoder.encodeBuffer(outputBuffer) {
                 audioQueue.append(opusData)
             }
+            totalRawBytesSent +=
+                Int(outputBuffer.frameLength)
+                * Int(outputBuffer.format.streamDescription.pointee.mBytesPerFrame)
+
         } else {
             // 降级使用原始 PCM
             log.warning("Opus encoder 初始化失败,使用原始 PCM")
             let pcmData = convertBufferToData(outputBuffer)
             audioQueue.append(pcmData)
+            totalRawBytesSent += pcmData.count
         }
 
         handleQueuedAudio()
@@ -175,7 +180,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     private func convertBufferToData(_ buffer: AVAudioPCMBuffer) -> Data {
         guard buffer.frameLength > 0,
-              let audioBuffer = buffer.audioBufferList.pointee.mBuffers.mData
+            let audioBuffer = buffer.audioBufferList.pointee.mBuffers.mData
         else {
             return Data()
         }
@@ -258,6 +263,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         // 重置统计数据
         totalPacketsSent = 0
         totalBytesSent = 0
+        totalRawBytesSent = 0
         recordingStartTime = Date()
 
         // 重置响应式流状态
@@ -282,13 +288,13 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         var sum: Float = 0.0
 
-        if bytesPerSample == 2 { // 16-bit
+        if bytesPerSample == 2 {  // 16-bit
             let samples = audioBuffer.assumingMemoryBound(to: Int16.self)
             for i in 0..<frameCount {
                 let sample = Float(samples[i]) / Float(Int16.max)
                 sum += sample * sample
             }
-        } else if bytesPerSample == 4 { // 32-bit float
+        } else if bytesPerSample == 4 {  // 32-bit float
             let samples = audioBuffer.assumingMemoryBound(to: Float.self)
             for i in 0..<frameCount {
                 sum += samples[i] * samples[i]
@@ -385,19 +391,32 @@ extension AudioSinkNodeRecorder {
         let packetsPerSecond = Double(totalPacketsSent) / duration
         let bytesPerSecond = Double(totalBytesSent) / duration
 
-        let theoreticalBytes = Int(duration * 16000 * 2) // 16kHz * 2字节/样本
-        let efficiency = Double(totalBytesSent) / Double(theoreticalBytes) * 100.0
+        let theoreticalBytes = Int(duration * 16000 * 2)  // 16kHz * 2字节/样本
+
+        // 计算压缩相关统计
+        let compressionRatio =
+            totalRawBytesSent > 0 ? Double(totalRawBytesSent) / Double(totalBytesSent) : 1.0
+        let compressionPercentage =
+            totalRawBytesSent > 0
+            ? (1.0 - Double(totalBytesSent) / Double(totalRawBytesSent)) * 100.0 : 0.0
+        let bandwidthSaved = totalRawBytesSent - totalBytesSent
 
         log.info(
             """
             📊 录音统计报告:
                📦 总包数目: \(totalPacketsSent) 个
-               📁 总数据量: \(formatBytes(totalBytesSent))
                🤡 录音时长: \(String(format: "%.2f", duration)) 秒
-               📊 平均大小: \(String(format: "%.1f", avgPacketSize)) 字节
+
+               💾 原始数据: \(formatBytes(totalRawBytesSent))
+               📦 压缩数据: \(formatBytes(totalBytesSent))
+               🗜️ 压缩比例: \(String(format: "%.1f", compressionRatio)):1
+               💰 压缩率: \(String(format: "%.1f", compressionPercentage))%
+               ⬇️ 节省带宽: \(formatBytes(bandwidthSaved))
+
+               📊 平均包大小: \(String(format: "%.1f", avgPacketSize)) 字节
                📈 发送频率: \(String(format: "%.1f", packetsPerSecond)) 包/秒
                📈 数据速率: \(String(format: "%.1f", bytesPerSecond / 1024.0)) KB/秒
-               🎯 数据完整: \(String(format: "%.1f", efficiency))% (理论: \(formatBytes(theoreticalBytes)))
+               🎯 理论数据: \(formatBytes(theoreticalBytes)) (\(String(format: "%.1f", Double(totalRawBytesSent) / Double(theoreticalBytes) * 100.0))%)
             """)
     }
 
