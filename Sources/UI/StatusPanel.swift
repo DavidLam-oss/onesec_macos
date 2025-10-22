@@ -13,14 +13,13 @@ class AutoResizingHostingView<Content: View>: NSHostingView<Content> {
 }
 
 class StatusPanel: NSPanel {
-    var panelSize = NSSize(width: 250, height: 40)
     private var resizeWorkItem: DispatchWorkItem?
     private var lastContentSize: NSSize = .zero
     private var isResizing = false
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 250, height: 40),
+            contentRect: NSRect(x: 0, y: 0, width: 0, height: 0),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,
@@ -28,7 +27,7 @@ class StatusPanel: NSPanel {
 
         // 设置窗口属性
         self.isOpaque = false
-        self.backgroundColor = .clear
+        // self.backgroundColor = .clear
         self.level = .floating
         self.hasShadow = false
         self.isMovableByWindowBackground = false
@@ -39,9 +38,6 @@ class StatusPanel: NSPanel {
             self?.resizeToFitContent()
         }
         self.contentView = hostingView
-
-        guard let newFrame = calculateBottomCenterFrame(for: panelSize) else { return }
-        setFrameOrigin(newFrame.origin)
     }
 
     /// 计算底部居中的 frame
@@ -62,9 +58,7 @@ class StatusPanel: NSPanel {
     }
 
     private func resizeToFitContent() {
-        guard !isResizing,
-              let contentView
-        else { return }
+        guard !isResizing, let contentView else { return }
 
         contentView.layoutSubtreeIfNeeded()
         let newSize = contentView.fittingSize
@@ -74,19 +68,14 @@ class StatusPanel: NSPanel {
             abs(newSize.width - lastContentSize.width) > 1.0
                 || abs(newSize.height - lastContentSize.height) > 1.0
 
-        guard sizeChanged else {
-            // log.debug("size not changed, skip resize")
-            return
-        }
+        guard sizeChanged else { return }
+
+        log.debug("size change: width \(newSize.width) height: \(newSize.height)")
 
         lastContentSize = newSize
 
         let contentRect = NSRect(origin: .zero, size: newSize)
         let frameSize = frameRect(forContentRect: contentRect).size
-
-        log.warning(
-            "FRAME SIZE: \(frame.origin.x) \(frame.origin.y) | \(frameSize.width) \(frameSize.height) to \(frame.size.width) \(frame.size.height)",
-        )
 
         // 计算底部居中的 frame
         guard let newFrame = calculateBottomCenterFrame(for: frameSize) else { return }
@@ -98,6 +87,29 @@ class StatusPanel: NSPanel {
 
     override var canBecomeKey: Bool {
         true
+    }
+    
+    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        logFrameChange(from: frame, to: frameRect)
+        super.setFrame(frameRect, display: flag)
+    }
+    
+    override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
+        logFrameChange(from: frame, to: frameRect)
+        super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
+    }
+    
+    private func logFrameChange(from oldFrame: NSRect, to newFrame: NSRect) {
+        let sizeChanged = abs(oldFrame.size.width - newFrame.size.width) > 1.0 
+                       || abs(oldFrame.size.height - newFrame.size.height) > 1.0
+        
+        if sizeChanged {
+            if isResizing {
+                log.warning("FRAME SIZE: | \(oldFrame.size.width) \(oldFrame.size.height) to \(newFrame.size.width) \(newFrame.size.height) [由用户代码触发]")
+            } else {
+                log.warning("FRAME SIZE: | \(oldFrame.size.width) \(oldFrame.size.height) to \(newFrame.size.width) \(newFrame.size.height) [由 NSHostingView 自动触发]")
+            }
+        }
     }
 }
 
