@@ -65,7 +65,7 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
             // 1) 兼容 Starscream 抛出的 HTTP 升级错误：HTTPUpgradeError
             if let upgrade = error as? HTTPUpgradeError {
                 switch upgrade {
-                case .notAnUpgrade(let statusCode, _ /* headers */):
+                case .notAnUpgrade(let statusCode, _ /* headers */ ):
                     handleHTTPUpgradeFailure(status: statusCode, message: "notAnUpgrade")
                     return
                 case .invalidData:

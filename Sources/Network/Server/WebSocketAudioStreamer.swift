@@ -43,6 +43,11 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             log.info("WebSocket already connecting")
             return
         }
+        
+        guard connectionState != .connected else {
+            log.info("WebSocket already connected")
+            return
+        }
 
         if ws != nil {
             ws?.disconnect()
