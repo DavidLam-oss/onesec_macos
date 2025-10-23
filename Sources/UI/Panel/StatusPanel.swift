@@ -42,7 +42,8 @@ class StatusPanel: NSPanel {
             self?.resizeToFitContent()
         }
         self.contentView = hostingView
-
+        self.becomeKey()
+        
         // 订阅屏幕切换事件
         setupScreenChangeListener()
     }
@@ -150,7 +151,7 @@ class StatusPanelManager {
     static let shared = StatusPanelManager()
 
     private let panel: StatusPanel
-    
+
     private init() {
         panel = StatusPanel()
         panel.alphaValue = 0
@@ -183,5 +184,12 @@ class StatusPanelManager {
 
     func getPanelFrame() -> NSRect {
         return panel.frame
+    }
+
+    func makeKeyPanel(completion: (() -> Void)? = nil) {
+        panel.makeKey()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            completion?()
+        }
     }
 }

@@ -39,7 +39,9 @@ struct StatusView: View {
         }
     }
 
-    private func showNotificationMessage(title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil) {
+    private func showNotificationMessage(
+        title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil
+    ) {
         if let panelId = notificationPanelId {
             overlay.hideOverlay(uuid: panelId)
         }
@@ -49,12 +51,13 @@ struct StatusView: View {
                 title: title,
                 content: content,
                 modeColor: recording.modeColor,
-                onClose: !autoHide ? {
-                    if let panelId = notificationPanelId {
-                        overlay.hideOverlay(uuid: panelId)
-                        notificationPanelId = nil
-                    }
-                } : nil,
+                onClose: !autoHide
+                    ? {
+                        if let panelId = notificationPanelId {
+                            overlay.hideOverlay(uuid: panelId)
+                            notificationPanelId = nil
+                        }
+                    } : nil,
                 onTap: onTap,
             )
         }
@@ -67,10 +70,11 @@ struct StatusView: View {
 
     private func handlePermissionChange(_ permissionsState: [PermissionType: PermissionStatus]) {
         guard !permissionsState.isEmpty else { return }
-        
+
         if !ConnectionCenter.shared.hasPermissions() {
             if notificationPanelId == nil {
                 showPermissionAlert()
+                SoundService.shared.playSound(.notification)
             }
         } else if let panelId = notificationPanelId {
             overlay.hideOverlay(uuid: panelId)

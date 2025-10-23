@@ -106,7 +106,7 @@ struct ShortcutInputField: View {
             if let error = conflictError {
                 Text(error)
                     .font(.system(size: 10))
-                    .foregroundColor(.red.opacity(0.9))
+                    .foregroundColor(destructiveRed)
                     .padding(.top, 2)
                     .transition(.opacity)
             }
@@ -165,7 +165,7 @@ struct ShortcutSettingsCard: View {
                     Image.systemSymbol("xmark.circle.fill")
                         .font(.system(size: 16))
                         .foregroundColor(
-                            isCloseHovered ? Color.red.opacity(0.8) : Color.gray.opacity(0.5))
+                            isCloseHovered ? destructiveRed : Color.gray.opacity(0.5))
                 }
                 .buttonStyle(.plain)
                 .animation(.easeInOut(duration: 0.2), value: isCloseHovered)
@@ -233,7 +233,10 @@ struct ShortcutSettingsCard: View {
                 )
         )
         .shadow(color: Color.black.opacity(0.3), radius: 12, x: 0, y: 2)
+        .offset(y: (normalConflictError != nil || commandConflictError != nil) ? -10 : 0)
         .animation(.easeInOut(duration: 0.2), value: currentEditingMode)
+        .animation(.easeInOut(duration: 0.3), value: normalConflictError)
+        .animation(.easeInOut(duration: 0.3), value: commandConflictError)
         .contentShape(Rectangle())
         .onTapGesture {
             cancelEditing()

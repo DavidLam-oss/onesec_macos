@@ -16,14 +16,12 @@ class OverlayController {
         let (hosting, contentSize) = createHostingViewAndGetSize(content: content)
 
         // 计算 overlay 的位置：StatusPanel 正上方，水平居中
-        let spacing: CGFloat = 6  // StatusPanel 和 overlay 之间的间距
+        let spacing: CGFloat = 4  // StatusPanel 和 overlay 之间的间距
         let overlayX = statusFrame.origin.x + (statusFrame.width - contentSize.width) / 2
         let overlayY = statusFrame.origin.y + statusFrame.height + spacing - shadowPadding
 
         let panel = NSPanel(
-            contentRect: NSRect(
-                x: overlayX, y: overlayY, width: contentSize.width, height: contentSize.height,
-            ),
+            contentRect: NSRect(x: overlayX, y: overlayY, width: contentSize.width, height: contentSize.height),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,
@@ -81,6 +79,7 @@ class OverlayController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hasShadow = false
         panel.contentView = hosting
+        panel.becomeKey()
         panel.makeKeyAndOrderFront(nil)
     }
 
@@ -135,7 +134,7 @@ extension OverlayController {
         let hosting = NSHostingView(rootView: AnyView(content().padding(shadowPadding)))
 
         let tempPanel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+            contentRect: NSRect(x: 0, y: 0, width: 0, height: 0),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false

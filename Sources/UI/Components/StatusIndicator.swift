@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RecordingState {
-    var volume: CGFloat = 0 // 音量值 (0-1)
+    var volume: CGFloat = 0  // 音量值 (0-1)
     var state: RecordState = .idle
     var mode: RecordMode = .normal
 
@@ -15,8 +15,8 @@ struct StatusIndicator: View {
     let volume: CGFloat
     let mode: RecordMode
 
-    let minInnerRatio: CGFloat = 0.2 // 内圆最小为外圆的20%
-    let maxInnerRatio: CGFloat = 0.7 // 内圆最大为外圆的70%
+    let minInnerRatio: CGFloat = 0.2  // 内圆最小为外圆的20%
+    let maxInnerRatio: CGFloat = 0.7  // 内圆最大为外圆的70%
 
     private let overlay = OverlayController.shared
     @State private var isHovered: Bool = false
@@ -135,9 +135,10 @@ struct StatusIndicator: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
         .onHover { hovering in
             isHovered = hovering
-
             if hovering {
-                NSCursor.pointingHand.push()
+                StatusPanelManager.shared.makeKeyPanel {
+                    // NSCursor.pointingHand.set()
+                }
                 let uuid = overlay.showOverlay {
                     Text("按住 fn 开始语音输入 或  点击进行设置")
                         .font(.system(size: 12))
@@ -156,7 +157,6 @@ struct StatusIndicator: View {
                 }
                 tooltipPanelId = uuid
             } else {
-                NSCursor.pop()
                 if let panelId = tooltipPanelId {
                     overlay.hideOverlay(uuid: panelId)
                     tooltipPanelId = nil

@@ -74,13 +74,19 @@ struct NotificationCard: View {
                 Button(action: onClose) {
                     Image.systemSymbol("xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(isCloseHovered ? Color.red.opacity(0.8) : Color.gray.opacity(0.5))
+                        .foregroundColor(isCloseHovered ? destructiveRed : Color.gray.opacity(0.5))
                 }
                 .buttonStyle(PlainButtonStyle())
                 .onHover { hovering in
                     isCloseHovered = hovering
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
                 }
                 .padding(8)
+                .animation(.easeInOut(duration: 0.2), value: isCloseHovered)
                 .contentShape(Rectangle())
             }
         }
