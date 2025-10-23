@@ -162,6 +162,10 @@ class InputController {
             return
         }
 
+        if ConnectionCenter.shared.wssState == .manualDisconnected {
+            ConnectionCenter.shared.connectWss()
+        }
+
         let appInfo = ContextService.getAppInfo()
         audioRecorder.startRecording(
             appInfo: appInfo, focusContext: nil, focusElementInfo: nil, recordMode: mode,

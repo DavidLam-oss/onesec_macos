@@ -15,7 +15,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     private var cancellables = Set<AnyCancellable>()
 
-    @Published var connectionState: ConnState = .disconnected
+    @Published var connectionState: ConnState = .manualDisconnected
 
     // Reconnect 配置
     var curRetryCount = 0
@@ -26,6 +26,13 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     private let responseTimeoutDuration: TimeInterval = 10.0
     private var recordingStartedTimeoutTimer: DispatchWorkItem?
     private let recordingStartedTimeoutDuration: TimeInterval = 2.0
+
+    // 连接检测 (防止一直卡在 connecting)
+    private var connectingCheckTimer: DispatchWorkItem?
+    
+    // 空闲超时配置 (30分钟没有使用就断开)
+    var idleTimeoutTimer: DispatchWorkItem?
+    let idleTimeoutDuration: TimeInterval = 30 * 60
 
     init() {
         initializeMessageListener()
@@ -50,21 +57,13 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
         // 创建 Starscream WebSocket
         // 使用更宽松的SSL配置来支持自签名证书
-        let pinner = FoundationSecurity(allowSelfSigned: true)
-        ws = WebSocket(request: request, certPinner: pinner)
+        ws = WebSocket(request: request, certPinner: FoundationSecurity(allowSelfSigned: true))
         ws?.delegate = self
         ws?.connect()
 
+        scheduleConnectingCheck()
+        
         log.info("WebSocket start connect with token \(Config.AUTH_TOKEN) \(serverURL)")
-    }
-
-    func disconnect() {
-        connectionState = .disconnected
-        curRetryCount = 0
-        ws?.disconnect()
-        ws = nil
-
-        log.info("WebSocket disconnect")
     }
 
     /// 重新连接触发时机为
@@ -137,7 +136,6 @@ extension WebSocketAudioStreamer {
             .store(in: &cancellables)
     }
 
-    // TODO: 发到队列
     func sendAudioData(_ audioData: Data) {
         guard connectionState == .connected, let ws else {
             return
@@ -178,7 +176,8 @@ extension WebSocketAudioStreamer {
         }
 
         sendWebSocketMessage(type: .startRecording, data: data)
-        startRecordingStartedTimeoutTimer()
+        scheduleRecordingStartedTimeoutTimer()
+        scheduleIdleTimer()
     }
 
     func sendStopRecording() {
@@ -219,7 +218,7 @@ extension WebSocketAudioStreamer {
         switch messageType {
         case .recordingStarted:
             cancelRecordingStartedTimeoutTimer()
-            
+
         case .recognitionSummary:
             cancelResponseTimeoutTimer()
             guard let data = json["data"] as? [String: Any],
@@ -227,7 +226,7 @@ extension WebSocketAudioStreamer {
             else { return }
             let serverTime = data["server_time"] as? Int
             EventBus.shared.publish(.serverResultReceived(summary: summary, serverTime: serverTime))
-            
+
         default:
             break
         }
@@ -253,12 +252,13 @@ extension WebSocketAudioStreamer {
         responseTimeoutTimer = nil
     }
 
-    private func startRecordingStartedTimeoutTimer() {
+    private func scheduleRecordingStartedTimeoutTimer() {
         cancelRecordingStartedTimeoutTimer()
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            log.warning("Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
+            log.warning(
+                "Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
             EventBus.shared.publish(.notificationReceived(.recordingTimeout))
         }
 
@@ -269,8 +269,41 @@ extension WebSocketAudioStreamer {
     }
 
     private func cancelRecordingStartedTimeoutTimer() {
-        log.debug("Cancel recording started timeout timer")
         recordingStartedTimeoutTimer?.cancel()
         recordingStartedTimeoutTimer = nil
+    }
+
+    private func scheduleConnectingCheck() {
+        connectingCheckTimer?.cancel()
+        connectingCheckTimer = nil
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if connectionState == .connecting {
+                log.warning("Still connecting after 3s, reconnect")
+                connectionState = .manualDisconnected
+                ws?.disconnect()
+                ws = nil
+                connect()
+            }
+        }
+
+        connectingCheckTimer = workItem
+        DispatchQueue.global().asyncAfter(deadline: .now() + 10.0, execute: workItem)
+    }
+    
+    private func scheduleIdleTimer() {
+        idleTimeoutTimer?.cancel()
+        
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            log.warning("No recording activity for \(idleTimeoutDuration/60) minutes, disconnecting")
+            connectionState = .manualDisconnected
+            ws?.disconnect()
+            ws = nil
+        }
+        
+        idleTimeoutTimer = workItem
+        DispatchQueue.global().asyncAfter(deadline: .now() + idleTimeoutDuration, execute: workItem)
     }
 }

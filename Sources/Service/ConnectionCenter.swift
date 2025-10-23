@@ -54,6 +54,10 @@ class ConnectionCenter: @unchecked Sendable {
         guard permissionsState.count != 0 else { return false }
         return permissionsState.values.allSatisfy { $0 == .granted }
     }
+    
+    func connectWss() {
+        wssClient.connect()
+    }
 }
 
 extension ConnectionCenter {

@@ -16,6 +16,7 @@ enum ConnState {
     case failed
     case connected
     case cancelled
+    case manualDisconnected // 手动断开
 }
 
 enum UDSClientError: Error {
