@@ -289,19 +289,13 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         log.info("🎙️ Start Recording")
     }
 
-    func stopRecording() {
+    func stopRecording(stopState: RecordState = .processing) {
         guard recordState == .recording else {
             return
         }
 
         recordState = .stopping
         audioEngine.stop()
-
-        // 从开始到结束 ws 连接不上
-        guard queueStartTime == nil else {
-            recordState = .idle
-            return
-        }
 
         // 刷新 Opus 编码器缓冲区, 发送所有剩余数据
         if let encoder = opusEncoder, let finalData = encoder.flush() {
@@ -324,7 +318,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
             printRecordingStatistics()
         }
 
-        recordState = .processing
+        recordState = stopState
         log.info("✅ Stop Recording")
     }
 
@@ -400,7 +394,7 @@ extension AudioSinkNodeRecorder {
                 case .serverResultReceived,
                      .notificationReceived(.serverTimeout),
                      .notificationReceived(.recordingTimeout):
-                    self?.stopRecording()
+                    self?.stopRecording(stopState: .idle)
 
                 default:
                     break
@@ -462,7 +456,7 @@ extension AudioSinkNodeRecorder {
             log.warning("Set queue start time")
         } else if let startTime = queueStartTime, Date().timeIntervalSince(startTime) >= 2.0 {
             log.error("Audio queue timeout: failed to establish connection within 2 seconds.")
-            stopRecording()
+            stopRecording(stopState: queueStartTime == nil ? .idle : .processing)
             EventBus.shared.publish(.notificationReceived(.recordingTimeout))
         }
     }

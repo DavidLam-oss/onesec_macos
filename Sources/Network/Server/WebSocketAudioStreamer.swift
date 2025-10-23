@@ -25,7 +25,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     private var responseTimeoutTimer: DispatchWorkItem?
     private let responseTimeoutDuration: TimeInterval = 10.0
     private var recordingStartedTimeoutTimer: DispatchWorkItem?
-    private let recordingStartedTimeoutDuration: TimeInterval = 2.0
+    private let recordingStartedTimeoutDuration: TimeInterval = 0.2
 
     // 连接检测 (防止一直卡在 connecting)
     private var connectingCheckTimer: DispatchWorkItem?
@@ -43,7 +43,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             log.info("WebSocket already connecting")
             return
         }
-        
+
         guard connectionState != .connected else {
             log.info("WebSocket already connected")
             return
