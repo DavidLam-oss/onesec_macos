@@ -71,7 +71,11 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     /// - 对端关闭连接（peerClosed）
     /// - 用户配置变更 (userConfigChanged)
     func scheduleReconnect(reason: String) {
-        guard ConnectionCenter.shared.isAuthed, connectionState != .connecting else {
+        guard ConnectionCenter.shared.isAuthed else {
+            log.warning("Auth Token invaild, stop reconnect")
+            return
+        }
+        guard connectionState != .connecting else {
             log.warning("Already connecting, skip reconnect")
             return
         }
