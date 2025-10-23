@@ -399,7 +399,8 @@ extension AudioSinkNodeRecorder {
                 switch event {
                 case .serverResultReceived,
                      .notificationReceived(.serverTimeout),
-                     .notificationReceived(.recordingTimeout): self?.recordState = .idle
+                     .notificationReceived(.recordingTimeout):
+                    self?.stopRecording()
 
                 default:
                     break
