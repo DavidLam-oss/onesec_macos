@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 
-// 自定义 HostingView，监听大小变化
+// 自定义 HostingView 监听大小变化
 class AutoResizingHostingView<Content: View>: NSHostingView<Content> {
     var onSizeChanged: (() -> Void)?
 
@@ -124,8 +124,6 @@ class StatusPanel: NSPanel {
 
         guard sizeChanged else { return }
 
-        // log.debug("size change: width \(newSize.width) height: \(newSize.height)")
-
         lastContentSize = newSize
 
         let contentRect = NSRect(origin: .zero, size: newSize)
@@ -145,58 +143,27 @@ class StatusPanel: NSPanel {
     override var canBecomeKey: Bool {
         true
     }
-
-    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
-        // logFrameChange(from: frame, to: frameRect)
-        super.setFrame(frameRect, display: flag)
-    }
-
-    override func setFrame(
-        _ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool
-    ) {
-        // logFrameChange(from: frame, to: frameRect)
-        super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
-    }
-
-    private func logFrameChange(from oldFrame: NSRect, to newFrame: NSRect) {
-        let sizeChanged =
-            abs(oldFrame.size.width - newFrame.size.width) > 1.0
-            || abs(oldFrame.size.height - newFrame.size.height) > 1.0
-
-        if sizeChanged {
-            if isResizing {
-                log.warning(
-                    "FRAME SIZE: | \(oldFrame.origin) \(oldFrame.size) to \(newFrame.origin) \(newFrame.size) [由用户代码触发]"
-                )
-            } else {
-                log.warning(
-                    "FRAME SIZE: | \(oldFrame.origin) \(oldFrame.size) to \(newFrame.origin) \(newFrame.size) [由 NSHostingView 自动触发]"
-                )
-            }
-        }
-    }
 }
 
 @MainActor
 class StatusPanelManager {
     static let shared = StatusPanelManager()
 
-    private var panel: StatusPanel?
-    private init() {}
+    private let panel: StatusPanel
+    
+    private init() {
+        panel = StatusPanel()
+        panel.alphaValue = 0
+    }
 
     func showPanel() {
-        if panel == nil {
-            panel = StatusPanel()
-            panel?.alphaValue = 0
-        }
-
-        panel?.orderFrontRegardless()
+        panel.orderFrontRegardless()
 
         // 淡入
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.3
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel?.animator().alphaValue = 1.0
+            panel.animator().alphaValue = 1.0
         }
     }
 
@@ -206,16 +173,15 @@ class StatusPanelManager {
             { context in
                 context.duration = 0.25
                 context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                panel?.animator().alphaValue = 0
+                panel.animator().alphaValue = 0
             },
             completionHandler: {
-                self.panel?.orderOut(nil)
+                self.panel.orderOut(nil)
             },
         )
     }
 
-    /// 获取 StatusPanel 的 frame
-    func getPanelFrame() -> NSRect? {
-        return panel?.frame
+    func getPanelFrame() -> NSRect {
+        return panel.frame
     }
 }

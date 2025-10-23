@@ -423,9 +423,9 @@ extension AudioSinkNodeRecorder {
 
                💾 原始数据: \(formatBytes(totalRawBytesSent))
                📦 压缩数据: \(formatBytes(totalBytesSent))
-               🗜️ 压缩比例: \(String(format: "%.1f", compressionRatio)):1
+               🤡 压缩比例: \(String(format: "%.1f", compressionRatio)):1
                💰 压缩率: \(String(format: "%.1f", compressionPercentage))%
-               ⬇️ 节省带宽: \(formatBytes(bandwidthSaved))
+               🤡 节省带宽: \(formatBytes(bandwidthSaved))
 
                📊 平均包大小: \(String(format: "%.1f", avgPacketSize)) 字节
                📈 发送频率: \(String(format: "%.1f", packetsPerSecond)) 包/秒
