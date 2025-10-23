@@ -10,8 +10,14 @@ import Foundation
 enum MessageType: String, CaseIterable {
     case startRecording = "start_recording"
     case stopRecording = "stop_recording"
+    case realtimeResult = "realtime_result"
+    case finalSentence = "final_sentence"
     case recognitionSummary = "recognition_summary"
+    case connection
+    case volumeData = "volume_data"
     case recognitionResult = "recognition_result"
+    case permissionStatus = "permission_status" // 新增：权限状态消息
+    case modeUpgrade = "mode_upgrade" // 新增：模式升级消息
     case serverResult = "server_result" // 新增：服务器返回结果消息
     case hotkeySetting = "hotkey_setting" // 新增：快捷键设置消息（接收）
     case hotkeySettingUpdate = "hotkey_setting_update" // 新增：快捷键设置更新消息（发送）
