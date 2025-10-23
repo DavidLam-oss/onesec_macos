@@ -83,6 +83,7 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
         case .peerClosed:
             log.info("websocket peer closed")
             connectionState = .disconnected
+            guard ConnectionCenter.shared.isAuthed else { return }
             scheduleReconnect(reason: "Peer closed connection")
         }
     }
@@ -95,8 +96,8 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
         guard ![401, 403].contains(status) else {
             curRetryCount = 0
             let reason = status == 401 ? "auth invalid" : "permission denied"
-            log.warning("WebSocket auth failed (\(status)), stop auto-reconnect")
-            EventBus.shared.publish(.authTokenFailed(reason: reason, statusCode: status))
+            log.warning("WebSocket auth failed (\(status)), \(reason) stop auto-reconnect")
+            EventBus.shared.publish(.notificationReceived(.authTokenFailed))
             return
         }
 

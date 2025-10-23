@@ -77,18 +77,18 @@ extension WebSocketMessage {
 
 enum NotificationMessageType: Equatable {
     case serverTimeout
-    case recordingFailed
     case recordingTimeout
+    case authTokenFailed
     case custom(title: String, content: String)
 
     var title: String {
         switch self {
         case .serverTimeout:
             "服务超时"
-        case .recordingFailed:
-            "录音失败"
         case .recordingTimeout:
             "录音超时"
+        case .authTokenFailed:
+            "鉴权失败"
         case .custom(let title, _):
             title
         }
@@ -98,10 +98,10 @@ enum NotificationMessageType: Equatable {
         switch self {
         case .serverTimeout:
             "服务器响应超时，请稍后重试"
-        case .recordingFailed:
-            "服务器响应超时或权限消失"
         case .recordingTimeout:
             "服务器未连接或缺失权限"
+        case .authTokenFailed:
+            "用户鉴权失败，请返回客户端重新登陆"
         case .custom(_, let content):
             content
         }

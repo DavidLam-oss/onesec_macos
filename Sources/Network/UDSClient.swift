@@ -42,9 +42,7 @@ final class UDSClient: @unchecked Sendable {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case let .authTokenFailed(reason, statusCode):
-                    self?.sendAuthTokenFailed(reason: reason, statusCode: statusCode)
-
+                case  .notificationReceived(.authTokenFailed): self?.sendAuthTokenFailed()
                 case let .hotkeySettingEnded(mode, hotkeyCombination):
                     self?.sendHotkeySettingResult(mode: mode, hotkeyCombination: hotkeyCombination)
 
@@ -224,7 +222,7 @@ extension UDSClient {
         EventBus.shared.publish(.userConfigChanged(authToken: authToken, hotkeyConfigs: hotkeyConfigs))
     }
 
-    func sendAuthTokenFailed(reason: String, statusCode: Int? = nil) {
+    func sendAuthTokenFailed(reason: String = "UnAuth", statusCode: Int? = nil) {
         guard connectionState == .connected else {
             log.warning("Client not connected, cant send auth token failed")
             return

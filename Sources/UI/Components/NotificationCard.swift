@@ -60,14 +60,12 @@ struct NotificationCard: View {
                 onTap?()
             }
             .onHover { hovering in
-                if onTap != nil {
-                    isCardHovered = hovering
+                 isCardHovered = hovering
                     if hovering {
                         NSCursor.pointingHand.push()
                     } else {
                         NSCursor.pop()
                     }
-                }
             }
 
             if let onClose {

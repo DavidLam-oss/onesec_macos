@@ -148,6 +148,10 @@ class InputController {
     }
 
     private func startRecording(mode: RecordMode) {
+        guard ConnectionCenter.shared.isAuthed else {
+            EventBus.shared.publish(.notificationReceived(.authTokenFailed))
+            return
+        }
         let appInfo = ContextService.getAppInfo()
         audioRecorder.startRecording(
             appInfo: appInfo, focusContext: nil, focusElementInfo: nil, recordMode: mode,

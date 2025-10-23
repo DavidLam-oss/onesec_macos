@@ -18,7 +18,6 @@ enum AppEvent {
     case modeUpgraded(from: RecordMode, to: RecordMode, focusContext: FocusContext?)
     case notificationReceived(NotificationMessageType)
     //
-    case authTokenFailed(reason: String, statusCode: Int?)
     case userConfigChanged(authToken: String, hotkeyConfigs: [[String: Any]])
     //
     case hotkeySettingStarted(mode: RecordMode)

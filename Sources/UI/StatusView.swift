@@ -40,7 +40,7 @@ struct StatusView: View {
     }
 
     private func showNotificationMessage(
-        title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil
+        title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil,
     ) {
         if let panelId = notificationPanelId {
             overlay.hideOverlay(uuid: panelId)
@@ -150,15 +150,22 @@ struct StatusView: View {
         case .serverResultReceived:
             recording.state = .idle
         case .modeUpgraded(let from, let to, _):
-            log.info("statusView receive modeUpgraded \(from) \(to)")
+            log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
                 recording.mode = to
             }
         case .notificationReceived(let notificationType):
-            log.info("notificationReceived: \(notificationType)")
+            log.info("Receive notification: \(notificationType)")
             recording.state = .idle
+            
+            var autoHide = true
+            if (notificationType == .authTokenFailed) {
+                autoHide = false
+            }
+        
             showNotificationMessage(
                 title: notificationType.title, content: notificationType.content,
+                autoHide: autoHide
             )
         default:
             break

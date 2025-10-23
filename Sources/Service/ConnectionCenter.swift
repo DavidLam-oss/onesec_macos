@@ -19,7 +19,9 @@ class ConnectionCenter: @unchecked Sendable {
     @Published var wssState: ConnState = .disconnected
     @Published var udsState: ConnState = .disconnected
     @Published var permissionsState: [PermissionType: PermissionStatus] = [:]
+
     @Published var currentMouseScreen: NSScreen? = nil
+    @Published var isAuthed: Bool = true
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -28,6 +30,7 @@ class ConnectionCenter: @unchecked Sendable {
         wssClient.connect()
         bind()
         initScreen()
+        initEventListener()
     }
 
     private func bind() {
@@ -70,12 +73,23 @@ extension ConnectionCenter {
             .store(in: &cancellables)
     }
 
-    func initScreen() {
+    private func initScreen() {
         let mouseLocation = NSEvent.mouseLocation
         if let screen = NSScreen.screens.first(where: { screen in
             NSMouseInRect(mouseLocation, screen.frame, false)
         }) {
             currentMouseScreen = screen
         }
+    }
+
+    private func initEventListener() {
+        EventBus.shared.eventSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] event in
+                if case .notificationReceived(.authTokenFailed) = event {
+                    self?.isAuthed = false
+                }
+            }
+            .store(in: &cancellables)
     }
 }

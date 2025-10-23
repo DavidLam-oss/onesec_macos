@@ -21,21 +21,24 @@ struct CommandParser: ParsableCommand {
     var debugMode: Bool = true
 
     @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn)")
-    var normalKeys: String = "Fn"
+    var normalKeys: String = "Fn+Space"
 
     @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+LCmd)")
     var commandKeys: String = "Fn+LCmd"
 
     mutating func run() throws {
+        guard ServerValidator.isValid(server) else {
+            throw ValidationError("Invalid Server: \(server)")
+        }
+
+        if !JWTValidator.isValid(authToken) {
+            ConnectionCenter.shared.isAuthed = false
+        }
+
         Config.UDS_CHANNEL = udsChannel
         Config.SERVER = server
         Config.AUTH_TOKEN = authToken
         Config.DEBUG_MODE = debugMode
-
-        guard ServerValidator.isValid(Config.SERVER) else {
-            throw ValidationError("Invalid Server: \(server)")
-        }
-
         Config.NORMAL_KEY_CODES = try parseKeys(normalKeys, name: "普通模式按键")
         Config.COMMAND_KEY_CODES = try parseKeys(commandKeys, name: "命令模式按键")
 
