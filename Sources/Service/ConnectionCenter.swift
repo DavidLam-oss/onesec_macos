@@ -14,13 +14,15 @@ class ConnectionCenter: @unchecked Sendable {
 
     private var wssClient: WebSocketAudioStreamer = .init()
     private var udsClient: UDSClient = .init()
-    private var permissionClient: PermissionService = .shared
-    private var networkClient: NetworkService = .shared
+    private var permissionService: PermissionService = .shared
+    private var networkService: NetworkService = .shared
+    private var inputSerive: InputController?
 
     @Published var wssState: ConnState = .disconnected
     @Published var udsState: ConnState = .disconnected
     @Published var permissionsState: [PermissionType: PermissionStatus] = [:]
-    @Published var networkStatus: NetworkStatus = .unavailable
+    @Published var networkState: NetworkStatus = .unavailable
+    @Published var audioRecorderState: RecordState = .idle
 
     @Published var currentMouseScreen: NSScreen? = nil
     @Published var isAuthed: Bool = true
@@ -38,8 +40,8 @@ class ConnectionCenter: @unchecked Sendable {
     private func bind() {
         bind(wssClient.$connectionState, to: \.wssState)
         bind(udsClient.$connectionState, to: \.udsState)
-        bind(permissionClient.$permissionsState, to: \.permissionsState)
-        bind(networkClient.$networkStatus, to: \.networkStatus)
+        bind(permissionService.$permissionsState, to: \.permissionsState)
+        bind(networkService.$networkStatus, to: \.networkState)
     }
 
     func canRecord() -> Bool {
@@ -54,7 +56,7 @@ class ConnectionCenter: @unchecked Sendable {
         guard permissionsState.count != 0 else { return false }
         return permissionsState.values.allSatisfy { $0 == .granted }
     }
-    
+
     func connectWss() {
         wssClient.connect()
     }
@@ -98,5 +100,23 @@ extension ConnectionCenter {
                 }
             }
             .store(in: &cancellables)
+
+        $permissionsState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handlePermissionChange()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handlePermissionChange() {
+        let hasPermissions = hasPermissions()
+        if hasPermissions, inputSerive == nil {
+            inputSerive = InputController()
+            bind(inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState)
+        } else if !hasPermissions, inputSerive != nil {
+            log.warning("Permission Revoked, Cleaning InputService")
+            inputSerive = nil
+        }
     }
 }

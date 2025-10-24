@@ -12,8 +12,8 @@ import Combine
 /// 全局 Input 控制器
 /// 负责监听配置的按键组合的按下和松开事件，控制录音的开始和停止
 class InputController {
-    private var audioRecorder: AudioSinkNodeRecorder = .init()
-    private var keyEventProcessor: KeyEventProcessor = .init()
+    var audioRecorder: AudioSinkNodeRecorder = .init()
+    var keyEventProcessor: KeyEventProcessor = .init()
 
     /// 事件监听器
     private var eventTap: CFMachPort?
@@ -157,14 +157,14 @@ class InputController {
             return
         }
 
-        guard ConnectionCenter.shared.networkStatus == .available else {
+        guard ConnectionCenter.shared.networkState == .available else {
             EventBus.shared.publish(.notificationReceived(.networkUnavailable))
             return
         }
 
         guard
             ConnectionCenter.shared.wssState == .connected
-                || ConnectionCenter.shared.wssState == .manualDisconnected
+            || ConnectionCenter.shared.wssState == .manualDisconnected
         else {
             EventBus.shared.publish(.notificationReceived(.networkUnavailable))
             return
@@ -203,8 +203,6 @@ extension InputController {
                     self?.handleHotkeySettingStarted(mode: mode)
                 case .hotkeySettingEnded(let mode, let hotkeyCombination):
                     self?.handleHotkeySettingEnded(mode: mode, hotkeyCombination: hotkeyCombination)
-                case .serverResultReceived(let summary, _):
-                    ContextService.pasteTextToActiveApp(summary)
                 default:
                     break
                 }
@@ -226,7 +224,7 @@ extension InputController {
 
         for config in hotkeyConfigs {
             guard let mode = config["mode"] as? String,
-                let hotkeyCombination = config["hotkey_combination"] as? [String]
+                  let hotkeyCombination = config["hotkey_combination"] as? [String]
             else {
                 continue
             }

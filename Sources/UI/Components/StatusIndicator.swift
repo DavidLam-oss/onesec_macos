@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RecordingState {
-    var volume: CGFloat = 0  // 音量值 (0-1)
+    var volume: CGFloat = 0 // 音量值 (0-1)
     var state: RecordState = .idle
     var mode: RecordMode = .normal
 
@@ -15,8 +15,8 @@ struct StatusIndicator: View {
     let volume: CGFloat
     let mode: RecordMode
 
-    let minInnerRatio: CGFloat = 0.2  // 内圆最小为外圆的20%
-    let maxInnerRatio: CGFloat = 0.7  // 内圆最大为外圆的70%
+    let minInnerRatio: CGFloat = 0.2 // 内圆最小为外圆的20%
+    let maxInnerRatio: CGFloat = 0.7 // 内圆最大为外圆的70%
 
     private let overlay = OverlayController.shared
     @State private var isHovered: Bool = false
@@ -134,6 +134,7 @@ struct StatusIndicator: View {
         .offset(y: recordState == .idle ? 0 : -4)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
         .onHover { hovering in
+            guard ConnectionCenter.shared.audioRecorderState == .idle else { return }
             isHovered = hovering
             if hovering {
                 StatusPanelManager.shared.makeKeyPanel {
@@ -147,11 +148,11 @@ struct StatusIndicator: View {
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.overlayBackground)
+                                .fill(Color.overlayBackground),
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(borderGrey.opacity(0.8), lineWidth: 1)
+                                .strokeBorder(borderGrey.opacity(0.8), lineWidth: 1),
                         )
                         .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 2)
                 }

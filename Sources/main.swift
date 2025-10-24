@@ -4,7 +4,7 @@ import Foundation
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var connectionCenter: ConnectionCenter!
-    var inputController: InputController?
+
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -15,8 +15,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         connectionCenter = ConnectionCenter.shared
 
-        setupPermissionObserver()
-
         StatusPanelManager.shared.showPanel()
         Task {
             // try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -24,24 +22,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func setupPermissionObserver() {
-        connectionCenter.$permissionsState
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handlePermissionChange()
-            }
-            .store(in: &cancellables)
-    }
-
-    private func handlePermissionChange() {
-        let hasPermissions = connectionCenter.hasPermissions()
-        if hasPermissions, inputController == nil {
-            inputController = InputController()
-        } else if !hasPermissions, inputController != nil {
-            log.warning("Permission Revoked, Cleaning InputController")
-            inputController = nil
-        }
-    }
 }
 
 let app = NSApplication.shared

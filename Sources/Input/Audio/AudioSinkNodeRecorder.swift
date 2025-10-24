@@ -14,11 +14,14 @@ import Opus
 enum RecordState {
     case idle
     case recording
+    case recordingTimeout
     case processing
     case stopping
 }
 
 class AudioSinkNodeRecorder: @unchecked Sendable {
+    @Published var recordState: RecordState = .idle
+
     private var audioEngine = AVAudioEngine()
     private var sinkNode: AVAudioSinkNode!
     private var converter: AVAudioConverter!
@@ -29,7 +32,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
     private var opusFramesPerPacket = 20 // 默认聚合 200ms
 
     private var audioQueue: Deque<Data> = .init()
-    private var recordState: RecordState = .idle
+    private let lock = NSLock()
 
     // 响应式流处理
     private var cancellables = Set<AnyCancellable>()
@@ -248,7 +251,8 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         }
 
         if recordState == .recording {
-            log.warning("Updating frames per packet while recording; pending Ogg buffers will reset.")
+            log.warning(
+                "Updating frames per packet while recording; pending Ogg buffers will reset.")
         }
 
         opusFramesPerPacket = count
@@ -290,7 +294,11 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
     }
 
     func stopRecording(stopState: RecordState = .processing) {
-        guard recordState == .recording else {
+        lock.lock()
+        defer { lock.unlock() }
+
+        log.info("✅ Stop recording with state \(stopState), current state \(recordState)")
+        guard recordState == .recording || recordState == .recordingTimeout else {
             return
         }
 
@@ -304,25 +312,28 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         }
 
         flushPendingOggPackets(final: true)
-
         while let audioData = audioQueue.popFirst() {
             sendAudioData(audioData)
         }
 
+        // 只有真正开始录音才需要等待服务器响应
         if isRecordingStarted {
             EventBus.shared.publish(.recordingStopped)
+            recordState = stopState
+            if recordingStartTime != nil {
+                printRecordingStatistics()
+            }
+        } else {
+            recordState = .idle
         }
 
-        // 计算录音统计信息
-        if recordingStartTime != nil {
-            printRecordingStatistics()
-        }
-
-        recordState = stopState
-        log.info("✅ Stop Recording")
+        log.info("✅ Recording Stopped ")
     }
 
     func resetState() {
+        lock.lock()
+        defer { lock.unlock() }
+
         // 重置状态
         recordState = .idle
         audioQueue.removeAll()
@@ -391,10 +402,20 @@ extension AudioSinkNodeRecorder {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case .serverResultReceived,
-                     .notificationReceived(.serverTimeout),
+                case .serverResultReceived(let summary, _):
+                    if self?.recordState == .processing {
+                        self?.resetState()
+                        Task { @MainActor in
+                            ContextService.pasteTextToActiveApp(summary)
+                        }
+                    }
+
+                case .notificationReceived(.serverTimeout),
                      .notificationReceived(.recordingTimeout):
-                    self?.stopRecording(stopState: .idle)
+                    Task { @MainActor [weak self] in
+                        self?.recordState = .recordingTimeout
+                        self?.stopRecording(stopState: .idle)
+                    }
 
                 default:
                     break
