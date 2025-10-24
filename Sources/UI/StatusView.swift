@@ -72,9 +72,16 @@ struct StatusView: View {
         guard !permissionsState.isEmpty else { return }
 
         if !ConnectionCenter.shared.hasPermissions() {
+            // 如果没有通知面板，显示权限警告
             if notificationPanelId == nil {
                 showPermissionAlert()
                 SoundService.shared.playSound(.notification)
+            } else {
+                // 如果已有通知面板，更新内容
+                if let panelId = notificationPanelId {
+                    overlay.hideOverlay(uuid: panelId)
+                }
+                showPermissionAlert()
             }
         } else if let panelId = notificationPanelId {
             overlay.hideOverlay(uuid: panelId)
@@ -153,6 +160,14 @@ struct StatusView: View {
             log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
                 recording.mode = to
+            }
+        case .userConfigUpdated:
+            if ConnectionCenter.shared.isAuthed,
+               notificationPanelId != nil,
+               ConnectionCenter.shared.hasPermissions()
+            {
+                overlay.hideOverlay(uuid: notificationPanelId!)
+                notificationPanelId = nil
             }
         case .notificationReceived(let notificationType):
             log.info("Receive notification: \(notificationType)")

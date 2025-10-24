@@ -26,7 +26,7 @@ enum MessageType: String, CaseIterable {
     case configUpdated = "config_updated" // 新增：初始化配置消息（接收）
     case authTokenFailed = "auth_token_failed" // 新增：认证token失败消息（发送）
     case recordingTimeout = "recording_timeout" // 新增：录音超时消息（发送）
-    case connectionSuccess = "connection_success" // 新增：连接成功消息（发送）
+    case connected // 新增：连接成功消息（发送）
     case recordingStarted = "recording_started" // 新增：录音已开始消息（接收）
 }
 
@@ -87,7 +87,7 @@ enum NotificationMessageType: Equatable {
         case .recordingTimeout:
             "录音超时"
         case .authTokenFailed:
-            "鉴权失败"
+            JWTValidator.isValid(Config.AUTH_TOKEN) ? "鉴权失败" : "未登录"
         case .networkUnavailable:
             "网络不可用"
         case .custom(let title, _):
@@ -102,7 +102,7 @@ enum NotificationMessageType: Equatable {
         case .recordingTimeout:
             "服务器录音响应超时"
         case .authTokenFailed:
-            "用户鉴权失败，请返回客户端重新登陆"
+            JWTValidator.isValid(Config.AUTH_TOKEN) ? "用户鉴权失败，请返回客户端重新登陆" : "用户未登录，请登陆后使用"
         case .networkUnavailable:
             "网络不可用，请检查网络连接"
         case .custom(_, let content):

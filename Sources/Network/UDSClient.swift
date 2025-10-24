@@ -44,10 +44,12 @@ final class UDSClient: @unchecked Sendable {
             .sink { [weak self] event in
                 switch event {
                 case .notificationReceived(.authTokenFailed): self?.sendAuthTokenFailed()
-
                 case let .hotkeySettingEnded(mode, hotkeyCombination):
                     self?.sendHotkeySettingResult(mode: mode, hotkeyCombination: hotkeyCombination)
-
+                case let .hotkeySettingResulted(mode, hotkeyCombination, isConflict):
+                    if !isConflict {
+                        self?.sendHotkeySettingResult(mode: mode, hotkeyCombination: hotkeyCombination)
+                    }
                 default:
                     break
                 }
@@ -82,6 +84,7 @@ final class UDSClient: @unchecked Sendable {
             switch state {
             case .ready:
                 connectionState = .connected
+                sendConnected()
                 startMessagePolling()
                 log.info("connected")
             case .failed:
@@ -162,6 +165,7 @@ extension UDSClient {
     }
 
     private func processMessage(_ message: String) {
+        log.debug("Reveive message \(message)")
         guard let data = message.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
               let typeString = json["type"] as? String,
@@ -191,6 +195,21 @@ extension UDSClient {
             return
         }
 
+        Config.AUTH_TOKEN = authToken
+        ConnectionCenter.shared.isAuthed = JWTValidator.isValid(Config.AUTH_TOKEN)
+        log.info("ConnectionCenter.shared.isAuthed \(ConnectionCenter.shared.isAuthed)")
+
+        for config in hotkeyConfigs {
+            guard let mode = config["mode"] as? String,
+                  let hotkeyCombination = config["hotkey_combination"] as? [String]
+            else {
+                continue
+            }
+
+            Config.saveHotkeySetting(
+                mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination
+            )
+        }
         EventBus.shared.publish(.userConfigUpdated(authToken: authToken, hotkeyConfigs: hotkeyConfigs))
     }
 
@@ -210,6 +229,10 @@ extension UDSClient {
 
         sendJSONMessage(WebSocketMessage.create(type: .authTokenFailed, data: data).toJSON())
         log.info("Client send auth token failed: \(reason), code: \(statusCode ?? 0)")
+    }
+
+    func sendConnected() {
+        sendJSONMessage(WebSocketMessage.create(type: .connected, data: nil).toJSON())
     }
 
     func sendHotkeySettingResult(mode: RecordMode, hotkeyCombination: [String]) {

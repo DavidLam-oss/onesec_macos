@@ -39,13 +39,14 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     }
 
     func connect() {
-        guard connectionState != .connecting else {
-            log.info("WebSocket already connecting")
+        guard ConnectionCenter.shared.isAuthed else {
+            log.info("no auth, skip connect")
+            connectionState = .manualDisconnected
             return
         }
 
-        guard connectionState != .connected else {
-            log.info("WebSocket already connected")
+        guard connectionState != .connecting, connectionState != .connected else {
+            log.info("WebSocket already \(connectionState)")
             return
         }
 
@@ -103,6 +104,17 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             self?.connect()
         }
     }
+
+    private func scheduleManualReconnect() {
+        disconnect()
+        connect()
+    }
+
+    private func disconnect() {
+        connectionState = .manualDisconnected
+        ws?.disconnect()
+        ws = nil
+    }
 }
 
 // MARK: - 消息处理
@@ -131,8 +143,7 @@ extension WebSocketAudioStreamer {
                 case .audioDataReceived(let data): sendAudioData(data)
 
                 case .userConfigUpdated:
-                    curRetryCount = 0
-                    connect()
+                    scheduleManualReconnect()
 
                 default:
                     break
@@ -286,10 +297,7 @@ extension WebSocketAudioStreamer {
             guard let self else { return }
             if connectionState == .connecting {
                 log.warning("Still connecting after 10s, reconnect")
-                connectionState = .manualDisconnected
-                ws?.disconnect()
-                ws = nil
-                connect()
+                scheduleManualReconnect()
             }
         }
 

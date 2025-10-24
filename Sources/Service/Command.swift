@@ -31,10 +31,6 @@ struct CommandParser: ParsableCommand {
             throw ValidationError("Invalid Server: \(server)")
         }
 
-        if !JWTValidator.isValid(authToken) {
-            ConnectionCenter.shared.isAuthed = false
-        }
-
         Config.UDS_CHANNEL = udsChannel
         Config.SERVER = server
         Config.AUTH_TOKEN = authToken

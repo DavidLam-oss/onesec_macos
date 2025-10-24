@@ -197,8 +197,6 @@ extension InputController {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case .userConfigUpdated(let authToken, let hotkeyConfigs):
-                    self?.handleConfigUpdated(authToken: authToken, hotkeyConfigs: hotkeyConfigs)
                 case .hotkeySettingStarted(let mode):
                     self?.handleHotkeySettingStarted(mode: mode)
                 case .hotkeySettingEnded(let mode, let hotkeyCombination):
@@ -217,21 +215,5 @@ extension InputController {
     private func handleHotkeySettingEnded(mode: RecordMode, hotkeyCombination: [String]) {
         keyEventProcessor.endHotkeySetting()
         Config.saveHotkeySetting(mode: mode, hotkeyCombination: hotkeyCombination)
-    }
-
-    private func handleConfigUpdated(authToken: String, hotkeyConfigs: [[String: Any]]) {
-        Config.AUTH_TOKEN = authToken
-
-        for config in hotkeyConfigs {
-            guard let mode = config["mode"] as? String,
-                  let hotkeyCombination = config["hotkey_combination"] as? [String]
-            else {
-                continue
-            }
-
-            Config.saveHotkeySetting(
-                mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination,
-            )
-        }
     }
 }

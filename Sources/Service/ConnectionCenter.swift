@@ -25,16 +25,19 @@ class ConnectionCenter: @unchecked Sendable {
     @Published var audioRecorderState: RecordState = .idle
 
     @Published var currentMouseScreen: NSScreen? = nil
-    @Published var isAuthed: Bool = true
+    @Published var isAuthed: Bool = JWTValidator.isValid(Config.AUTH_TOKEN)
 
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
-        udsClient.connect()
-        wssClient.connect()
         bind()
         initScreen()
         initEventListener()
+    }
+
+    func initialize() {
+        udsClient.connect()
+        wssClient.connect()
     }
 
     private func bind() {

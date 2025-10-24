@@ -58,44 +58,24 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
         }
     }
     
-    func checkAllPermissions(completion: @escaping ([PermissionType: PermissionStatus]) -> Void) {
+    func checkAllPermissions(completion: @escaping @Sendable ([PermissionType: PermissionStatus]) -> Void) {
         updateAllPermissionStatus()
         
-        var results: [PermissionType: PermissionStatus] = [:]
-        let group = DispatchGroup()
+        let micStatus = checkStatus(.microphone)
+        let accessStatus = checkStatus(.accessibility)
         
-        // 麦克风
-        group.enter()
-        request(.microphone) { [weak self] granted in
-            guard let self else {
-                group.leave()
-                return
-            }
-            let status = granted ? PermissionStatus.granted : checkStatus(.microphone)
-            DispatchQueue.main.async {
-                self.microphonePermissionStatus = status
-                results[.microphone] = status
-                group.leave()
-            }
-        }
-        
-        // 辅助功能
-        group.enter()
-        request(.accessibility) { [weak self] granted in
-            guard let self else {
-                group.leave()
-                return
-            }
-            let status = granted ? PermissionStatus.granted : checkStatus(.accessibility)
-            DispatchQueue.main.async {
-                self.accessibilityPermissionStatus = status
-                results[.accessibility] = status
-                group.leave()
-            }
-        }
-        
-        group.notify(queue: .main) { [weak self] in
-            self?.permissionsState = results
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            
+            microphonePermissionStatus = micStatus
+            accessibilityPermissionStatus = accessStatus
+            
+            let results: [PermissionType: PermissionStatus] = [
+                .microphone: micStatus,
+                .accessibility: accessStatus
+            ]
+            
+            permissionsState = results
             completion(results)
         }
     }

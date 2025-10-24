@@ -2,6 +2,7 @@ import Cocoa
 import Combine
 import Foundation
 
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     var connectionCenter: ConnectionCenter!
 
@@ -9,11 +10,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         CommandParser.main()
-
         SoundService.shared.initialize()
         SignalHandler.shared.setupSignalHandlers()
 
         connectionCenter = ConnectionCenter.shared
+        connectionCenter.initialize()
 
         StatusPanelManager.shared.showPanel()
         Task {
