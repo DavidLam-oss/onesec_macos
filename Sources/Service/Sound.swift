@@ -47,7 +47,7 @@ class SoundService: @unchecked Sendable {
         ]
         
         for (soundType, fileName) in soundFiles {
-            guard let url = Bundle.module.url(
+            guard let url = Bundle.resourceBundle.url(
                 forResource: fileName,
                 withExtension: "wav"
             ) else {

@@ -6,8 +6,8 @@ set -e  # 遇到错误立即退出
 
 # ============= 配置 =============
 APP_NAME="OnesecCore"
-BUNDLE_ID="com.ripplestar.oneseccore"
-VERSION="1.0.0"
+BUNDLE_ID="com.ripplestar.miaoyan.accessHelper"
+VERSION="1.0.1"
 DEVELOPER_ID_CERT="Hangzhou RippleStar Technology Co., Ltd. (PNG2RBG62Z)"
 
 # 路径
@@ -50,6 +50,7 @@ fi
 echo_step "清理旧构建..."
 rm -rf "${BUILD_DIR}/release"
 mkdir -p "${BUILD_DIR}/release"
+swift package clean
 
 # ============= 构建 =============
 echo_step "构建 ARM64 架构..."
@@ -89,6 +90,15 @@ chmod +x "${CONTENTS_DIR}/MacOS/${APP_NAME}"
 [ -d "${PROJECT_ROOT}/Sources/Resources" ] && cp -R "${PROJECT_ROOT}/Sources/Resources/"* "${CONTENTS_DIR}/Resources/"
 [ -f "${PROJECT_ROOT}/AppIcon.icns" ] && cp "${PROJECT_ROOT}/AppIcon.icns" "${CONTENTS_DIR}/Resources/"
 
+# 复制 Resource Bundle（包含音频等资源文件）
+RESOURCE_BUNDLE="${BUILD_DIR}/arm64-apple-macosx/release/OnesecCore_OnesecCore.bundle"
+if [ -d "${RESOURCE_BUNDLE}" ]; then
+    cp -R "${RESOURCE_BUNDLE}" "${CONTENTS_DIR}/Resources/"
+    echo_ok "Resource Bundle 已复制"
+else
+    echo "⚠️  未找到 Resource Bundle: ${RESOURCE_BUNDLE}"
+fi
+
 # 创建 Info.plist
 cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -105,10 +115,32 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
     <string>${APP_NAME}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>MYWS</string>
+    <key>CFBundleVersion</key>
+    <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${VERSION}</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2024 Hangzhou RippleStar Technology Co., Ltd. All rights reserved.</string>
+    <key>NSAppleScriptEnabled</key>
+    <false/>
+    <key>NSSupportsAutomaticTermination</key>
+    <true/>
+    <key>NSSupportsSuddenTermination</key>
+    <true/>
+    <key>LSBackgroundOnly</key>
+    <true/>
     <key>LSUIElement</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
@@ -120,8 +152,50 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
 EOF
 echo_ok "App Bundle 创建完成"
 
+# ============= 嵌入 Swift 运行时库 =============
+echo_step "嵌入 libswift_Concurrency.dylib..."
+FRAMEWORKS_DIR="${CONTENTS_DIR}/Frameworks"
+mkdir -p "${FRAMEWORKS_DIR}"
+
+# 查找 libswift_Concurrency.dylib
+SWIFT_LIB=$(find /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib -name "libswift_Concurrency.dylib" -path "*/macosx/*" | head -1)
+
+if [ -z "$SWIFT_LIB" ]; then
+    echo "❌ 未找到 libswift_Concurrency.dylib"
+    exit 1
+fi
+
+# 复制库文件
+cp "$SWIFT_LIB" "${FRAMEWORKS_DIR}/"
+chmod 644 "${FRAMEWORKS_DIR}/libswift_Concurrency.dylib"
+echo_ok "Swift 运行时库嵌入完成: $(basename $SWIFT_LIB)"
+
+# ============= 清理 RPATH =============
+echo_step "清理 RPATH..."
+EXECUTABLE="${CONTENTS_DIR}/MacOS/${APP_NAME}"
+
+# 只移除 Xcode 工具链路径，保留其他所有 RPATH（包括重复的 /usr/lib/swift）
+install_name_tool -delete_rpath "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx" "$EXECUTABLE" 2>/dev/null || true
+
+echo_ok "RPATH 清理完成"
+
+# 验证最终的 RPATH
+echo "当前 RPATH 配置："
+otool -l "$EXECUTABLE" | grep -A 2 "LC_RPATH" | grep "path " | awk '{print "  - " $2}'
+
 # ============= 签名 =============
 echo_step "代码签名..."
+# 先签名所有嵌入的库
+if [ -d "${FRAMEWORKS_DIR}" ]; then
+    for dylib in "${FRAMEWORKS_DIR}"/*.dylib; do
+        [ -f "$dylib" ] && codesign --force --sign "${DEVELOPER_ID_CERT}" \
+            --options runtime \
+            --timestamp \
+            "$dylib"
+    done
+fi
+
+# 再签名整个 App Bundle
 codesign --force --sign "${DEVELOPER_ID_CERT}" \
     --options runtime \
     --timestamp \
