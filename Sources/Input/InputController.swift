@@ -175,9 +175,18 @@ class InputController {
         }
 
         let appInfo = ContextService.getAppInfo()
-        audioRecorder.startRecording(
-            appInfo: appInfo, focusContext: nil, focusElementInfo: nil, recordMode: mode,
-        )
+
+        Task {
+            // let selectText = await ContextService.getSelectedText()
+            // log.info("selectText \(String(describing: selectText))")
+            
+
+            let (a, b) = await ContextService.getFocusContextAndElementInfo()
+                //   log.info("selectText \(String(describing: selectText))")
+            audioRecorder.startRecording(
+                appInfo: appInfo, focusContext: nil, focusElementInfo: nil, recordMode: mode
+            )
+        }
     }
 
     private func stopRecording() {

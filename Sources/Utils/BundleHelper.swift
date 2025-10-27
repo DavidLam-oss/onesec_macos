@@ -8,10 +8,8 @@
 import Foundation
 
 extension Bundle {
-    /// 获取资源 Bundle
-    /// 自动适配开发环境和生产环境（打包后的 App）
     static var resourceBundle: Bundle {
-        // 生产环境：从 App Bundle 的 Contents/Resources 目录加载
+        // 生产环境: 从 App Bundle 的 Contents/Resources 目录加载
         let productionPath = Bundle.main.bundleURL
             .appendingPathComponent("Contents/Resources/OnesecCore_OnesecCore.bundle")
             .path
@@ -20,7 +18,7 @@ extension Bundle {
             return bundle
         }
         
-        // 开发环境：使用 SPM 自动生成的 Bundle.module
+        // 开发环境: 使用 SPM 自动生成的 Bundle.module
         // 这会从构建目录加载
         return Bundle.module
     }

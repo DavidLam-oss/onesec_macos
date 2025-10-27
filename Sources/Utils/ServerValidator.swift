@@ -26,7 +26,7 @@ enum ServerValidator {
             return false
         }
         
-        // 如果有端口，验证端口
+        // 验证端口
         if components.count == 2 {
             guard let port = Int(components[1]),
                   port > 0,

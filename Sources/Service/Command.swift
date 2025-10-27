@@ -21,7 +21,7 @@ struct CommandParser: ParsableCommand {
     var debugMode: Bool = true
 
     @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn)")
-    var normalKeys: String = "Fn+Space"
+    var normalKeys: String = "Fn+LOpt"
 
     @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+LCmd)")
     var commandKeys: String = "Fn+LCmd"

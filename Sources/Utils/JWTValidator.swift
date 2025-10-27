@@ -8,7 +8,6 @@
 import Foundation
 
 struct JWTValidator {
-    /// 验证 JWT token 的基本格式 header.payload.signature
     static func isValid(_ token: String) -> Bool {
         let parts = token.components(separatedBy: ".")
         return parts.count == 3 && parts.allSatisfy { !$0.isEmpty }

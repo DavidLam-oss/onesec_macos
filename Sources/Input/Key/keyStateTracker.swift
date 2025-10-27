@@ -150,10 +150,13 @@ class KeyStateTracker {
             return .notMatching
         }
         
-        // 检查是否匹配任何配置
-        let matchedConfig = keyConfigs.first { config in
-            Set(config.keyCodes.sorted()) == Set(Array(pressedKeys).sorted())
-        }
+        // 检查是否匹配任何配置（配置的按键是当前按键的子集）
+        // 如果有多个匹配，选择按键数量最多的配置（最具体的匹配）
+        let matchedConfig = keyConfigs
+            .filter { config in
+                Set(config.keyCodes).isSubset(of: pressedKeys)
+            }
+            .max(by: { $0.keyCodes.count < $1.keyCodes.count })
         
         let isNowMatched = matchedConfig != nil
         let newMode = matchedConfig?.mode
