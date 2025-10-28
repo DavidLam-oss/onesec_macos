@@ -54,16 +54,13 @@ class InputController {
             userInfo: Unmanaged.passUnretained(self).toOpaque(),
         )
 
-        // 保存当前运行循环
-        runLoop = CFRunLoopGetCurrent()
-
         // 创建运行循环源
+        runLoop = CFRunLoopGetCurrent()
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         CFRunLoopAddSource(runLoop, runLoopSource, .commonModes)
 
         // 启用事件监听器
         CGEvent.tapEnable(tap: eventTap!, enable: true)
-        log.info("全局快捷键监听器已启动")
     }
 
     private func buildEventMask() -> CGEventMask {
@@ -84,9 +81,7 @@ class InputController {
         return CGEventMask(eventMask)
     }
 
-    private func handleCGEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent)
-        -> Unmanaged<CGEvent>?
-    {
+    private func handleCGEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         guard type != .tapDisabledByTimeout else {
             log.warning("CGEventType tapDisabledByTimeout")
             return nil
@@ -111,13 +106,12 @@ class InputController {
         }
 
         // 正常处理按键监听
-        switch keyEventProcessor.handlekeyEvent(type: type, event: event) {
-        case .startMatch(let mode):
-            startRecording(mode: mode)
-        case .endMatch:
-            stopRecording()
-        case .modeUpgrade(let from, let to):
-            modeUpgrade(from: from, to: to)
+        let evt = keyEventProcessor.handlekeyEvent(type: type, event: event)
+        log.debug("evt: \(evt)")
+        switch evt {
+        case .startMatch(let mode): startRecording(mode: mode)
+        case .endMatch: stopRecording()
+        case .modeUpgrade(let from, let to): modeUpgrade(from: from, to: to)
         case .stillMatching, .notMatching:
             break
         }
@@ -129,8 +123,7 @@ class InputController {
     private func handleMouseEvent(event: CGEvent) {
         let mouseLocation = event.location
 
-        // 找到鼠标所在屏幕
-        guard
+        guard // 找到鼠标所在屏幕
             let newScreen = NSScreen.screens.first(where: { screen in
                 NSMouseInRect(
                     NSPoint(x: mouseLocation.x, y: mouseLocation.y),
@@ -174,19 +167,7 @@ class InputController {
             ConnectionCenter.shared.connectWss()
         }
 
-        let appInfo = ContextService.getAppInfo()
-
-        Task {
-            let selectText = await ContextService.getSelectedText()
-            let inputContent = ContextService.getInputContent()
-
-            let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "")
-            let focusElementInfo = ContextService.getFocusElementInfo()
-
-            audioRecorder.startRecording(
-                appInfo: appInfo, focusContext: focusContext, focusElementInfo: focusElementInfo, recordMode: mode,
-            )
-        }
+        audioRecorder.startRecording(mode: mode)
     }
 
     private func stopRecording() {
@@ -197,7 +178,7 @@ class InputController {
         if to == .normal {
             return
         }
-        EventBus.shared.publish(.modeUpgraded(from: from, to: to, focusContext: nil))
+        EventBus.shared.publish(.modeUpgraded(from: from, to: to))
     }
 }
 

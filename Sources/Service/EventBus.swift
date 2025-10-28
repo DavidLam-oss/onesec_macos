@@ -11,11 +11,11 @@ import Foundation
 
 enum AppEvent {
     case volumeChanged(volume: Float)
-    case recordingStarted(appInfo: AppInfo?, focusContext: FocusContext?, focusElementInfo: FocusElementInfo?, recordMode: RecordMode)
+    case recordingStarted(recordMode: RecordMode)
     case recordingStopped
     case audioDataReceived(data: Data)
     case serverResultReceived(summary: String, serverTime: Int?)
-    case modeUpgraded(from: RecordMode, to: RecordMode, focusContext: FocusContext?)
+    case modeUpgraded(from: RecordMode, to: RecordMode)
     case notificationReceived(NotificationMessageType)
     //
     case userConfigUpdated(authToken: String, hotkeyConfigs: [[String: Any]])

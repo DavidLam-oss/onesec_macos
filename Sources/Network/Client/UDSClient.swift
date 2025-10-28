@@ -84,7 +84,6 @@ final class UDSClient: @unchecked Sendable {
             switch state {
             case .ready:
                 connectionState = .connected
-                sendConnected()
                 startMessagePolling()
                 log.info("connected")
             case .failed:
@@ -229,10 +228,6 @@ extension UDSClient {
 
         sendJSONMessage(WebSocketMessage.create(type: .authTokenFailed, data: data).toJSON())
         log.info("Client send auth token failed: \(reason), code: \(statusCode ?? 0)")
-    }
-
-    func sendConnected() {
-        sendJSONMessage(WebSocketMessage.create(type: .connected, data: nil).toJSON())
     }
 
     func sendHotkeySettingResult(mode: RecordMode, hotkeyCombination: [String]) {

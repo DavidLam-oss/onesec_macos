@@ -126,24 +126,15 @@ extension WebSocketAudioStreamer {
                 guard let self else { return }
 
                 switch event {
-                case .recordingStarted(
-                    let appInfo, let focusContext, let focusElementInfo, let recordMode):
-                    sendStartRecording(
-                        appInfo: appInfo,
-                        focusContext: focusContext,
-                        focusElementInfo: focusElementInfo,
-                        recordMode: recordMode)
+                case .recordingStarted(let mode): sendStartRecording(mode: mode)
 
-                case .recordingStopped:
-                    sendStopRecording()
+                case .recordingStopped: sendStopRecording()
 
-                case .modeUpgraded(let fromMode, let toMode, let focusContext):
-                    sendModeUpgrade(fromMode: fromMode, toMode: toMode, focusContext: focusContext)
+                case .modeUpgraded(let from, let to): sendModeUpgrade(fromMode: from, toMode: to)
 
                 case .audioDataReceived(let data): sendAudioData(data)
 
-                case .userConfigUpdated:
-                    scheduleManualReconnect()
+                case .userConfigUpdated: scheduleManualReconnect()
 
                 default:
                     break
@@ -169,29 +160,23 @@ extension WebSocketAudioStreamer {
     }
 
     func sendStartRecording(
-        appInfo: AppInfo? = nil,
-        focusContext: FocusContext? = nil,
-        focusElementInfo: FocusElementInfo? = nil,
-        recordMode: RecordMode = .normal,
+        mode: RecordMode = .normal,
     ) {
         var data: [String: Any] = [
-            "recognition_mode": recordMode.rawValue,
+            "recognition_mode": mode.rawValue,
             "mode": Config.TEXT_PROCESS_MODE.rawValue,
         ]
 
-        if let appInfo {
-            data["app_info"] = appInfo.toJSON()
-        }
-
-        if let focusContext {
-            data["focus_context"] = focusContext.toJSON()
-        }
-
-        if let focusElementInfo {
-            data["focus_element_info"] = focusElementInfo.toJSON()
-        }
-
         sendWebSocketMessage(type: .startRecording, data: data)
+        Task {
+            let appInfo = ContextService.getAppInfo()
+            let selectText = await ContextService.getSelectedText()
+            let inputContent = ContextService.getInputContent()
+
+            let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "")
+            let focusElementInfo = ContextService.getFocusElementInfo()
+            sendRecordingContext(appInfo: appInfo, focusContext: focusContext, focusElementInfo: focusElementInfo)
+        }
         scheduleRecordingStartedTimeoutTimer()
         scheduleIdleTimer()
     }
@@ -201,19 +186,27 @@ extension WebSocketAudioStreamer {
         startResponseTimeoutTimer()
     }
 
-    func sendModeUpgrade(
-        fromMode: RecordMode, toMode: RecordMode, focusContext: FocusContext? = nil,
-    ) {
+    func sendModeUpgrade(fromMode: RecordMode, toMode: RecordMode) {
         var data: [String: Any] = [
             "from_mode": fromMode.rawValue,
             "to_mode": toMode.rawValue,
         ]
 
-        if let focusContext {
-            data["focus_context"] = focusContext.toJSON()
-        }
-
         sendWebSocketMessage(type: .modeUpgrade, data: data)
+    }
+
+    func sendRecordingContext(
+        appInfo: AppInfo,
+        focusContext: FocusContext,
+        focusElementInfo: FocusElementInfo,
+    ) {
+        var data: [String: Any] = [
+            "app_info": appInfo.toJSON(),
+            "focus_context": focusContext.toJSON(),
+            "focus_element_info": focusElementInfo.toJSON(),
+        ]
+
+        sendWebSocketMessage(type: .contextUpdated, data: data)
     }
 
     private func sendWebSocketMessage(type: MessageType, data: [String: Any]? = nil) {

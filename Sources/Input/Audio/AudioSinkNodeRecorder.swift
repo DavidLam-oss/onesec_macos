@@ -38,11 +38,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
     private var cancellables = Set<AnyCancellable>()
     private var queueStartTime: Date?
     private var isRecordingStarted = false
-    private var recordingInfo:
-        (
-            appInfo: AppInfo?, focusContext: FocusContext?, focusElementInfo: FocusElementInfo?,
-            recordMode: RecordMode
-        )?
+    private var recordMode: RecordMode = .normal
 
     // 录音统计数据
     private var totalPacketsSent = 0
@@ -215,20 +211,15 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     // MARK: - 录音处理
 
-    func startRecording(
-        appInfo: AppInfo? = nil, focusContext: FocusContext? = nil,
-        focusElementInfo: FocusElementInfo? = nil, recordMode: RecordMode = .normal,
-    ) {
+    func startRecording(mode: RecordMode = .normal) {
         guard recordState == .idle else {
             log.warning("Cant Start recording, now state: \(recordState)")
             return
         }
 
         resetState()
-
-        // 保存录音信息，等待可以录音时再发送
-        recordingInfo = (appInfo, focusContext, focusElementInfo, recordMode)
         recordState = .recording
+        recordMode = mode
 
         do {
             try audioEngine.start()
@@ -294,7 +285,6 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         // 重置响应式流状态
         isRecordingStarted = false
-        recordingInfo = nil
         queueStartTime = nil
 
         // 重置 Opus 打包器
@@ -407,15 +397,10 @@ extension AudioSinkNodeRecorder {
     }
 
     private func startRecordingIfNeeded() {
-        guard !isRecordingStarted, let info = recordingInfo else { return }
+        guard !isRecordingStarted else { return }
 
         isRecordingStarted = true
-        EventBus.shared.publish(
-            .recordingStarted(
-                appInfo: info.appInfo,
-                focusContext: info.focusContext,
-                focusElementInfo: info.focusElementInfo,
-                recordMode: info.recordMode))
+        EventBus.shared.publish(.recordingStarted(recordMode: recordMode))
     }
 
     private func checkAndHandleTimeout() {

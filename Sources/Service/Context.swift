@@ -168,9 +168,9 @@ class ContextService {
         return await copyCurrentSelectionAndRestore()
     }
     
-    static func getFocusElementInfo() -> FocusElementInfo? {
+    static func getFocusElementInfo() -> FocusElementInfo {
         guard let element = getFocusedElement() else {
-            return nil
+            return FocusElementInfo.empty
         }
         
         let axRole = getAttributeValue(element: element, attribute: kAXRoleAttribute) ?? ""

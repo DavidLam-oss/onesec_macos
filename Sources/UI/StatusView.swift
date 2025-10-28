@@ -148,15 +148,15 @@ struct StatusView: View {
         switch event {
         case .volumeChanged(let volume):
             recording.volume = min(1.0, max(0.0, CGFloat(volume)))
-        case .recordingStarted(_, _, _, let recordMode):
-            recording.mode = recordMode
+        case .recordingStarted(let mode):
+            recording.mode = mode
             recording.state = .recording
         case .recordingStopped:
             recording.state = .processing
             recording.volume = 0
         case .serverResultReceived:
             recording.state = .idle
-        case .modeUpgraded(let from, let to, _):
+        case .modeUpgraded(let from, let to):
             log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
                 recording.mode = to
