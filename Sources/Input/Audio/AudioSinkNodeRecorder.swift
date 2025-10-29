@@ -344,7 +344,7 @@ extension AudioSinkNodeRecorder {
                     if self?.recordState == .processing {
                         self?.resetState()
                         Task { @MainActor in
-                            ContextService.pasteTextToActiveApp(summary)
+                            await AXPasteboardController.pasteTextAndCheckModification(summary)
                         }
                     }
 

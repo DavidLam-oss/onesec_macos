@@ -77,8 +77,8 @@ class AXInputHistoryContextAccessor {
             }
 
             guard
-                let role = AXElementAccessor.getAttributeValue(
-                    element: child, attribute: kAXRoleAttribute,
+                let role: String = AXElementAccessor.getAttributeValue(
+                    element: child, attribute: kAXRoleAttribute
                 )
             else {
                 continue
@@ -90,20 +90,17 @@ class AXInputHistoryContextAccessor {
                 // 1. kAXValueAttribute - 通常用于输入框、文本区域
                 // 2. kAXDescriptionAttribute - 描述性文本
                 // 3. kAXTitleAttribute - 标题文本，特别适用于 AXHeading
-                if let text = AXElementAccessor.getAttributeValue(
-                    element: child, attribute: kAXValueAttribute,
+                if let text: String = AXElementAccessor.getAttributeValue(
+                    element: child, attribute: kAXValueAttribute
                 )
                     ?? AXElementAccessor.getAttributeValue(
-                        element: child, attribute: kAXDescriptionAttribute,
+                        element: child, attribute: kAXDescriptionAttribute
                     )
                     ?? AXElementAccessor.getAttributeValue(
-                        element: child, attribute: kAXTitleAttribute,
+                        element: child, attribute: kAXTitleAttribute
                     )
                 {
-                    let cleaned = text.replacingOccurrences(
-                        of: "\\s+", with: " ", options: .regularExpression,
-                    )
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    let cleaned = text.cleaned
 
                     if !cleaned.isEmpty {
                         texts.append(cleaned)

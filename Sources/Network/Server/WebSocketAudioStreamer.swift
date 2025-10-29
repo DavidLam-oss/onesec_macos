@@ -130,6 +130,8 @@ extension WebSocketAudioStreamer {
 
                 case .userConfigUpdated: scheduleManualReconnect()
 
+                case let .pastedTextModified(original, modified): sendPastedTextModified(original: original, modified: modified)
+
                 default:
                     break
                 }
@@ -204,22 +206,32 @@ extension WebSocketAudioStreamer {
         sendWebSocketMessage(type: .contextUpdated, data: data)
     }
 
-    func handleResourceRequested() {
-        guard let screenshot = OCRService.captureFrontWindow() else {
-            return
-        }
-
-        // 将 CGImage 转换为 JPEG 格式并压缩
-        let bitmapRep = NSBitmapImageRep(cgImage: screenshot)
-        guard let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
-            log.error("cant compress screenshot")
-            return
-        }
-
+    func sendPastedTextModified(original: String, modified: String) {
         let data: [String: Any] = [
-            "type": "screenshot",
-            "image": jpegData.base64EncodedString(),
+            "original": original,
+            "modified": modified,
         ]
+
+        sendWebSocketMessage(type: .pastedTextModified, data: data)
+    }
+
+    func handleServerResourceRequested(type: String) {
+        var data: [String: Any] = [
+            "type": type,
+        ]
+
+        if type == "screenshot" {
+            guard let screenshot = OCRService.captureFrontWindow() else {
+                return
+            }
+            // 将 CGImage 转换为 JPEG 格式并压缩
+            let bitmapRep = NSBitmapImageRep(cgImage: screenshot)
+            guard let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
+                log.error("cant compress screenshot")
+                return
+            }
+            data["image"] = jpegData.base64EncodedString()
+        }
 
         sendWebSocketMessage(type: .resourceRequested, data: data)
     }
@@ -244,7 +256,9 @@ extension WebSocketAudioStreamer {
             cancelRecordingStartedTimeoutTimer()
 
         case .resourceRequested:
-            handleResourceRequested()
+            guard let data = json["data"] as? [String: Any],
+                  let type = data["type"] as? String else { return }
+            handleServerResourceRequested(type: type)
 
         case .recognitionSummary:
             cancelResponseTimeoutTimer()

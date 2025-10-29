@@ -9,109 +9,79 @@ import Cocoa
 import Vision
 
 class AXInputContentAccessor {
-    /// 获取元素的内容
-    /// 当元素有输入时，直接获取输入内容 200
-    /// 当元素没有输入时，相邻元素的上下文内容作为补充 (History 400)
-    static func getInputContent(element: AXUIElement) -> String? {
-        // 获取选中文本状态
-        var selectedTextRef: CFTypeRef?
-        let isSelectedEmpty =
-            AXUIElementCopyAttributeValue(
-                element, kAXSelectedTextAttribute as CFString, &selectedTextRef,
-            ) != .success
-            || (selectedTextRef as? String)?.isEmpty != false
-
-        // 如果有输入则直接获取
-        if !isSelectedEmpty {
-            return getContextAroundCursor(element: element)
-        }
-
-        // 检查是否有内容
-        var lengthRef: CFTypeRef?
-        let hasContent =
-            AXUIElementCopyAttributeValue(
-                element, kAXNumberOfCharactersAttribute as CFString, &lengthRef,
-            ) == .success && (lengthRef as? Int ?? 0) > 0
-
-        if !hasContent {
+    /// 获取焦点元素的内容
+    /// 当元素有输入内容时，直接获取输入内容 200
+    static func getFocusElementInputContent() -> String? {
+        guard let element = AXElementAccessor.getFocusedElement() else {
             return nil
         }
 
-        return getContextAroundCursor(element: element)
+        // 检查是否有内容 (选中文本或总字符数)
+        let hasSelectedText = (AXElementAccessor.getAttributeValue(
+            element: element, attribute: kAXSelectedTextAttribute,
+        ) as String?)?.isEmpty == false
+
+        let contentLength: Int = AXElementAccessor.getAttributeValue(
+            element: element, attribute: kAXNumberOfCharactersAttribute,
+        ) ?? 0
+
+        guard hasSelectedText || contentLength > 0 else {
+            return nil
+        }
+
+        guard let text = getContextAroundCursor(element: element) else {
+            return nil
+        }
+
+        return text.cleaned
     }
 
-    static func getContextAroundCursor(element: AXUIElement, contextLength: Int = 200)
-        -> String?
-    {
-        // 获取文本长度
-        var lengthRef: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                element, kAXNumberOfCharactersAttribute as CFString, &lengthRef,
-            ) == .success,
-            let totalLength = lengthRef as? Int
-        else {
+    static func getContextAroundCursor(element: AXUIElement, contextLength: Int = 200) -> String? {
+        guard let totalLength: Int = AXElementAccessor.getAttributeValue(
+            element: element, attribute: kAXNumberOfCharactersAttribute,
+        ) else {
             log.warning("Cannot get text length")
             return nil
         }
 
-        // 获取光标位置
-        var selectedRange: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                element, kAXSelectedTextRangeAttribute as CFString, &selectedRange,
-            ) == .success,
-            let rangeValue = selectedRange as! AXValue?
-        else {
+        guard let rangeValue: AXValue = AXElementAccessor.getAttributeValue(
+            element: element, attribute: kAXSelectedTextRangeAttribute,
+        ) else {
             log.warning("Cannot get cursor position")
             return nil
         }
 
         var cursorRange = CFRange()
-        guard AXValueGetValue(rangeValue, .cfRange, &cursorRange) else {
-            return nil
-        }
+        guard AXValueGetValue(rangeValue, .cfRange, &cursorRange) else { return nil }
 
         let cursorPosition = cursorRange.location
-        let halfLength = contextLength / 2
 
-        // 计算要获取的范围，确保不超出边界
+        // 计算范围
+        let halfLength = contextLength / 2
         let start = max(0, cursorPosition - halfLength)
         let end = min(totalLength, cursorPosition + halfLength)
-        let actualLength = end - start
+        var targetRange = CFRangeMake(start, end - start)
 
-        var targetRange = CFRangeMake(start, actualLength)
+        // 获取文本
         let targetRangeValue = AXValueCreate(.cfRange, &targetRange)!
+        if let text: String = AXElementAccessor.getParameterizedAttributeValue(
+            element: element,
+            attribute: kAXStringForRangeParameterizedAttribute,
+            parameter: targetRangeValue
+        ) {
+            return text
+        }
 
-        // 直接获取指定范围的文本
-        var textRef: CFTypeRef?
-        guard
-            AXUIElementCopyParameterizedAttributeValue(
-                element, kAXStringForRangeParameterizedAttribute as CFString, targetRangeValue,
-                &textRef,
-            ) == .success,
-            let text = textRef as? String
-        else {
-            log.warning("Cannot get text for range, fallback to full content")
-            // 降级方案：获取全部内容
-            var value: CFTypeRef?
-            if AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value)
-                == .success,
-                let fullText = value as? String
-            {
-                let startIndex =
-                    fullText.index(
-                        fullText.startIndex, offsetBy: start, limitedBy: fullText.endIndex,
-                    )
-                    ?? fullText.startIndex
-                let endIndex =
-                    fullText.index(fullText.startIndex, offsetBy: end, limitedBy: fullText.endIndex)
-                        ?? fullText.endIndex
-                return String(fullText[startIndex ..< endIndex])
-            }
+        // 降级方案: 全文截取
+        log.warning("Cannot get text for range, fallback to full content")
+        guard let fullText: String = AXElementAccessor.getAttributeValue(
+            element: element, attribute: kAXValueAttribute,
+        ) else {
             return nil
         }
 
-        return text
+        let startIndex = fullText.index(fullText.startIndex, offsetBy: start, limitedBy: fullText.endIndex) ?? fullText.startIndex
+        let endIndex = fullText.index(fullText.startIndex, offsetBy: end, limitedBy: fullText.endIndex) ?? fullText.endIndex
+        return String(fullText[startIndex ..< endIndex])
     }
 }
