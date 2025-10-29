@@ -18,7 +18,11 @@ class ContextService {
             bundleID: frontApp?.bundleIdentifier ?? "未知 Bundle ID",
             shortVersion: frontApp?.bundleURL
                 .flatMap { Bundle(url: $0) }
-                .flatMap { $0.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String }
+                .flatMap {
+                    $0.object(
+                        forInfoDictionaryKey: "CFBundleShortVersionString"
+                    ) as? String
+                }
                 ?? "未知版本",
         )
     }
@@ -53,16 +57,18 @@ class ContextService {
             element: element,
             attribute: kAXSelectedTextRangeAttribute
         ) {
-            if let text: String = AXElementAccessor.getParameterizedAttributeValue(
-                element: element,
-                attribute: kAXStringForRangeParameterizedAttribute,
-                parameter: range
-            ) {
+            if let text: String =
+                AXElementAccessor.getParameterizedAttributeValue(
+                    element: element,
+                    attribute: kAXStringForRangeParameterizedAttribute,
+                    parameter: range
+                )
+            {
                 return text
             }
         }
 
-        // 使用 Cmd+C 备用方案
+        // 使用 Cmd+C 做备用方案
         return await AXPasteboardController.copyCurrentSelectionAndRestore()
     }
 
@@ -71,13 +77,26 @@ class ContextService {
             return FocusElementInfo.empty
         }
 
-        let axRole = AXElementAccessor.getAttributeValue(element: element, attribute: kAXRoleAttribute) ?? ""
+        let axRole =
+            AXElementAccessor.getAttributeValue(
+                element: element,
+                attribute: kAXRoleAttribute
+            ) ?? ""
         let axRoleDescription: String =
-            AXElementAccessor.getAttributeValue(element: element, attribute: kAXRoleDescriptionAttribute) ?? ""
+            AXElementAccessor.getAttributeValue(
+                element: element,
+                attribute: kAXRoleDescriptionAttribute
+            ) ?? ""
         let axPlaceholderValue: String =
-            AXElementAccessor.getAttributeValue(element: element, attribute: kAXPlaceholderValueAttribute) ?? ""
+            AXElementAccessor.getAttributeValue(
+                element: element,
+                attribute: kAXPlaceholderValueAttribute
+            ) ?? ""
         let axDescription: String =
-            AXElementAccessor.getAttributeValue(element: element, attribute: kAXDescriptionAttribute) ?? ""
+            AXElementAccessor.getAttributeValue(
+                element: element,
+                attribute: kAXDescriptionAttribute
+            ) ?? ""
 
         return FocusElementInfo(
             windowTitle: getWindowTitle(for: element),
@@ -91,19 +110,26 @@ class ContextService {
     static func getWindowTitle(for element: AXUIElement) -> String {
         var currentElement = element
 
-        // 向上遍历找到窗口元素
         for _ in 0 ..< 10 {
-            if let role: String = AXElementAccessor.getAttributeValue(element: currentElement, attribute: kAXRoleAttribute),
-               role.contains("Window")
+            if let role: String = AXElementAccessor.getAttributeValue(
+                element: currentElement,
+                attribute: kAXRoleAttribute
+            ),
+                role.contains("Window")
             {
-                if let title: String = AXElementAccessor.getAttributeValue(element: currentElement, attribute: kAXTitleAttribute),
-                   !title.isEmpty
+                if let title: String = AXElementAccessor.getAttributeValue(
+                    element: currentElement,
+                    attribute: kAXTitleAttribute
+                ),
+                    !title.isEmpty
                 {
                     return title
                 }
             }
 
-            currentElement = AXElementAccessor.getParent(of: currentElement) ?? currentElement
+            currentElement =
+                AXElementAccessor.getParent(of: currentElement)
+                    ?? currentElement
         }
 
         return "Unknown Window"

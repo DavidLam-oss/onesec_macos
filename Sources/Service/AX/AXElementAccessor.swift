@@ -8,8 +8,8 @@
 import ApplicationServices
 
 class AXElementAccessor {
-    /// 获取 AX 元素的属性值
-    /// 对 String 类型特殊处理, 过滤空字符串
+    /// 获取 AX 元素属性值
+    /// 对 String 类型特殊处理, 过滤空串
     static func getAttributeValue<T>(element: AXUIElement, attribute: String) -> T? {
         var value: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
@@ -26,7 +26,7 @@ class AXElementAccessor {
         return value as? T
     }
 
-    /// 获取 AX 元素的参数化属性值
+    /// 获取 AX 元素参数化属性值
     /// 用于获取需要附加参数的属性值
     static func getParameterizedAttributeValue<T>(
         element: AXUIElement,

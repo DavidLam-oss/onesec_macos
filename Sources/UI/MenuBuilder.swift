@@ -53,7 +53,7 @@ class MenuBuilder {
             descItem.isEnabled = false
             textModeSubmenu.addItem(descItem)
 
-            // 添加分隔线（最后一项除外）
+            // 添加分隔线
             if index < modes.count - 1 {
                 textModeSubmenu.addItem(NSMenuItem.separator())
             }
@@ -83,8 +83,6 @@ class MenuBuilder {
 
         let selectedMode = modes[sender.tag]
         Config.setTextProcessMode(selectedMode)
-
-        log.info("切换文本处理模式为: \(selectedMode.displayName)")
     }
 
     func showMenu(in view: NSView) {

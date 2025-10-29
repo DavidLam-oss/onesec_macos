@@ -140,7 +140,7 @@ extension Color {
 extension String {
     enum ANSIColor: String {
         case reset = "\u{001B}[0m"
-        case green = "\u{001B}[38;2;78;172;103m" // SwiftyBeaver debug color
+        case green = "\u{001B}[32m" // 亮绿色（8色模式）
     }
 
     func colored(_ color: ANSIColor) -> String {
