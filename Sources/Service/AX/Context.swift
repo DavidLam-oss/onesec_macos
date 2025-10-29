@@ -61,7 +61,7 @@ class ContextService {
 
         return copiedText
     }
-
+    
     static func pasteTextToActiveApp(_ text: String) {
         log.info("Paste Text To Active App: \(text)")
 
@@ -127,37 +127,16 @@ class ContextService {
             return nil
         }
 
-        // 获取选中文本状态
-        var selectedTextRef: CFTypeRef?
-        let isSelectedEmpty =
-            AXUIElementCopyAttributeValue(
-                element, kAXSelectedTextAttribute as CFString, &selectedTextRef,
-            ) != .success
-            || (selectedTextRef as? String)?.isEmpty != false
-
-        // 如果有选中内容且不为空，说明有输入
-        if !isSelectedEmpty {
-            return getContextAroundCursor(element: element)
-        }
-
-        // 检查是否有内容
-        var lengthRef: CFTypeRef?
-        let hasContent =
-            AXUIElementCopyAttributeValue(
-                element, kAXNumberOfCharactersAttribute as CFString, &lengthRef
-            ) == .success && (lengthRef as? Int ?? 0) > 0
-
-        if !hasContent {
-            let chatContent = HistoryContextAccessor.getChatHistory(from: element)
-            log.info("Input empty, using chat history: \(chatContent ?? "")...")
-            return chatContent
-        }
-
-        // 有内容，获取光标附近200字
-        return getContextAroundCursor(element: element)
+        return AXInputContentAccessor.getInputContent(element: element)
     }
 
+    static func getHistoryContent() -> String? {
+        guard let element = getFocusedElement() else {
+            return nil
+        }
 
+        return AXInputHistoryContextAccessor.getChatHistory(from: element)
+    }
 
     static func getSelectedText() async -> String? {
         guard let element = getFocusedElement() else {
@@ -201,13 +180,13 @@ class ContextService {
             return FocusElementInfo.empty
         }
 
-        let axRole = getAttributeValue(element: element, attribute: kAXRoleAttribute) ?? ""
+        let axRole = AXElementAccessor.getAttributeValue(element: element, attribute: kAXRoleAttribute) ?? ""
         let axRoleDescription =
-            getAttributeValue(element: element, attribute: kAXRoleDescriptionAttribute) ?? ""
+            AXElementAccessor.getAttributeValue(element: element, attribute: kAXRoleDescriptionAttribute) ?? ""
         let axPlaceholderValue =
-            getAttributeValue(element: element, attribute: kAXPlaceholderValueAttribute) ?? ""
+            AXElementAccessor.getAttributeValue(element: element, attribute: kAXPlaceholderValueAttribute) ?? ""
         let axDescription =
-            getAttributeValue(element: element, attribute: kAXDescriptionAttribute) ?? ""
+            AXElementAccessor.getAttributeValue(element: element, attribute: kAXDescriptionAttribute) ?? ""
 
         return FocusElementInfo(
             windowTitle: getWindowTitle(for: element),
@@ -221,55 +200,21 @@ class ContextService {
     static func getWindowTitle(for element: AXUIElement) -> String {
         var currentElement = element
 
-        // 向上遍历找到窗口元素 最多向上遍历5层
-        for _ in 0..<5 {
-            if let role = getAttributeValue(element: currentElement, attribute: kAXRoleAttribute),
-                role.contains("Window")
+        // 向上遍历找到窗口元素
+        for _ in 0 ..< 10 {
+            if let role = AXElementAccessor.getAttributeValue(element: currentElement, attribute: kAXRoleAttribute),
+               role.contains("Window")
             {
-                if let title = getAttributeValue(
-                    element: currentElement, attribute: kAXTitleAttribute,
-                ),
-                    !title.isEmpty
+                if let title = AXElementAccessor.getAttributeValue(element: currentElement, attribute: kAXTitleAttribute),
+                   !title.isEmpty
                 {
                     return title
                 }
             }
 
-            // 获取父元素
-            var parent: CFTypeRef?
-            if AXUIElementCopyAttributeValue(
-                currentElement, kAXParentAttribute as CFString, &parent,
-            ) == .success,
-                let parentElement = parent
-            {
-                currentElement = parentElement as! AXUIElement
-            } else {
-                break
-            }
+            currentElement = AXElementAccessor.getParent(of: currentElement) ?? currentElement
         }
 
         return "Unknown Window"
-    }
-
-    static func getAttributeValue(element: AXUIElement, attribute: String) -> String? {
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
-
-        guard result == .success, let value else {
-            return nil
-        }
-
-        return "\(value)"
-    }
-
-    static func getParent(of element: AXUIElement) -> AXUIElement? {
-        var parentRef: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(element, kAXParentAttribute as CFString, &parentRef)
-                == .success
-        else {
-            return nil
-        }
-        return (parentRef as! AXUIElement)
     }
 }

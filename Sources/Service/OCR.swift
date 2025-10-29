@@ -35,111 +35,80 @@ class OCRService {
         return results.map(\.text).joined(separator: "\n")
     }
     
-    /// 保存识别结果到桌面txt文件
-    static func saveToDesktop(_ results: [RecognizedText]) {
-        let timestamp = DateFormatter().apply {
-            $0.dateFormat = "yyyyMMdd_HHmmss"
-        }.string(from: Date())
-        
-        let filename = "OCR_\(timestamp).txt"
-        let desktopPath = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Desktop")
-            .appendingPathComponent(filename)
-        
-        let content = results.enumerated().map { index, result in
-            "[\(index + 1)] \(result.text) (x:\(String(format: "%.3f", result.boundingBox.origin.x)), y:\(String(format: "%.3f", result.boundingBox.origin.y)))"
-        }.joined(separator: "\n")
-        
-        try? content.write(to: desktopPath, atomically: true, encoding: .utf8)
-        log.info("📄 OCR结果已保存: \(desktopPath.path)")
-    }
-    
-    // MARK: - Private Methods
-    
     /// 获取前台窗口的截图
-    private static func captureFrontWindow() -> CGImage? {
-        // 1. 获取窗口列表
-        guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
-            log.error("🔍 DEBUG: 无法获取窗口列表 (CGWindowListCopyWindowInfo 失败)")
-            return nil
-        }
-        log.debug("🔍 DEBUG: 成功获取窗口列表，共 \(windowList.count) 个窗口")
-        
-        // 2. 获取前台应用
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-            log.error("🔍 DEBUG: 无法获取前台应用 (NSWorkspace.shared.frontmostApplication 为 nil)")
+    static func captureFrontWindow() -> CGImage? {
+        guard let winList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]],
+              let frontApp = NSWorkspace.shared.frontmostApplication else {
             return nil
         }
         
         let frontPID = frontApp.processIdentifier
         let frontAppName = frontApp.localizedName ?? "Unknown"
-        log.debug("🔍 DEBUG: 前台应用: \(frontAppName) (PID: \(frontPID))")
         
-        // 3. 找到前台应用的主窗口
-        var matchedWindowsCount = 0
-        for (index, window) in windowList.enumerated() {
-            let ownerPID = window[kCGWindowOwnerPID as String] as? Int32
-            let windowLayer = window[kCGWindowLayer as String] as? Int
-            let bounds = window[kCGWindowBounds as String] as? [String: CGFloat]
-            
-            // 调试：打印前5个窗口的信息
-            if index < 5 {
-                log.debug("🔍 DEBUG: 窗口[\(index)] PID=\(ownerPID ?? -1), Layer=\(windowLayer ?? -1), Bounds=\(bounds != nil ? "有" : "无")")
-            }
-            
-            // 检查是否属于前台应用
-            guard let pid = ownerPID, pid == frontPID else {
+        // 查找前台应用的主窗口（Layer = 0）
+        for window in winList {
+            guard let pid = window[kCGWindowOwnerPID as String] as? Int32,
+                  pid == frontPID,
+                  let layer = window[kCGWindowLayer as String] as? Int,
+                  layer == 0,
+                  let bounds = window[kCGWindowBounds as String] as? [String: CGFloat],
+                  let x = bounds["X"], let y = bounds["Y"],
+                  let width = bounds["Width"], let height = bounds["Height"],
+                  width > 100, height > 100 else {
                 continue
             }
             
-            matchedWindowsCount += 1
-            log.debug("🔍 DEBUG: 找到匹配的窗口 #\(matchedWindowsCount), Layer=\(windowLayer ?? -1)")
+            let rect = CGRect(x: x, y: y, width: width, height: height)
             
-            // 检查窗口层级
-            guard let layer = windowLayer, layer == 0 else {
-                log.debug("🔍 DEBUG: 跳过窗口（Layer 不是 0）")
+            guard let image = CGDisplayCreateImage(CGMainDisplayID(), rect: rect) else {
                 continue
             }
             
-            // 检查边界
-            guard let windowBounds = bounds,
-                  let x = windowBounds["X"],
-                  let y = windowBounds["Y"],
-                  let width = windowBounds["Width"],
-                  let height = windowBounds["Height"] else {
-                log.debug("🔍 DEBUG: 跳过窗口（无法获取边界信息）")
-                continue
-            }
-            
-            // 检查尺寸
-            guard width > 100, height > 100 else {
-                log.debug("🔍 DEBUG: 跳过窗口（尺寸太小: \(Int(width))x\(Int(height))）")
-                continue
-            }
-            
-            let windowRect = CGRect(x: x, y: y, width: width, height: height)
-            log.info("📸 截取前台窗口: \(frontAppName) - 尺寸: \(Int(width))x\(Int(height))")
-            
-            // 4. 创建截图
-            guard let image = CGDisplayCreateImage(CGMainDisplayID(), rect: windowRect) else {
-                log.error("🔍 DEBUG: CGDisplayCreateImage 失败（rect: \(windowRect)）")
-                continue
-            }
-            
-            log.debug("🔍 DEBUG: 成功创建窗口截图")
+            log.info("📸 Screen capture: \(frontAppName) (\(Int(width))×\(Int(height)))")
+            saveImageToFile(image, appName: frontAppName)
             return image
         }
         
-        log.warning("🔍 DEBUG: 未找到前台应用的有效窗口（共找到 \(matchedWindowsCount) 个匹配 PID 的窗口），回退到全屏截图")
-        
-        // 5. 回退到全屏截图
+        // 回退到全屏截图
         guard let fullScreenImage = CGDisplayCreateImage(CGMainDisplayID()) else {
-            log.error("🔍 DEBUG: 全屏截图也失败了！可能没有屏幕录制权限")
+            log.error("Screen capture failed, please check the screen recording permission")
             return nil
         }
         
-        log.debug("🔍 DEBUG: 使用全屏截图")
+        saveImageToFile(fullScreenImage, appName: "FullScreen")
         return fullScreenImage
+    }
+    
+    /// 保存图片到本地
+    private static func saveImageToFile(_ cgImage: CGImage, appName: String) {
+        // 创建保存目录
+        let documentsPath = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+        let screenshotsFolder = documentsPath.appendingPathComponent("OnesecScreenshots")
+        
+        // 确保目录存在
+        try? FileManager.default.createDirectory(at: screenshotsFolder, withIntermediateDirectories: true)
+        
+        // 生成文件名（使用时间戳和应用名）
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = dateFormatter.string(from: Date())
+        let sanitizedAppName = appName.replacingOccurrences(of: " ", with: "_")
+        let fileName = "screenshot_\(sanitizedAppName)_\(timestamp).png"
+        let fileURL = screenshotsFolder.appendingPathComponent(fileName)
+        
+        // 将 CGImage 转换为 NSBitmapImageRep 并保存为 PNG
+        let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+        guard let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+            log.error("无法将图片转换为PNG格式")
+            return
+        }
+        
+        do {
+            try pngData.write(to: fileURL)
+            log.info("✅ 截图已保存到: \(fileURL.path)")
+        } catch {
+            log.error("保存截图失败: \(error.localizedDescription)")
+        }
     }
     
     /// 从图像识别文字
@@ -147,7 +116,7 @@ class OCRService {
         await withCheckedContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
                 if let error {
-                    log.error("OCR识别失败: \(error.localizedDescription)")
+                    log.error("RecognizeText failed: \(error.localizedDescription)")
                     continuation.resume(returning: [])
                     return
                 }
@@ -164,7 +133,7 @@ class OCRService {
                     return RecognizedText(text: candidate.string, boundingBox: observation.boundingBox)
                 }
                 
-                log.info("OCR识别完成，共识别 \(results.count) 个文本块")
+                log.info("Recognize \(results.count) texts")
                 continuation.resume(returning: results)
             }
             
@@ -186,8 +155,6 @@ class OCRService {
         }
     }
 }
-
-// MARK: - Helper Extension
 
 private extension DateFormatter {
     func apply(_ closure: (DateFormatter) -> Void) -> DateFormatter {

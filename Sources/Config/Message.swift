@@ -17,6 +17,7 @@ enum MessageType: String, CaseIterable {
     case authTokenFailed = "auth_token_failed"
     case hotkeySettingResult = "hotkey_setting_result"
     case contextUpdated = "context_update"
+    case resourceRequested = "resource_requested"
 }
 
 struct WebSocketMessage {
@@ -37,7 +38,7 @@ extension WebSocketMessage {
     func toJSON() -> [String: Any] {
         var json: [String: Any] = [
             "type": type.rawValue,
-            "timestamp": timestamp
+            "timestamp": timestamp,
         ]
 
         if let data {
@@ -79,7 +80,7 @@ enum NotificationMessageType: Equatable {
             JWTValidator.isValid(Config.AUTH_TOKEN) ? "鉴权失败" : "未登录"
         case .networkUnavailable:
             "网络不可用"
-        case .custom(let title, _):
+        case let .custom(title, _):
             title
         }
     }
@@ -94,7 +95,7 @@ enum NotificationMessageType: Equatable {
             JWTValidator.isValid(Config.AUTH_TOKEN) ? "用户鉴权失败，请返回客户端重新登陆" : "用户未登录，请登陆后使用"
         case .networkUnavailable:
             "网络不可用，请检查网络连接"
-        case .custom(_, let content):
+        case let .custom(_, content):
             content
         }
     }
@@ -111,7 +112,7 @@ struct AppInfo {
         [
             "app_name": appName,
             "bundle_id": bundleID,
-            "short_version": shortVersion
+            "short_version": shortVersion,
         ]
     }
 }
@@ -121,11 +122,13 @@ struct AppInfo {
 struct FocusContext {
     let inputContent: String
     let selectedText: String
+    let historyContent: String
 
     func toJSON() -> [String: Any] {
         [
             "input_content": inputContent,
-            "selected_text": selectedText
+            "selected_text": selectedText,
+            "history_content": historyContent,
         ]
     }
 }
@@ -153,7 +156,7 @@ struct FocusElementInfo {
             "ax_role": axRole,
             "ax_role_description": axRoleDescription,
             "ax_placeholder_value": axPlaceholderValue,
-            "ax_description": axDescription
+            "ax_description": axDescription,
         ]
     }
 }

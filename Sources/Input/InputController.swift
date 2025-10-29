@@ -166,7 +166,7 @@ class InputController {
         if ConnectionCenter.shared.wssState == .manualDisconnected {
             ConnectionCenter.shared.connectWss()
         }
-
+        
         audioRecorder.startRecording(mode: mode)
     }
 

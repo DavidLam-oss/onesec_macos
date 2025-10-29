@@ -22,16 +22,16 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     let maxRetryCount = 10
 
     // Server 超时配置
-    private var responseTimeoutTimer: DispatchWorkItem?
+    private var responseTimeoutTask: Task<Void, Never>?
     private let responseTimeoutDuration: TimeInterval = 10.0
-    private var recordingStartedTimeoutTimer: DispatchWorkItem?
+    private var recordingStartedTimeoutTask: Task<Void, Never>?
     private let recordingStartedTimeoutDuration: TimeInterval = 2
 
     // 连接检测 (防止一直卡在 connecting)
-    private var connectingCheckTimer: DispatchWorkItem?
+    private var connectingCheckTask: Task<Void, Never>?
 
     // 空闲超时配置 (30分钟没有使用就断开)
-    var idleTimeoutTimer: DispatchWorkItem?
+    var idleTimeoutTask: Task<Void, Never>?
     let idleTimeoutDuration: TimeInterval = 30 * 60
 
     init() {
@@ -62,7 +62,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         request.setValue("Bearer \(Config.AUTH_TOKEN)", forHTTPHeaderField: "Authorization")
 
         // 创建 Starscream WebSocket
-        // 使用更宽松的SSL配置来支持自签名证书
+        // 宽松的SSL配置来支持自签名证书
         ws = WebSocket(request: request, certPinner: FoundationSecurity(allowSelfSigned: true))
         ws?.delegate = self
         ws?.connect()
@@ -72,11 +72,6 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         log.info("WebSocket start connect with token \(Config.AUTH_TOKEN) \(serverURL)")
     }
 
-    /// 重新连接触发时机为
-    /// - 连接错误（error）
-    /// - 服务器建议重连（reconnectSuggested）
-    /// - 对端关闭连接（peerClosed）
-    /// - 用户配置变更 (userConfigChanged)
     func scheduleReconnect(reason: String) {
         guard ConnectionCenter.shared.isAuthed else {
             log.warning("Auth Token invaild, stop reconnect")
@@ -94,13 +89,12 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             return
         }
 
-        // 指数退避策略：1s, 2s, 4s, 8s, 16s，最多 30s
         let delay = min(pow(2.0, Double(curRetryCount - 1)), 30.0)
 
-        log.info(
-            "WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
+        log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
 
-        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             self?.connect()
         }
     }
@@ -126,13 +120,13 @@ extension WebSocketAudioStreamer {
                 guard let self else { return }
 
                 switch event {
-                case .recordingStarted(let mode): sendStartRecording(mode: mode)
+                case let .recordingStarted(mode): sendStartRecording(mode: mode)
 
                 case .recordingStopped: sendStopRecording()
 
-                case .modeUpgraded(let from, let to): sendModeUpgrade(fromMode: from, toMode: to)
+                case let .modeUpgraded(from, to): sendModeUpgrade(fromMode: from, toMode: to)
 
-                case .audioDataReceived(let data): sendAudioData(data)
+                case let .audioDataReceived(data): sendAudioData(data)
 
                 case .userConfigUpdated: scheduleManualReconnect()
 
@@ -172,8 +166,9 @@ extension WebSocketAudioStreamer {
             let appInfo = ContextService.getAppInfo()
             let selectText = await ContextService.getSelectedText()
             let inputContent = ContextService.getInputContent()
+            let historyContent = ContextService.getHistoryContent()
 
-            let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "")
+            let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "", historyContent: historyContent ?? "")
             let focusElementInfo = ContextService.getFocusElementInfo()
             sendRecordingContext(appInfo: appInfo, focusContext: focusContext, focusElementInfo: focusElementInfo)
         }
@@ -209,6 +204,26 @@ extension WebSocketAudioStreamer {
         sendWebSocketMessage(type: .contextUpdated, data: data)
     }
 
+    func handleResourceRequested() {
+        guard let screenshot = OCRService.captureFrontWindow() else {
+            return
+        }
+
+        // 将 CGImage 转换为 JPEG 格式并压缩
+        let bitmapRep = NSBitmapImageRep(cgImage: screenshot)
+        guard let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
+            log.error("cant compress screenshot")
+            return
+        }
+
+        let data: [String: Any] = [
+            "type": "screenshot",
+            "image": jpegData.base64EncodedString(),
+        ]
+
+        sendWebSocketMessage(type: .resourceRequested, data: data)
+    }
+
     private func sendWebSocketMessage(type: MessageType, data: [String: Any]? = nil) {
         guard let jsonStr = WebSocketMessage.create(type: type, data: data).toJSONString() else {
             log.error("Failed to create \(type) message")
@@ -228,11 +243,14 @@ extension WebSocketAudioStreamer {
         case .recordingStarted:
             cancelRecordingStartedTimeoutTimer()
 
+        case .resourceRequested:
+            handleResourceRequested()
+
         case .recognitionSummary:
             cancelResponseTimeoutTimer()
             guard let data = json["data"] as? [String: Any],
-                  let summary = data["summary"] as? String
-            else { return }
+                  let summary = data["summary"] as? String else { return }
+
             let serverTime = data["server_time"] as? Int
             EventBus.shared.publish(.serverResultReceived(summary: summary, serverTime: serverTime))
 
@@ -240,76 +258,89 @@ extension WebSocketAudioStreamer {
             break
         }
     }
+}
 
+// MARK: - 定时器
+
+extension WebSocketAudioStreamer {
     private func startResponseTimeoutTimer() {
         cancelResponseTimeoutTimer()
 
-        let workItem = DispatchWorkItem { [weak self] in
+        responseTimeoutTask = Task { [weak self] in
             guard let self else { return }
-            log.warning("Recording response timed out after \(responseTimeoutDuration) seconds")
-            EventBus.shared.publish(.notificationReceived(.serverTimeout))
-        }
 
-        responseTimeoutTimer = workItem
-        DispatchQueue.global().asyncAfter(
-            deadline: .now() + responseTimeoutDuration, execute: workItem)
+            do {
+                try await Task.sleep(nanoseconds: UInt64(responseTimeoutDuration * 1_000_000_000))
+                log.warning("Recording response timed out after \(responseTimeoutDuration) seconds")
+                EventBus.shared.publish(.notificationReceived(.serverTimeout))
+            } catch {
+                // Task Canceled
+            }
+        }
         log.debug("Started response timeout timer (\(responseTimeoutDuration)s)")
     }
 
     private func cancelResponseTimeoutTimer() {
-        responseTimeoutTimer?.cancel()
-        responseTimeoutTimer = nil
+        responseTimeoutTask?.cancel()
+        responseTimeoutTask = nil
     }
 
     private func scheduleRecordingStartedTimeoutTimer() {
         cancelRecordingStartedTimeoutTimer()
 
-        let workItem = DispatchWorkItem { [weak self] in
+        recordingStartedTimeoutTask = Task { [weak self] in
             guard let self else { return }
-            log.warning(
-                "Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
-            EventBus.shared.publish(.notificationReceived(.recordingTimeout))
-        }
 
-        recordingStartedTimeoutTimer = workItem
-        DispatchQueue.global().asyncAfter(
-            deadline: .now() + recordingStartedTimeoutDuration, execute: workItem)
+            do {
+                try await Task.sleep(nanoseconds: UInt64(recordingStartedTimeoutDuration * 1_000_000_000))
+                log.warning("Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
+                EventBus.shared.publish(.notificationReceived(.recordingTimeout))
+            } catch {
+                // Task Canceled
+            }
+        }
         log.debug("Started recording started timeout timer (\(recordingStartedTimeoutDuration)s)")
     }
 
     private func cancelRecordingStartedTimeoutTimer() {
-        recordingStartedTimeoutTimer?.cancel()
-        recordingStartedTimeoutTimer = nil
+        recordingStartedTimeoutTask?.cancel()
+        recordingStartedTimeoutTask = nil
     }
 
     private func scheduleConnectingCheck() {
-        connectingCheckTimer?.cancel()
-        connectingCheckTimer = nil
+        connectingCheckTask?.cancel()
+        connectingCheckTask = nil
 
-        let workItem = DispatchWorkItem { [weak self] in
+        connectingCheckTask = Task { [weak self] in
             guard let self else { return }
-            if connectionState == .connecting {
-                log.warning("Still connecting after 10s, reconnect")
-                scheduleManualReconnect()
+
+            do {
+                try await Task.sleep(nanoseconds: 10_000_000_000) // 10秒
+                if connectionState == .connecting {
+                    log.warning("Still connecting after 10s, reconnect")
+                    scheduleManualReconnect()
+                }
+            } catch {
+                // Task Canceled
             }
         }
-
-        connectingCheckTimer = workItem
-        DispatchQueue.global().asyncAfter(deadline: .now() + 10.0, execute: workItem)
     }
 
     private func scheduleIdleTimer() {
-        idleTimeoutTimer?.cancel()
+        idleTimeoutTask?.cancel()
 
-        let workItem = DispatchWorkItem { [weak self] in
+        idleTimeoutTask = Task { [weak self] in
             guard let self else { return }
-            log.warning("No recording activity for \(idleTimeoutDuration / 60) minutes, disconnecting")
-            connectionState = .manualDisconnected
-            ws?.disconnect()
-            ws = nil
-        }
 
-        idleTimeoutTimer = workItem
-        DispatchQueue.global().asyncAfter(deadline: .now() + idleTimeoutDuration, execute: workItem)
+            do {
+                try await Task.sleep(nanoseconds: UInt64(idleTimeoutDuration * 1_000_000_000))
+                log.warning("No recording activity for \(idleTimeoutDuration / 60) minutes, disconnecting")
+                connectionState = .manualDisconnected
+                ws?.disconnect()
+                ws = nil
+            } catch {
+                // Task Canceled
+            }
+        }
     }
 }
