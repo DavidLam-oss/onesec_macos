@@ -27,12 +27,18 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     private var recordingStartedTimeoutTask: Task<Void, Never>?
     private let recordingStartedTimeoutDuration: TimeInterval = 3
 
-    // 连接检测 (防止一直卡在 connecting)
+    // 连接检测任务
+    // 防止一直卡在 connecting 状态, 导致无法连接到服务器
     private var connectingCheckTask: Task<Void, Never>?
 
-    // 空闲超时配置 (30分钟没有使用就断开)
-    var idleTimeoutTask: Task<Void, Never>?
-    let idleTimeoutDuration: TimeInterval = 30 * 60
+    // 空闲超时配置
+    // 控制空闲时间超过 30 分钟后, 断开连接
+    private var idleTimeoutTask: Task<Void, Never>?
+    private let idleTimeoutDuration: TimeInterval = 30 * 60
+    
+    // 上下文发送任务
+    // 确保 StopRecording 时, 上下文已经发送完毕
+    private var contextTask: Task<Void, Never>?
 
     init() {
         initializeMessageListener()
@@ -120,7 +126,7 @@ extension WebSocketAudioStreamer {
                 guard let self else { return }
 
                 switch event {
-                case let .recordingStarted(mode): sendStartRecording(mode: mode)
+                case let .recordingStarted(mode): sendRecordingContext(); sendStartRecording(mode: mode)
 
                 case .recordingStopped: sendStopRecording()
 
@@ -164,26 +170,16 @@ extension WebSocketAudioStreamer {
         ]
 
         sendWebSocketMessage(type: .startRecording, data: data)
-        Task {
-            let appInfo = ContextService.getAppInfo()
-            let selectText = await ContextService.getSelectedText()
-            let inputContent = ContextService.getInputContent()
-
-            let historyContentStart = CFAbsoluteTimeGetCurrent()
-            let historyContent = ContextService.getHistoryContent()
-            let historyContentDuration = (CFAbsoluteTimeGetCurrent() - historyContentStart) * 1000
-            log.debug("⏱️ 获取历史内容: \(String(format: "%.2f", historyContentDuration))ms")
-            let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "", historyContent: historyContent ?? "")
-            let focusElementInfo = ContextService.getFocusElementInfo()
-            sendRecordingContext(appInfo: appInfo, focusContext: focusContext, focusElementInfo: focusElementInfo)
-        }
         scheduleRecordingStartedTimeoutTimer()
         scheduleIdleTimer()
     }
 
     func sendStopRecording() {
-        sendWebSocketMessage(type: .stopRecording)
-        startResponseTimeoutTimer()
+        Task { [weak self] in
+            await self?.contextTask?.value
+            self?.sendWebSocketMessage(type: .stopRecording)
+            self?.startResponseTimeoutTimer()
+        }
     }
 
     func sendModeUpgrade(fromMode: RecordMode, toMode: RecordMode) {
@@ -195,18 +191,28 @@ extension WebSocketAudioStreamer {
         sendWebSocketMessage(type: .modeUpgrade, data: data)
     }
 
-    func sendRecordingContext(
-        appInfo: AppInfo,
-        focusContext: FocusContext,
-        focusElementInfo: FocusElementInfo,
-    ) {
-        let data: [String: Any] = [
-            "app_info": appInfo.toJSON(),
-            "focus_context": focusContext.toJSON(),
-            "focus_element_info": focusElementInfo.toJSON(),
-        ]
+    func sendRecordingContext() {
+        contextTask = Task {
+            let appInfo = ContextService.getAppInfo()
+            let selectText = await ContextService.getSelectedText()
+            let inputContent = ContextService.getInputContent()
 
-        sendWebSocketMessage(type: .contextUpdated, data: data)
+            let historyContentStart = CFAbsoluteTimeGetCurrent()
+            let historyContent = ContextService.getHistoryContent()
+            let historyContentDuration = (CFAbsoluteTimeGetCurrent() - historyContentStart) * 1000
+            log.debug("⏱️ 获取历史内容: \(String(format: "%.2f", historyContentDuration))ms")
+
+            let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "", historyContent: historyContent ?? "")
+            let focusElementInfo = ContextService.getFocusElementInfo()
+
+            let data: [String: Any] = [
+                "app_info": appInfo.toJSON(),
+                "focus_context": focusContext.toJSON(),
+                "focus_element_info": focusElementInfo.toJSON(),
+            ]
+
+            sendWebSocketMessage(type: .contextUpdated, data: data)
+        }
     }
 
     func sendPastedTextModified(original: String, modified: String) {

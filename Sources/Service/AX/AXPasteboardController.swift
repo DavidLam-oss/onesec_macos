@@ -13,6 +13,8 @@ class AXPasteboardController {
     private static var checkModificationTask: Task<Void, Never>?
 
     static func pasteTextAndCheckModification(_ summary: String) async {
+        guard !summary.isEmpty else { return }
+
         let context = getPasteContext()
 
         await pasteTextToActiveApp(summary)
