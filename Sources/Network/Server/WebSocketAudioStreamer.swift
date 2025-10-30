@@ -25,7 +25,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     private var responseTimeoutTask: Task<Void, Never>?
     private let responseTimeoutDuration: TimeInterval = 10.0
     private var recordingStartedTimeoutTask: Task<Void, Never>?
-    private let recordingStartedTimeoutDuration: TimeInterval = 2
+    private let recordingStartedTimeoutDuration: TimeInterval = 3
 
     // 连接检测 (防止一直卡在 connecting)
     private var connectingCheckTask: Task<Void, Never>?
@@ -168,8 +168,11 @@ extension WebSocketAudioStreamer {
             let appInfo = ContextService.getAppInfo()
             let selectText = await ContextService.getSelectedText()
             let inputContent = ContextService.getInputContent()
-            let historyContent = ContextService.getHistoryContent()
 
+            let historyContentStart = CFAbsoluteTimeGetCurrent()
+            let historyContent = ContextService.getHistoryContent()
+            let historyContentDuration = (CFAbsoluteTimeGetCurrent() - historyContentStart) * 1000
+            log.debug("⏱️ 获取历史内容: \(String(format: "%.2f", historyContentDuration))ms")
             let focusContext = FocusContext(inputContent: inputContent ?? "", selectedText: selectText ?? "", historyContent: historyContent ?? "")
             let focusElementInfo = ContextService.getFocusElementInfo()
             sendRecordingContext(appInfo: appInfo, focusContext: focusContext, focusElementInfo: focusElementInfo)

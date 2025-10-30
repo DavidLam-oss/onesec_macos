@@ -9,87 +9,64 @@ import Cocoa
 import Vision
 
 class AXInputHistoryContextAccessor {
-    static let needHistoryLength = 400
+    static let needHistoryLength = 300
 
-    /// 获取输入框上方的聊天历史内容
+    private static let textRoles: Set<String> = ["TextArea", "StaticText", "Text", "AXHeading"]
+    private static let recursiveRoles: Set<String> = [
+        "ScrollArea", "Group", "SplitGroup", "List",
+        "Row", "Column", "Container", "WebArea",
+        "Section", "Pane", "Content", "View",
+    ]
+
     static func getChatHistory(from element: AXUIElement) -> String? {
+        let excludeHash = CFHash(element)
         var current = element
-        var bestContent = ""
+        var bestContent: String?
 
-        for level in 0 ..< 10 {
+        for _ in 0 ..< 8 {
             guard let parent = AXElementAccessor.getParent(of: current) else { break }
             current = parent
 
-            if let content = searchChatContent(in: current, excludeElement: element),
-               content.count > bestContent.count
-            {
-                bestContent = content
-
+            if let content = searchChatContent(in: current, excludeHash: excludeHash) {
                 if content.count >= needHistoryLength {
-                    log.debug("Level \(level): reached target, stopping")
-                    return bestContent
+                    return content
+                }
+                if bestContent == nil || content.count > (bestContent?.count ?? 0) {
+                    bestContent = content
                 }
             }
         }
 
-        return bestContent.isEmpty ? nil : bestContent
+        return bestContent
     }
 
-    private static func searchChatContent(in element: AXUIElement, excludeElement: AXUIElement)
-        -> String?
-    {
-        let text = collectTextMessages(
-            from: element, excludeElement: excludeElement, maxChars: needHistoryLength,
-        )
-        return text.isEmpty ? nil : text
-    }
-
-    /// 递归收集文本消息 (限制字数，从后往前收集)
-    private static func collectTextMessages(
-        from element: AXUIElement,
-        excludeElement: AXUIElement,
-        maxChars: Int,
-        depth: Int = 0,
-    ) -> String {
-        guard maxChars > 0 else { return "" }
-
-        if CFEqual(element, excludeElement) {
-            log.debug("[\(depth)] skipping excluded element (self)")
-            return ""
-        }
-
-        guard let childrenArray = AXElementAccessor.getChildren(of: element) else {
-            return ""
+    private static func searchChatContent(in element: AXUIElement, excludeHash: CFHashCode) -> String? {
+        guard let children = AXElementAccessor.getChildren(of: element), !children.isEmpty else {
+            return nil
         }
 
         var texts: [String] = []
-        var totalChars = 0
+        var charCount = 0
+        let maxChars = needHistoryLength
 
-        // 从后往前遍历 (最新的消息在后面)
-        for (index, child) in childrenArray.reversed().enumerated() {
-            if totalChars >= maxChars {
-                log.debug("[\(depth)] reached maxChars limit: \(totalChars)")
-                break
-            }
+        var i = children.count - 1
+        while i >= 0, charCount < maxChars {
+            let child = children[i]
+            defer { i -= 1 }
 
-            if CFEqual(child, excludeElement) || containsElement(child, target: excludeElement) {
+            if CFHash(child) == excludeHash {
                 continue
             }
 
-            guard
-                let role: String = AXElementAccessor.getAttributeValue(
-                    element: child, attribute: kAXRoleAttribute
-                )
-            else {
+            guard let role: String = AXElementAccessor.getAttributeValue(
+                element: child, attribute: kAXRoleAttribute
+            ) else {
                 continue
             }
 
-            // 收集文本内容
-            if role.contains("TextArea") || role.contains("StaticText") || role.contains("Text") || role.contains("AXHeading") {
-                // 尝试从多个属性获取文本：
-                // 1. kAXValueAttribute - 通常用于输入框、文本区域
-                // 2. kAXDescriptionAttribute - 描述性文本
-                // 3. kAXTitleAttribute - 标题文本，特别适用于 AXHeading
+            let isTextRole = textRoles.contains { role.contains($0) }
+
+            if isTextRole {
                 if let text: String = AXElementAccessor.getAttributeValue(
                     element: child, attribute: kAXValueAttribute
                 )
@@ -101,55 +78,36 @@ class AXInputHistoryContextAccessor {
                     )
                 {
                     let cleaned = text.cleaned
+                    let len = cleaned.count
 
-                    if !cleaned.isEmpty {
+                    // 允许稍微超出50字符缓冲, 避免频繁检查, 最后统一截断
+                    if len > 0, charCount + len <= maxChars + 50 {
                         texts.append(cleaned)
-                        totalChars += cleaned.count
+                        charCount += len
+                    }
+                }
+            } else {
+                let shouldRecurse = recursiveRoles.contains { role.contains($0) }
+                if shouldRecurse, charCount < maxChars {
+                    if let childText = searchChatContent(in: child, excludeHash: excludeHash) {
+                        let len = childText.count
+                        if len > 0 {
+                            texts.append(childText)
+                            charCount += len
+                        }
                     }
                 }
             }
-            // 递归搜索容器
-            else if shouldRecurseIntoRole(role) {
-                let remainingChars = max(0, maxChars - totalChars)
-                let childText = collectTextMessages(
-                    from: child,
-                    excludeElement: excludeElement,
-                    maxChars: remainingChars,
-                    depth: depth + 1,
-                )
-                if !childText.isEmpty {
-                    texts.append(childText)
-                    totalChars += childText.count
-                }
-            } else {
-                log.debug("[\(depth).\(index)] ✗ skipping role: \(role)")
-            }
         }
 
-        // 反转回正确顺序, 拼接并截取最后 maxChars 字符
+        guard !texts.isEmpty else { return nil }
+
+        // 反转并拼接
         let result = texts.reversed().joined(separator: " ")
-        return result.count <= maxChars ? result : String(result.suffix(maxChars))
-    }
 
-    private static func shouldRecurseIntoRole(_ role: String) -> Bool {
-        let recursiveRoles = [
-            "ScrollArea", "Group", "SplitGroup", "List",
-            "Row", "Column", "Container", "WebArea",
-            "Section", "Pane", "Content", "View",
-        ]
-
-        return recursiveRoles.contains { role.contains($0) }
-    }
-
-    private static func containsElement(_ element: AXUIElement, target: AXUIElement) -> Bool {
-        if CFEqual(element, target) {
-            return true
-        }
-
-        guard let childrenArray = AXElementAccessor.getChildren(of: element) else {
-            return false
-        }
-
-        return childrenArray.contains { containsElement($0, target: target) }
+        // 截断到 maxChars
+        return result.count > maxChars
+            ? String(result.suffix(maxChars))
+            : result
     }
 }

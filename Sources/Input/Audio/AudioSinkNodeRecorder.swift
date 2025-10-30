@@ -51,7 +51,8 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         commonFormat: .pcmFormatInt16,
         sampleRate: 16000.0,
         channels: 1,
-        interleaved: true)!
+        interleaved: true
+    )!
 
     init() {
         setupAudioEngine()
@@ -63,13 +64,15 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         opusEncoder = OpusEncoder(
             format: targetFormat,
             application: .voip,
-            frameSize: AVAudioFrameCount(opusFrameSamples))
+            frameSize: AVAudioFrameCount(opusFrameSamples)
+        )
 
         oggPacketizer = OpusOggStreamPacketizer(
             sampleRate: Int(targetFormat.sampleRate),
             channelCount: Int(targetFormat.channelCount),
             opusFrameSamples: opusFrameSamples,
-            framesPerPacket: opusFramesPerPacket)
+            framesPerPacket: opusFramesPerPacket
+        )
 
         guard opusEncoder != nil else {
             log.error("unexpectedOpusEncoderInit")
@@ -275,6 +278,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         // 重置状态
         recordState = .idle
+        audioEngine.stop()
         audioQueue.removeAll()
 
         // 重置统计数据
@@ -307,13 +311,13 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         if bytesPerSample == 2 { // 16-bit
             let samples = audioBuffer.assumingMemoryBound(to: Int16.self)
-            for i in 0..<frameCount {
+            for i in 0 ..< frameCount {
                 let sample = Float(samples[i]) / Float(Int16.max)
                 sum += sample * sample
             }
         } else if bytesPerSample == 4 { // 32-bit
             let samples = audioBuffer.assumingMemoryBound(to: Float.self)
-            for i in 0..<frameCount {
+            for i in 0 ..< frameCount {
                 sum += samples[i] * samples[i]
             }
         }
@@ -340,7 +344,7 @@ extension AudioSinkNodeRecorder {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case .serverResultReceived(let summary, _):
+                case let .serverResultReceived(summary, _):
                     if self?.recordState == .processing {
                         self?.resetState()
                         Task { @MainActor in
@@ -352,7 +356,7 @@ extension AudioSinkNodeRecorder {
                      .notificationReceived(.recordingTimeout):
                     Task { @MainActor [weak self] in
                         self?.recordState = .recordingTimeout
-                        self?.stopRecording(stopState: .idle)
+                        self?.resetState()
                     }
 
                 default:
