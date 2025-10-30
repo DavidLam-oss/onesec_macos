@@ -23,7 +23,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     // Server 超时配置
     private var responseTimeoutTask: Task<Void, Never>?
-    private let responseTimeoutDuration: TimeInterval = 10.0
+    private let responseTimeoutDuration: TimeInterval = 20.0
     private var recordingStartedTimeoutTask: Task<Void, Never>?
     private let recordingStartedTimeoutDuration: TimeInterval = 3
 

@@ -17,6 +17,7 @@ struct StatusIndicator: View {
 
     let minInnerRatio: CGFloat = 0.2 // 内圆最小为外圆的20%
     let maxInnerRatio: CGFloat = 0.7 // 内圆最大为外圆的70%
+    let expandToCapsule: Bool = false // 控制是否在 recording/processing 时扩张为胶囊型
 
     private let overlay = OverlayController.shared
     @State private var isHovered: Bool = false
@@ -29,13 +30,23 @@ struct StatusIndicator: View {
     // 基准大小
     private let baseSize: CGFloat = 20
 
+    // 是否应该显示胶囊形
+    private var shouldShowCapsule: Bool {
+        expandToCapsule && (recordState == .recording || recordState == .processing)
+    }
+
+    // 外圆宽度 (胶囊模式下横向扩展)
+    private var outerWidth: CGFloat {
+        shouldShowCapsule ? baseSize * 1.8 : baseSize
+    }
+
     // 外圆缩放比例
     private var outerScale: CGFloat {
         switch recordState {
         case .idle:
             1.0
         case .recording, .processing:
-            1.25
+            expandToCapsule ? 1.25 : 1.25
         default:
             1.0
         }
@@ -70,7 +81,7 @@ struct StatusIndicator: View {
         case .recording:
             borderGrey
         default:
-            Color.white.opacity(0.8)
+            modeColor.opacity(0.5)
         }
     }
 
@@ -95,15 +106,17 @@ struct StatusIndicator: View {
                 .frame(width: baseSize, height: baseSize)
 
             // 外圆背景
-            Circle()
+            RoundedRectangle(cornerRadius: baseSize / 2)
                 .fill(outerBackgroundColor)
-                .frame(width: baseSize, height: baseSize)
+                .frame(width: outerWidth, height: baseSize)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovered)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: outerWidth)
 
             // 外圆
-            Circle()
-                .strokeBorder(borderColor, lineWidth: 1)
-                .frame(width: baseSize, height: baseSize)
+            RoundedRectangle(cornerRadius: baseSize / 2)
+                .strokeBorder(borderColor, lineWidth: 1.2)
+                .frame(width: outerWidth, height: baseSize)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: outerWidth)
 
             // 内圆
             Group {
@@ -122,24 +135,22 @@ struct StatusIndicator: View {
                     )
                 }
             }
-            .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: innerSize)
         }
         .frame(width: baseSize, height: baseSize)
-        .contentShape(Circle())
         .scaleEffect(outerScale, anchor: .bottom)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: outerScale)
         .scaleEffect(isHovered ? 1.5 : 1.0, anchor: .bottom)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .offset(y: recordState == .idle ? 0 : -4)
+        .shadow(color: Color.black.opacity(0.3), radius: 12, x: 0, y: 2)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: recordState)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: outerScale)
         .onHover { hovering in
             guard ConnectionCenter.shared.audioRecorderState == .idle else { return }
+            StatusPanelManager.shared.ignoresMouseEvents(ignore: !hovering)
             isHovered = hovering
+
             if hovering {
-                StatusPanelManager.shared.makeKeyPanel {
-                    // NSCursor.pointingHand.set()
-                }
                 let uuid = overlay.showOverlay {
                     Text("按住 fn 开始语音输入 或  点击进行设置")
                         .font(.system(size: 12))

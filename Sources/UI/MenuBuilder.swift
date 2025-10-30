@@ -29,9 +29,7 @@ class MenuBuilder {
         // 创建带描述的菜单项
         let modes: [(mode: TextProcessMode, tag: Int)] = [
             (.auto, 0),
-            (.raw, 1),
-            (.clean, 2),
-            (.format, 3),
+            (.format, 1),
         ]
 
         for (index, (mode, tag)) in modes.enumerated() {
@@ -64,10 +62,23 @@ class MenuBuilder {
 
         // 显示当前选择的风格
         let currentModeDescItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        let currentModeAttr = NSMutableAttributedString(string: "\(Config.TEXT_PROCESS_MODE.displayName) \(Config.TEXT_PROCESS_MODE.description)")
+        let currentModeText = Config.TEXT_PROCESS_MODE == .translate ? "无识别风格" : "\(Config.TEXT_PROCESS_MODE.displayName) \(Config.TEXT_PROCESS_MODE.description)"
+        let currentModeAttr = NSMutableAttributedString(string: currentModeText)
         currentModeDescItem.attributedTitle = currentModeAttr
         currentModeDescItem.isEnabled = false
         menu.addItem(currentModeDescItem)
+
+        menu.addItem(NSMenuItem.separator())
+        
+        // 翻译模式开关
+        let translateItem = NSMenuItem(
+            title: "翻译模式",
+            action: #selector(handleTranslateModeToggle),
+            keyEquivalent: ""
+        )
+        translateItem.target = self
+        translateItem.state = Config.TEXT_PROCESS_MODE == .translate ? .on : .off
+        menu.addItem(translateItem)
 
         menu.addItem(NSMenuItem.separator())
         return menu
@@ -78,16 +89,28 @@ class MenuBuilder {
     }
 
     @objc private func handleTextModeChange(_ sender: NSMenuItem) {
-        let modes: [TextProcessMode] = [.auto, .raw, .clean, .format]
+        let modes: [TextProcessMode] = [.auto, .format]
         guard sender.tag < modes.count else { return }
 
         let selectedMode = modes[sender.tag]
         Config.setTextProcessMode(selectedMode)
     }
+    
+    @objc private func handleTranslateModeToggle() {
+        if Config.TEXT_PROCESS_MODE == .translate {
+            Config.TEXT_PROCESS_MODE = .auto
+        } else {
+            Config.TEXT_PROCESS_MODE = .translate
+        }
+    }
 
     func showMenu(in view: NSView) {
         let menu = buildMenu()
-        let location = view.bounds.origin
-        menu.popUp(positioning: nil, at: location, in: view)
+
+        // 使用当前事件来显示菜单，这样菜单会自动出现在点击位置附近
+        // 这是 macOS 推荐的方式，会自动处理菜单定位和显示动画
+        if let event = NSApp.currentEvent {
+            NSMenu.popUpContextMenu(menu, with: event, for: view)
+        }
     }
 }

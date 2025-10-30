@@ -34,7 +34,7 @@ class StatusPanel: NSPanel {
         self.hasShadow = false
         self.isMovableByWindowBackground = false
         self.acceptsMouseMovedEvents = true
-        self.ignoresMouseEvents = false
+        self.ignoresMouseEvents = true
 
         // 设置内容视图
         let hostingView = AutoResizingHostingView(rootView: StatusView())
@@ -87,7 +87,7 @@ class StatusPanel: NSPanel {
                     context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                     self.animator().alphaValue = 1.0
                 }
-            },
+            },      
         )
     }
 
@@ -180,6 +180,11 @@ class StatusPanelManager {
                 self.panel.orderOut(nil)
             },
         )
+    }
+
+    func ignoresMouseEvents(ignore: Bool = true) {
+        panel.ignoresMouseEvents = ignore
+        makeKeyPanel()
     }
 
     func getPanelFrame() -> NSRect {

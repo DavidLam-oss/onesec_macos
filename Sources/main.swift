@@ -2,13 +2,12 @@ import Cocoa
 import Combine
 import Foundation
 
-
 class AppDelegate: NSObject, NSApplicationDelegate {
     var connectionCenter: ConnectionCenter!
 
     private var cancellables = Set<AnyCancellable>()
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         CommandParser.main()
         SoundService.shared.initialize()
         SignalHandler.shared.setupSignalHandlers()
@@ -22,7 +21,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // EventBus.shared.publish(.notificationReceived(.recordingFailed))
         }
     }
-
 }
 
 let app = NSApplication.shared

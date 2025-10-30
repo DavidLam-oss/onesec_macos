@@ -122,41 +122,39 @@ struct StatusView: View {
             StatusIndicator(
                 recordState: recording.state,
                 volume: recording.volume,
-                mode: recording.mode,
+                mode: recording.mode
             ).onTapGesture {
                 overlay.hideAllOverlays()
                 showMenu()
             }
-        }.padding([.top, .leading, .trailing], 12)
-            .padding(.bottom, 4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onReceive(
-                EventBus.shared.events
-                    .receive(on: DispatchQueue.main),
-            ) { event in
-                handleEvent(event)
-            }
-            .onReceive(
-                ConnectionCenter.shared.$permissionsState
-                    .receive(on: DispatchQueue.main),
-            ) { permissionsState in
-                handlePermissionChange(permissionsState)
-            }
+        }
+        .padding(.bottom, 4)
+        .frame(width: 200, height: 80, alignment: .bottom)
+        .onReceive(
+            EventBus.shared.events
+                .receive(on: DispatchQueue.main),
+        ) { event in
+            handleEvent(event)
+        }
+        .onReceive(
+            ConnectionCenter.shared.$permissionsState
+                .receive(on: DispatchQueue.main),
+        ) { permissionsState in
+            handlePermissionChange(permissionsState)
+        }
     }
 
     private func handleEvent(_ event: AppEvent) {
         switch event {
-        case .volumeChanged(let volume):
+        case let .volumeChanged(volume):
             recording.volume = min(1.0, max(0.0, CGFloat(volume)))
-        case .recordingStarted(let mode):
+        case let .recordingStarted(mode):
             recording.mode = mode
             recording.state = .recording
         case .recordingStopped:
             recording.state = .processing
             recording.volume = 0
-        case .serverResultReceived:
-            recording.state = .idle
-        case .modeUpgraded(let from, let to):
+        case let .modeUpgraded(from, to):
             log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
                 recording.mode = to
@@ -169,7 +167,7 @@ struct StatusView: View {
                 overlay.hideOverlay(uuid: notificationPanelId!)
                 notificationPanelId = nil
             }
-        case .notificationReceived(let notificationType):
+        case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
             recording.state = .idle
 
@@ -182,6 +180,15 @@ struct StatusView: View {
                 title: notificationType.title, content: notificationType.content,
                 autoHide: autoHide,
             )
+        case let .serverResultReceived(summary, _):
+            recording.state = .idle
+            overlay.showOverlayAboveSelection { panelId in
+                ContentCard(
+                    panelId: panelId,
+                    title: "翻译结果",
+                    content: summary
+                )
+            }
         default:
             break
         }

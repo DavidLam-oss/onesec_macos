@@ -33,18 +33,15 @@ actor Config {
 
 enum TextProcessMode: String, CaseIterable {
     case auto = "AUTO"
-    case raw = "RAW"
-    case clean = "CLEAN"
+    case translate = "TRANSLATE"
     case format = "FORMAT"
 
     var displayName: String {
         switch self {
         case .auto:
             "自动风格"
-        case .raw:
-            "极速风格"
-        case .clean:
-            "清理风格"
+        case .translate:
+            "翻译风格"
         case .format:
             "整理风格"
         }
@@ -53,13 +50,11 @@ enum TextProcessMode: String, CaseIterable {
     var description: String {
         switch self {
         case .auto:
-            "智能判断，一键省心"
-        case .raw:
-            "快速识别，原样呈现"
-        case .clean:
-            "去噪理顺，轻度优化"
+            "智能判断, 一键省心"
+        case .translate:
+            "翻译文本, 一键省心"
         case .format:
-            "结构重组，深度优化"
+            "结构重组, 深度优化"
         }
     }
 }

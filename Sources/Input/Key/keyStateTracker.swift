@@ -166,7 +166,7 @@ class KeyStateTracker {
             // 从不匹配变为匹配 -> 检查防抖
             let currentTime = Date().timeIntervalSince1970
             if currentTime - lastStartMatchTime < 1.0 {
-                log.info("⏱️ 防抖限制: \(newMode == .normal ? "普通模式" : "命令模式")")
+                log.info("🤡 防抖限制: \(newMode == .normal ? "普通模式" : "命令模式")")
                 return .throttled(newMode!)
             }
 

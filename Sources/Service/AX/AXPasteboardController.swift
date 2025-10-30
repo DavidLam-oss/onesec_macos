@@ -147,41 +147,28 @@ class AXPasteboardController {
     static func pasteTextToActiveApp(_ text: String) async {
         log.info("Paste Text To Active App: \(text)")
 
-        // 保存当前剪贴板内容
         let pasteboard = NSPasteboard.general
         let oldContents = pasteboard.string(forType: .string)
 
-        // 将文本复制到剪贴板
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
 
         // 模拟 Cmd+V 粘贴
         let source = CGEventSource(stateID: .hidSystemState)
-
-        // 按下 Cmd
-        let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true)
-        cmdDown?.flags = .maskCommand
-
-        // 按下 V
         let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
         vDown?.flags = .maskCommand
-
-        // 释放 V
         let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
         vUp?.flags = .maskCommand
 
-        // 释放 Cmd
-        _ = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false)
-
-        // 发送事件
         vDown?.post(tap: .cghidEventTap)
         vUp?.post(tap: .cghidEventTap)
 
-        // 延迟后恢复原剪贴板内容
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        if let oldContents {
-            pasteboard.clearContents()
-            pasteboard.setString(oldContents, forType: .string)
+        Task {
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            if pasteboard.string(forType: .string) == text, let oldContents {
+                pasteboard.clearContents()
+                pasteboard.setString(oldContents, forType: .string)
+            }
         }
     }
 }
