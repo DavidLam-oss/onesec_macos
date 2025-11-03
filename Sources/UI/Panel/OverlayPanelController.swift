@@ -1,23 +1,25 @@
-import SwiftUI
 import Combine
+import SwiftUI
 
 @MainActor
 class OverlayController {
     static let shared = OverlayController()
 
     private var panels: [UUID: NSPanel] = [:]
-    private let shadowPadding: CGFloat = 40
+    private let shadowPadding: CGFloat = 50
     private var savedMouseLocation: NSRect?
-    private var cancellables = Set<AnyCancellable>()
+    private var mouseMonitor: Any?
 
     private init() {
-        EventBus.shared.eventSubject
-            .sink { [weak self] event in
-                if case .recordingStarted = event {
-                    self?.savedMouseLocation = self?.getMouseLocationBounds()
-                }
-            }
-            .store(in: &cancellables)
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
+            self?.savedMouseLocation = self?.getMouseLocationBounds()
+        }
+    }
+
+    deinit {
+        if let monitor = mouseMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 
     @discardableResult
@@ -63,8 +65,6 @@ class OverlayController {
 
         // 更新内容视图
         panel.contentView = hosting
-
-        // 平滑动画更新位置和大小
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -88,6 +88,7 @@ class OverlayController {
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hasShadow = false
+        panel.isMovableByWindowBackground = true
         panel.contentView = hosting
         panel.becomeKey()
         panel.makeKeyAndOrderFront(nil)
@@ -122,12 +123,11 @@ class OverlayController {
             hideOverlay(uuid: uuid)
         }
     }
-    
 
     @discardableResult
     func showOverlayAboveSelection(@ViewBuilder content: (_ panelId: UUID) -> some View) -> UUID? {
         var selectionBounds = getSelectionBounds()
-        
+
         // 检查边界有效性（无法获取或返回无效的0值）
         if selectionBounds == nil || selectionBounds!.width < 1 || selectionBounds!.height < 1 {
             // Fallback: 使用保存的鼠标位置
@@ -136,30 +136,30 @@ class OverlayController {
             }
             selectionBounds = mouseBounds
         }
-        
+
         let bounds = selectionBounds!
-        
+
         // 获取屏幕信息
         guard let screen = NSScreen.main else {
             log.warning("无法获取屏幕信息")
             return nil
         }
         let screenHeight = screen.frame.height
-        
+
         // 先创建 UUID
         let uuid = UUID()
-        
+
         // 使用 UUID 创建内容
         let (hosting, contentSize) = createHostingViewAndGetSize(content: { content(uuid) })
-        
+
         // AX API返回的是Cocoa坐标系（左上角为原点，Y轴向下）
         // 需要转换为NSWindow坐标系（左下角为原点，Y轴向上）
-        
+
         let spacing: CGFloat = 8
-        
+
         // X坐标：左对齐
         let overlayX = bounds.origin.x - shadowPadding
-        
+
         // Y坐标转换：
         // 1. AX的Y是从屏幕顶部开始的距离
         // 2. 文本顶部(AX) = bounds.origin.y
@@ -167,45 +167,45 @@ class OverlayController {
         // 4. Panel应该在文本上方，所以Y坐标更大
         let textTopInWindowCoords = screenHeight - bounds.origin.y
         let overlayY = textTopInWindowCoords + spacing - shadowPadding
-        
+
         let panel = NSPanel(
             contentRect: NSRect(x: overlayX, y: overlayY, width: contentSize.width, height: contentSize.height),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        
+
         setupPanel(panel, hosting: hosting)
         panel.alphaValue = 0.0
         panel.animations = ["alphaValue": createSpringFadeInAnimation()]
         panel.animator().alphaValue = 1.0
-        
+
         panels[uuid] = panel
-        
+
         return uuid
     }
-    
+
     /// 使用鼠标位置创建fallback边界（Cocoa坐标系）
     private func getMouseLocationBounds() -> NSRect? {
         let mouseLocation = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) else {
             return nil
         }
-        
+
         // 转换为Cocoa坐标系（屏幕顶部为Y=0）
         let screenFrame = screen.frame
         let screenHeight = screenFrame.height
         let axY = screenHeight - (mouseLocation.y - screenFrame.origin.y)
-        
+
         // 创建一个最小边界（使用鼠标位置）
         return NSRect(
             x: mouseLocation.x - screenFrame.origin.x,
             y: axY - 10, // 10为补偿
-            width: 100,  // 最小宽度
-            height: 20   // 最小高度
+            width: 100, // 最小宽度
+            height: 20 // 最小高度
         )
     }
-    
+
     /// 获取选中文本的屏幕坐标
     private func getSelectionBounds() -> NSRect? {
         guard let element = AXElementAccessor.getFocusedElement(),
@@ -216,7 +216,7 @@ class OverlayController {
         else {
             return nil
         }
-        
+
         log.info("rangeValue: \(rangeValue)")
         var range = CFRange()
         guard AXValueGetValue(rangeValue, .cfRange, &range) else {
@@ -231,18 +231,18 @@ class OverlayController {
         ) else {
             return nil
         }
-        
+
         log.info("boundsValue: \(boundsValue)we")
         var rect = CGRect.zero
         guard AXValueGetValue(boundsValue, .cgRect, &rect) else {
             return nil
         }
-        
+
         // 如果没有选中文本，给光标位置一个最小宽度
         if range.length == 0 {
             rect.size.width = max(rect.size.width, 1)
         }
-        
+
         return NSRect(x: rect.origin.x, y: rect.origin.y, width: rect.width, height: rect.height)
     }
 }

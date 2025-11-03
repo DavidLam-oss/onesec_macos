@@ -344,12 +344,9 @@ extension AudioSinkNodeRecorder {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case let .serverResultReceived(summary, _):
+                case .serverResultReceived:
                     if self?.recordState == .processing {
                         self?.resetState()
-                        Task { @MainActor in
-                            await AXPasteboardController.pasteTextAndCheckModification(summary)
-                        }
                     }
 
                 case .notificationReceived(.serverTimeout),

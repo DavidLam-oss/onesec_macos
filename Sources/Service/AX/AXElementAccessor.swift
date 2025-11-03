@@ -71,4 +71,25 @@ class AXElementAccessor {
 
         return element
     }
+
+    static func isEditableElement(_ element: AXUIElement) -> Bool {
+        var role: AnyObject?
+        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
+
+        let editableRoles = [
+            kAXTextFieldRole,
+            kAXTextAreaRole,
+            kAXComboBoxRole,
+        ]
+
+        if let roleString = role as? String,
+           editableRoles.contains(roleString)
+        {
+            return true
+        }
+
+        var isEditable: AnyObject?
+        AXUIElementCopyAttributeValue(element, "AXIsEditable" as CFString, &isEditable)
+        return (isEditable as? Bool) ?? false
+    }
 }

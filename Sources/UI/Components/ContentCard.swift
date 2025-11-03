@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentCard: View {
     let panelId: UUID
@@ -6,95 +7,205 @@ struct ContentCard: View {
     let content: String
     let onTap: (() -> Void)? = nil
     
+    private let autoCloseDuration: Int = 12
+    private let cardWidth: CGFloat = 240
+
     @State private var isCloseHovered = false
-    @State private var isCardHovered = false
-    
+    @State private var isContentCopied = false
+    @State private var isCopyButtonHovered = false
+    @State private var isStopButtonHovered = false
+    @State private var isCollapseHovered = false
+    @State private var isContentCollapsed = false
+    @State private var remainingSeconds: Int = 12
+    @State private var showBottomSection = true
+    @State private var timerTask: Task<Void, Never>?
+
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // 卡片主体
+        VStack {
+            Spacer(minLength: 0)
             cardContent
-            
-            // 关闭按钮
-            closeButton
         }
+        .frame(width: cardWidth)
+        .animation(.spring(response: 0.4, dampingFraction: 0.825), value: showBottomSection)
     }
-    
-    // MARK: - 卡片内容
 
     private var cardContent: some View {
-        HStack(alignment: .center, spacing: 12) {
-            // 文本内容
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.overlayText)
-                    .lineLimit(1)
-                
-                Text(content)
-                    .font(.system(size: 12))
-                    .foregroundColor(.overlaySecondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(width: 240)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color.overlayBackground),
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(borderGrey.opacity(0.8), lineWidth: 1),
-        )
-        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 2)
-        .onTapGesture {
-            onTap?()
-        }
-        .onHover(perform: handleCardHover)
-    }
-    
-    // MARK: - 关闭按钮
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(.overlayText)
+                        .lineLimit(1)
 
-    private var closeButton: some View {
-        Button(action: closeCard) {
-            Image.systemSymbol("xmark.circle.fill")
-                .font(.system(size: 16))
-                .foregroundColor(isCloseHovered ? destructiveRed : Color.gray.opacity(0.5))
+                    Spacer()
+
+                    Button(action: toggleContentCollapse) {
+                        Image.systemSymbol("chevron.up")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(isCollapseHovered ? .overlayText : .overlaySecondaryText)
+                            .rotationEffect(.degrees(isContentCollapsed ? 180 : 0))
+                            .animation(.spring, value: isContentCollapsed)
+                            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isCollapseHovered)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        isCollapseHovered = hovering
+                    }
+
+                    Button(action: closeCard) {
+                        Image.systemSymbol("xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .padding(.trailing, 2)
+                            .foregroundColor(isCloseHovered ? .overlayText : .overlaySecondaryText)
+                            .animation(.easeInOut(duration: 0.2), value: isCloseHovered)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        isCloseHovered = hovering
+                    }
+                }
+
+                if !isContentCollapsed {
+                    Text(content)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(.overlaySecondaryText)
+                        .lineLimit(20)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack {
+                        Spacer()
+                        Button(action: handleCopyContent) {
+                            Image.systemSymbol(isContentCopied ? "checkmark" : "document.on.document")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(isContentCopied ? .overlayDisabled : (isCopyButtonHovered ? .overlayText : .overlaySecondaryText))
+                                .scaleEffect(isContentCopied ? 1.1 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isContentCopied)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isCopyButtonHovered)
+                        }
+                        .frame(width: 16, height: 16)
+                        .buttonStyle(.plain)
+                        .disabled(isContentCopied)
+                        .onHover { hovering in
+                            isCopyButtonHovered = hovering
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 12)
+
+            // 底部提示条
+            if showBottomSection {
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        Text("这条消息将在 ")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.overlaySecondaryText)
+                        
+                        Text("\(remainingSeconds)")
+                            .font(.system(size: 10, design: .monospaced))
+                            .fontWeight(.bold)
+                            .foregroundColor(Color.overlaySecondaryText)
+                        
+                        Text(" 秒后自动关闭，")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.overlaySecondaryText)
+
+                        Button(action: closeTipsSection) {
+                            Text("点击停止")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color.overlayText)
+                                .underline(isStopButtonHovered)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            isStopButtonHovered = hovering
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 13)
+                    .background(Color.overlaySecondaryBackground)
+
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.overlayPrimary.opacity(0.3))
+                            .frame(height: 3.5)
+
+                        Rectangle()
+                            .fill(Color.overlayPrimary)
+                            .frame(width: cardWidth * CGFloat(remainingSeconds) / CGFloat(autoCloseDuration), height: 3)
+                            .animation(.linear(duration: 1.0), value: remainingSeconds)
+                    }
+                    .frame(height: 3.5)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .buttonStyle(PlainButtonStyle())
-        .onHover(perform: handleCloseHover)
-        .padding(8)
-        .animation(.easeInOut(duration: 0.2), value: isCloseHovered)
-        .contentShape(Rectangle())
+        .background(Color.overlayBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.overlayBorder, lineWidth: 1.2)
+        )
+        .shadow(color: .overlayBackground.opacity(0.3), radius: 8, x: 0, y: 0)
+        .onTapGesture { onTap?() }
+        .onAppear { startAutoCloseTimer() }
+        .onDisappear { stopAutoCloseTimer() }
     }
-    
-    // MARK: - 事件处理
 
     private func closeCard() {
-        log.info("closeCard: \(panelId)")
+        stopAutoCloseTimer()
         OverlayController.shared.hideOverlay(uuid: panelId)
     }
-    
-    private func handleCardHover(_ hovering: Bool) {
-        isCardHovered = hovering
-        if hovering {
-            NSCursor.pointingHand.push()
-        } else {
-            NSCursor.pop()
+
+    private func closeTipsSection() {
+        stopAutoCloseTimer()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
+            showBottomSection = false
         }
     }
-    
-    private func handleCloseHover(_ hovering: Bool) {
-        isCloseHovered = hovering
-        if hovering {
-            NSCursor.pointingHand.push()
-        } else {
-            NSCursor.pop()
+
+    private func toggleContentCollapse() {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.825)) {
+            isContentCollapsed.toggle()
         }
+    }
+
+    private func handleCopyContent() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(content, forType: .string)
+        
+        withAnimation {
+            isContentCopied = true
+        }
+        
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            withAnimation {
+                isContentCopied = false
+            }
+        }
+    }
+
+    private func startAutoCloseTimer() {
+        timerTask = Task { @MainActor in
+            for second in (0...autoCloseDuration).reversed() {
+                guard !Task.isCancelled else { return }
+                remainingSeconds = second
+                if second == 0 {
+                    closeCard()
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    private func stopAutoCloseTimer() {
+        timerTask?.cancel()
+        timerTask = nil
     }
 }

@@ -52,27 +52,27 @@ struct NotificationCard: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(modeColor.opacity(isCardHovered ? 0.5 : 0.3), lineWidth: 1),
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.overlayBorder, lineWidth: 1.2)
             )
-            .shadow(color: Color.black.opacity(0.3), radius: 12, x: 0, y: 2)
+            .shadow(color: .overlayBackground.opacity(0.3), radius: 8, x: 0, y: 0)
             .onTapGesture {
                 onTap?()
             }
             .onHover { hovering in
-                 isCardHovered = hovering
-                    if hovering {
-                        NSCursor.pointingHand.push()
-                    } else {
-                        NSCursor.pop()
-                    }
+                isCardHovered = hovering
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
             }
 
             if let onClose {
                 Button(action: onClose) {
-                    Image.systemSymbol("xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(isCloseHovered ? destructiveRed : Color.gray.opacity(0.5))
+                    Image.systemSymbol("xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(isCloseHovered ? .overlayText : .overlaySecondaryText)
                 }
                 .buttonStyle(PlainButtonStyle())
                 .onHover { hovering in
@@ -83,7 +83,7 @@ struct NotificationCard: View {
                         NSCursor.pop()
                     }
                 }
-                .padding(8)
+                .padding(12)
                 .animation(.easeInOut(duration: 0.2), value: isCloseHovered)
                 .contentShape(Rectangle())
             }

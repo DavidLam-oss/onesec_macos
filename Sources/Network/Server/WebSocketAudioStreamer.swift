@@ -136,7 +136,7 @@ extension WebSocketAudioStreamer {
 
                 case .userConfigUpdated: scheduleManualReconnect()
 
-                case let .pastedTextModified(original, modified): sendPastedTextModified(original: original, modified: modified)
+                case let .pastedTextModified(original, modified, interactionID): sendPastedTextModified(original: original, modified: modified, interactionID: interactionID)
 
                 default:
                     break
@@ -215,10 +215,11 @@ extension WebSocketAudioStreamer {
         }
     }
 
-    func sendPastedTextModified(original: String, modified: String) {
+    func sendPastedTextModified(original: String, modified: String, interactionID: String) {
         let data: [String: Any] = [
             "original": original,
             "modified": modified,
+            "interaction_id": interactionID,
         ]
 
         sendWebSocketMessage(type: .pastedTextModified, data: data)
@@ -276,10 +277,14 @@ extension WebSocketAudioStreamer {
         case .recognitionSummary:
             cancelResponseTimeoutTimer()
             guard let data = json["data"] as? [String: Any],
-                  let summary = data["summary"] as? String else { return }
-
+                  let summary = data["summary"] as? String,
+                  let interactionID = data["interaction_id"] as? String,
+                  let processMode = data["process_mode"] as? String
+            else {
+                return
+            }
             let serverTime = data["server_time"] as? Int
-            EventBus.shared.publish(.serverResultReceived(summary: summary, serverTime: serverTime))
+            EventBus.shared.publish(.serverResultReceived(summary: summary, interactionID: interactionID, processMode: processMode, serverTime: serverTime))
 
         default:
             break

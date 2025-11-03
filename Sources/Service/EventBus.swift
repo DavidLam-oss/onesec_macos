@@ -14,7 +14,7 @@ enum AppEvent {
     case recordingStarted(recordMode: RecordMode)
     case recordingStopped
     case audioDataReceived(data: Data)
-    case serverResultReceived(summary: String, serverTime: Int?)
+    case serverResultReceived(summary: String, interactionID: String, processMode: String, serverTime: Int?)
     case modeUpgraded(from: RecordMode, to: RecordMode)
     case notificationReceived(NotificationMessageType)
     //
@@ -26,7 +26,9 @@ enum AppEvent {
     case hotkeySettingResulted(mode: RecordMode, hotkeyCombination: [String], isConflict: Bool = false)
     //
     case mouseScreenChanged(screen: NSScreen)
-    case pastedTextModified(original: String, modified: String)
+    case pastedTextModified(original: String, modified: String, interactionID: String)
+    //
+    case textProcessModeChanged(mode: TextProcessMode)
 }
 
 class EventBus: @unchecked Sendable {

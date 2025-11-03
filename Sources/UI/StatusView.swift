@@ -180,14 +180,39 @@ struct StatusView: View {
                 title: notificationType.title, content: notificationType.content,
                 autoHide: autoHide,
             )
-        case let .serverResultReceived(summary, _):
+        case let .serverResultReceived(summary, interactionID, _, _):
             recording.state = .idle
-            overlay.showOverlayAboveSelection { panelId in
-                ContentCard(
-                    panelId: panelId,
-                    title: "翻译结果",
-                    content: summary
-                )
+            if summary.isEmpty {
+                return
+            }
+
+            Task { @MainActor in
+                guard
+                    let element = AXElementAccessor.getFocusedElement(),
+                    AXElementAccessor.isEditableElement(element)
+                else {
+                    log.info("No focused element, show notification message")
+                    switch recording.mode {
+                    case .command:
+                        overlay.showOverlayAboveSelection { panelId in
+                            ContentCard(
+                                panelId: panelId,
+                                title: "翻译结果",
+                                content: summary
+                            )
+                        }
+                    default:
+                        showNotificationMessage(
+                            title: "识别结果",
+                            content: summary,
+                            autoHide: false
+                        )
+                    }
+                    return
+                }
+
+                log.info("Focused element found, paste text and check modification")
+                await AXPasteboardController.pasteTextAndCheckModification(summary, interactionID)
             }
         default:
             break

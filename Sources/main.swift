@@ -16,7 +16,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         connectionCenter.initialize()
 
         StatusPanelManager.shared.showPanel()
-        Task {
+
+        Task { @MainActor in
+            //  AXSelectionObserver.shared.startObserving()
             // try? await Task.sleep(nanoseconds: 1_000_000_000)
             // EventBus.shared.publish(.notificationReceived(.recordingFailed))
         }

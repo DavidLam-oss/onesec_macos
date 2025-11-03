@@ -12,14 +12,14 @@ import Vision
 class AXPasteboardController {
     private static var checkModificationTask: Task<Void, Never>?
 
-    static func pasteTextAndCheckModification(_ summary: String) async {
+    static func pasteTextAndCheckModification(_ summary: String, _ interactionID: String) async {
         guard !summary.isEmpty else { return }
 
         let context = getPasteContext()
 
         await pasteTextToActiveApp(summary)
 
-        guard let context = context else { return }
+        guard let context else { return }
 
         // 启动检查任务
         // 检查用户是否修改了粘贴内容
@@ -40,7 +40,7 @@ class AXPasteboardController {
 
                 guard !Task.isCancelled else { return }
 
-                checkTextModification(context: context, originalText: summary)
+                checkTextModification(context: context, originalText: summary, interactionID: interactionID)
             } onCancel: {}
         }
     }
@@ -49,7 +49,7 @@ class AXPasteboardController {
         guard let element = AXElementAccessor.getFocusedElement(),
               let rangeValue: AXValue = AXElementAccessor.getAttributeValue(
                   element: element,
-                  attribute: kAXSelectedTextRangeAttribute
+                  attribute: kAXSelectedTextRangeAttribute,
               )
         else {
             return nil
@@ -65,7 +65,8 @@ class AXPasteboardController {
 
     private static func checkTextModification(
         context: (element: AXUIElement, position: Int, length: Int),
-        originalText: String
+        originalText: String,
+        interactionID: String,
     ) {
         guard let currentElement = AXElementAccessor.getFocusedElement(),
               CFEqual(context.element, currentElement)
@@ -76,13 +77,13 @@ class AXPasteboardController {
         guard let pastedText = getTextAtRange(
             element: context.element,
             location: context.position,
-            length: originalText.count
+            length: originalText.count,
         ) else {
             return
         }
 
         if pastedText != originalText {
-            EventBus.shared.publish(.pastedTextModified(original: originalText, modified: pastedText))
+            EventBus.shared.publish(.pastedTextModified(original: originalText, modified: pastedText, interactionID: interactionID))
         }
     }
 
@@ -90,7 +91,7 @@ class AXPasteboardController {
     private static func getTextAtRange(element: AXUIElement, location: Int, length: Int) -> String? {
         guard let totalLength: Int = AXElementAccessor.getAttributeValue(
             element: element,
-            attribute: kAXNumberOfCharactersAttribute
+            attribute: kAXNumberOfCharactersAttribute,
         ) else {
             return nil
         }
@@ -112,7 +113,7 @@ class AXPasteboardController {
         return AXElementAccessor.getParameterizedAttributeValue(
             element: element,
             attribute: kAXStringForRangeParameterizedAttribute,
-            parameter: targetRangeValue
+            parameter: targetRangeValue,
         )
     }
 

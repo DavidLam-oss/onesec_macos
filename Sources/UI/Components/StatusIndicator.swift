@@ -22,6 +22,7 @@ struct StatusIndicator: View {
     private let overlay = OverlayController.shared
     @State private var isHovered: Bool = false
     @State private var tooltipPanelId: UUID?
+    @State private var isTranslateMode: Bool = false
 
     private var modeColor: Color {
         mode == .normal ? auroraGreen : starlightYellow
@@ -121,9 +122,15 @@ struct StatusIndicator: View {
             // 内圆
             Group {
                 if recordState == .idle {
-                    Circle()
-                        .fill(borderGrey)
-                        .frame(width: innerSize, height: innerSize)
+                    if isTranslateMode {
+                        Text("译")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(modeColor)
+                    } else {
+                        Circle()
+                            .fill(borderGrey)
+                            .frame(width: innerSize, height: innerSize)
+                    }
                 } else if recordState == .recording {
                     Circle()
                         .fill(modeColor)
@@ -174,6 +181,17 @@ struct StatusIndicator: View {
                     tooltipPanelId = nil
                 }
             }
+        }.onReceive(
+            EventBus.shared.events
+                .receive(on: DispatchQueue.main),
+        ) { event in
+            handleEvent(event)
+        }
+    }
+
+    private func handleEvent(_ event: AppEvent) {
+        if case let .textProcessModeChanged(mode) = event {
+            isTranslateMode = mode == .translate
         }
     }
 }

@@ -1,5 +1,5 @@
 //
-//  Color.swift
+//  UI.swift
 //  OnesecCore
 //
 //  Created by 王晓雨 on 2025/10/16.
@@ -15,23 +15,40 @@ let destructiveRed = Color(hex: "#FF383C")
 // MARK: - 自适应主题颜色 根据系统外观自动切换
 
 extension Color {
-    static func adaptive(light: NSColor, dark: NSColor) -> Color {
+    var nsColor: NSColor {
+        if #available(macOS 11.0, *) {
+            return NSColor(self)
+        } else {
+            return NSColor.black
+        }
+    }
+    
+    static func adaptive(light: Color, dark: Color) -> Color {
         let dynamicColor = NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark ? dark : light
+            return isDark ? dark.nsColor : light.nsColor
         }
         if #available(macOS 12.0, *) {
             return Color(nsColor: dynamicColor)
         } else if #available(macOS 11.0, *) {
             return Color(dynamicColor)
         } else {
-            return Color(dark)
+            return dark
         }
+    }
+
+    static var overlayPrimary: Color {
+        adaptive(light: auroraGreen, dark: starlightYellow)
     }
 
     /// Overlay 背景色：亮色模式白色，暗色模式黑色
     static var overlayBackground: Color {
-        adaptive(light: .white, dark: NSColor(red: 10/255, green: 10/255, blue: 10/255, alpha: 1.0))
+        adaptive(light: .white, dark: Color(red: 24 / 255, green: 24 / 255, blue: 24 / 255))
+    }
+
+    /// Overlay 次要背景色：比主背景稍浅
+    static var overlaySecondaryBackground: Color {
+        adaptive(light: Color(red: 248 / 255, green: 248 / 255, blue: 248 / 255), dark: Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255))
     }
 
     /// Overlay 主要文本：亮色模式黑色，暗色模式白色
@@ -41,55 +58,60 @@ extension Color {
 
     /// Overlay 次要文本：带透明度
     static var overlaySecondaryText: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.7), dark: NSColor.white.withAlphaComponent(0.85))
+        adaptive(light: Color(red: 112 / 255, green: 112 / 255, blue: 112 / 255), dark:Color(red: 136 / 255, green: 136 / 255, blue: 136 / 255))
     }
 
     /// Overlay 占位文本：更淡的颜色
     static var overlayPlaceholder: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.5), dark: NSColor.white.withAlphaComponent(0.5))
+        adaptive(light: Color.black.opacity(0.5), dark: Color.white.opacity(0.5))
     }
 
     /// Overlay 边框：半透明边框
     static var overlayBorder: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.15), dark: NSColor.white.withAlphaComponent(0.15))
+        adaptive(light: Color.black.opacity(0.15), dark: Color.white.opacity(0.15))
+    }
+
+    /// Overlay 禁用状态颜色
+    static var overlayDisabled: Color {
+        adaptive(light: Color(red: 168 / 255, green: 171 / 255, blue: 178 / 255), dark: Color.white.opacity(0.5))
     }
 
     // MARK: - 输入框相关颜色
 
     /// 输入框背景：非编辑状态
     static var inputBackground: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.05), dark: NSColor.white.withAlphaComponent(0.08))
+        adaptive(light: Color.black.opacity(0.05), dark: Color.white.opacity(0.08))
     }
 
     /// 输入框边框
     static var inputBorder: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.15), dark: NSColor.white.withAlphaComponent(0.15))
+        adaptive(light: Color.black.opacity(0.15), dark: Color.white.opacity(0.15))
     }
 
     /// 按键背景色
     static var keyBackground: Color {
         adaptive(
-            light: NSColor(red: 240/255, green: 240/255, blue: 240/255, alpha: 1.0),
-            dark: NSColor(red: 38/255, green: 38/255, blue: 38/255, alpha: 1.0),
+            light: Color(red: 240 / 255, green: 240 / 255, blue: 240 / 255),
+            dark: Color(red: 38 / 255, green: 38 / 255, blue: 38 / 255)
         )
     }
 
     /// 按键文本颜色
     static var keyText: Color {
         adaptive(
-            light: NSColor(red: 100/255, green: 100/255, blue: 100/255, alpha: 1.0),
-            dark: NSColor(red: 161/255, green: 161/255, blue: 161/255, alpha: 1.0),
+            light: Color(red: 100 / 255, green: 100 / 255, blue: 100 / 255),
+            dark: Color(red: 161 / 255, green: 161 / 255, blue: 161 / 255)
         )
     }
 
     /// 按钮背景色
     static var buttonBackground: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.1), dark: NSColor.white.withAlphaComponent(0.1))
+        adaptive(light: Color.black.opacity(0.1), dark: Color.white.opacity(0.1))
     }
 
     /// 按钮文本颜色
     static var buttonText: Color {
-        adaptive(light: NSColor.black.withAlphaComponent(0.7), dark: NSColor.white.withAlphaComponent(0.7))
+        adaptive(light: Color.black.opacity(0.7), dark: Color.white.opacity(0.7))
     }
 }
 
@@ -115,10 +137,10 @@ extension Color {
 
         self.init(
             .sRGB,
-            red: Double(r)/255,
-            green: Double(g)/255,
-            blue: Double(b)/255,
-            opacity: Double(a)/255,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255,
         )
     }
 
@@ -129,9 +151,9 @@ extension Color {
     init(hex: Int, alpha: Double = 1.0) {
         self.init(
             .sRGB,
-            red: Double((hex >> 16) & 0xFF)/255,
-            green: Double((hex >> 8) & 0xFF)/255,
-            blue: Double(hex & 0xFF)/255,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255,
             opacity: alpha,
         )
     }

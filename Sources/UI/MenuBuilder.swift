@@ -69,12 +69,12 @@ class MenuBuilder {
         menu.addItem(currentModeDescItem)
 
         menu.addItem(NSMenuItem.separator())
-        
+
         // 翻译模式开关
         let translateItem = NSMenuItem(
             title: "翻译模式",
             action: #selector(handleTranslateModeToggle),
-            keyEquivalent: ""
+            keyEquivalent: "",
         )
         translateItem.target = self
         translateItem.state = Config.TEXT_PROCESS_MODE == .translate ? .on : .off
@@ -95,13 +95,15 @@ class MenuBuilder {
         let selectedMode = modes[sender.tag]
         Config.setTextProcessMode(selectedMode)
     }
-    
+
     @objc private func handleTranslateModeToggle() {
         if Config.TEXT_PROCESS_MODE == .translate {
             Config.TEXT_PROCESS_MODE = .auto
         } else {
             Config.TEXT_PROCESS_MODE = .translate
         }
+
+        EventBus.shared.publish(.textProcessModeChanged(mode: Config.TEXT_PROCESS_MODE))
     }
 
     func showMenu(in view: NSView) {
