@@ -7,17 +7,24 @@ struct ContentCard: View {
     let content: String
     let onTap: (() -> Void)? = nil
 
-    private let autoCloseDuration: Int = 12
     private let cardWidth: CGFloat = 240
+    private let autoCloseDuration = 12
+    private let maxContentHeight: CGFloat = 600
 
+    // Hover 状态
     @State private var isCloseHovered = false
-    @State private var isContentCopied = false
     @State private var isCopyButtonHovered = false
     @State private var isStopButtonHovered = false
     @State private var isCollapseHovered = false
+
+    // 内容状态
+    @State private var isContentCopied = false
     @State private var isContentCollapsed = false
-    @State private var remainingSeconds: Int = 12
     @State private var showBottomSection = true
+    @State private var contentHeight: CGFloat = 0
+
+    // 定时器状态
+    @State private var remainingSeconds = 12
     @State private var timerTask: Task<Void, Never>?
 
     var body: some View {
@@ -67,22 +74,23 @@ struct ContentCard: View {
                 }
 
                 if !isContentCollapsed {
-                    if #available(macOS 12.0, *) {
+                    ScrollView(.vertical, showsIndicators: contentHeight > maxContentHeight) {
                         Text(content)
                             .font(.system(size: 12.5, weight: .regular))
                             .foregroundColor(.overlaySecondaryText)
-                            .lineLimit(20)
                             .lineSpacing(3.8)
                             .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
-                    } else {
-                        Text(content)
-                            .font(.system(size: 12.5, weight: .regular))
-                            .foregroundColor(.overlaySecondaryText)
-                            .lineLimit(20)
-                            .lineSpacing(3.8)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                GeometryReader { geometry in
+                                    Color.clear.onAppear {
+                                        contentHeight = geometry.size.height
+                                    }
+                                }
+                            )
                     }
+                    .frame(maxHeight: maxContentHeight)
+                    .disabled(contentHeight <= maxContentHeight)
 
                     HStack {
                         Spacer()

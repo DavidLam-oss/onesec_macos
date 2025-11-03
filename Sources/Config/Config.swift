@@ -16,7 +16,7 @@ class Config: ObservableObject {
     @Published var DEBUG_MODE: Bool = true
     @Published var NORMAL_KEY_CODES: [Int64] = [63, 49] // 默认 Fn
     @Published var COMMAND_KEY_CODES: [Int64] = [63, 55] // 默认 Fn+LCmd
-    @Published var TEXT_PROCESS_MODE: TextProcessMode = .auto // 默认自动
+    @Published var TEXT_PROCESS_MODE: TextProcessMode = .auto
     
     private init() {}
 

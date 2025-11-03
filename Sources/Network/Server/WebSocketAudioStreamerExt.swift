@@ -1,5 +1,5 @@
 //
-//  protocol.swift
+//  WebSocketAudioStreamerExt.swift
 //  OnesecCore
 //
 //  Created by 王晓雨 on 2025/10/15.
@@ -10,22 +10,20 @@ import Foundation
 import Starscream
 
 extension WebSocketAudioStreamer: WebSocketDelegate {
-    func didReceive(event: WebSocketEvent, client: WebSocketClient) {
+    func didReceive(event: WebSocketEvent, client _: WebSocketClient) {
         switch event {
         case .connected:
             log.debug("WebSocket connected")
             connectionState = .connected
             curRetryCount = 0
 
-        case .disconnected(let reason, let code):
+        case let .disconnected(reason, code):
             log.debug("WebSocket disconnect with: \(reason) code: \(code)")
             connectionState = .disconnected
             // 正常断开连接时触发重连
             scheduleReconnect(reason: "Disconnected: \(reason)")
 
-        case .text(let string):
-            log.debug("WebSocket receive text: \(string)")
-
+        case let .text(string):
             guard let data = string.data(using: .utf8) else {
                 return
             }
@@ -34,9 +32,11 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
                 return
             }
 
+            log.debug("WebSocket receive text: \(json)")
+
             didReceiveMessage(json)
 
-        case .binary(let data):
+        case let .binary(data):
             log.debug("WebSocket receive binary: \(data.count) 字节")
 
         case .ping:
@@ -45,10 +45,10 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
         case .pong:
             log.debug("WebSocket receive pong")
 
-        case .viabilityChanged(let isViable):
+        case let .viabilityChanged(isViable):
             log.debug("WebSocket viabilityChanged: \(isViable)")
 
-        case .reconnectSuggested(let shouldReconnect):
+        case let .reconnectSuggested(shouldReconnect):
             log.warning("Websocket recommand reconnect: \(shouldReconnect)")
             if shouldReconnect {
                 scheduleReconnect(reason: "Server suggested reconnect")
@@ -58,14 +58,14 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
             log.warning("WebSocket connection canceled")
             connectionState = .cancelled
 
-        case .error(let error):
+        case let .error(error):
             log.error("WebSocket connection err: \(error?.localizedDescription ?? "Unknown error")")
             connectionState = .failed
 
             // 1) 兼容 Starscream 抛出的 HTTP 升级错误：HTTPUpgradeError
             if let upgrade = error as? HTTPUpgradeError {
                 switch upgrade {
-                case .notAnUpgrade(let statusCode, _ /* headers */ ):
+                case let .notAnUpgrade(statusCode, _ /* headers */ ):
                     handleHTTPUpgradeFailure(status: statusCode, message: "notAnUpgrade")
                     return
                 case .invalidData:
