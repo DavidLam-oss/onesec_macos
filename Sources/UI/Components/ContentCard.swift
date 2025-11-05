@@ -1,19 +1,6 @@
 import AppKit
 import SwiftUI
 
-struct HoverButtonStyle: ButtonStyle {
-    let normalColor: Color
-    let hoverColor: Color
-    @State private var isHovered = false
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundColor(isHovered ? hoverColor : normalColor)
-            .animation(.quickSpringAnimation, value: isHovered)
-            .onHover { isHovered = $0 }
-    }
-}
-
 struct ContentCard: View {
     let panelId: UUID
     let title: String
@@ -24,7 +11,6 @@ struct ContentCard: View {
     private let autoCloseDuration = 12
     private let maxContentHeight: CGFloat = 600
 
-    @State private var isStopButtonHovered = false
     @State private var isContentCopied = false
     @State private var isContentCollapsed = false
     @State private var showBottomSection = true
@@ -126,12 +112,8 @@ struct ContentCard: View {
                             Text("点击停止")
                                 .font(.system(size: 10))
                                 .foregroundColor(Color.overlayText)
-                                .underline(isStopButtonHovered)
                         }
-                        .buttonStyle(.plain)
-                        .onHover { hovering in
-                            isStopButtonHovered = hovering
-                        }
+                        .buttonStyle(UnderlineButtonStyle())
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 6)
