@@ -191,37 +191,43 @@ struct StatusView: View {
             }
 
             Task { @MainActor in
-                guard
-                    let element = AXElementAccessor.getFocusedElement(),
-                    AXElementAccessor.isEditableElement(element)
-                else {
-                    log.info("No focused element, show notification message")
-                    switch recording.mode {
-                    case .command:
-                        overlay.showOverlayAboveSelection { panelId in
-                            ContentCard(
-                                panelId: panelId,
-                                title: "翻译结果",
-                                content: summary
-                            )
-                        }
-                    default:
-                        overlay.showOverlay { panelId in
-                            ContentCard(
-                                panelId: panelId,
-                                title: "识别结果",
-                                content: summary
-                            )
-                        }
+                let element = AXElementAccessor.getFocusedElement()
+                let isEditable = element.map { AXElementAccessor.isEditableElement($0) } ?? false
+
+                // 尝试粘贴文本
+                if !isEditable {
+                    log.info("No focused editable element, attempting fallback paste")
+                    if element == nil, await AXPasteboardController.whasTextInputFocus() {
+                        await AXPasteboardController.pasteTextToActiveApp(summary)
+                        return
                     }
+
+                    // 显示覆盖层
+                    showOverlay(for: recording.mode, with: summary)
                     return
                 }
 
-                log.info("Focused element found, paste text and check modification")
+                log.info("Focused editable element found, pasting text")
                 await AXPasteboardController.pasteTextAndCheckModification(summary, interactionID)
             }
         default:
             break
+        }
+    }
+
+    private func showOverlay(for mode: RecordMode, with content: String) {
+        let (title, showAboveSelection) = mode == .command
+            ? ("翻译结果", true)
+            : ("识别结果", false)
+
+        let overlayBuilder: (UUID) -> ContentCard = { panelId in
+            ContentCard(panelId: panelId, title: title, content: content)
+        }
+
+        if showAboveSelection {
+            overlay.showOverlayAboveSelection(content: overlayBuilder)
+        } else {
+            overlay.showOverlay(content: overlayBuilder)
         }
     }
 }

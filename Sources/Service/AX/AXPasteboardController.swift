@@ -123,14 +123,7 @@ class AXPasteboardController {
         pasteboard.clearContents()
 
         // 模拟 Cmd+C 复制
-        let source = CGEventSource(stateID: .hidSystemState)
-        let cDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
-        cDown?.flags = .maskCommand
-        let cUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
-        cUp?.flags = .maskCommand
-
-        cDown?.post(tap: .cghidEventTap)
-        cUp?.post(tap: .cghidEventTap)
+        simulateCopy()
 
         // 等待复制功能完成
         try? await Task.sleep(nanoseconds: 100_000_000)
@@ -138,12 +131,38 @@ class AXPasteboardController {
         let copiedText = pasteboard.string(forType: .string)
 
         // 恢复原剪贴板内容
-        pasteboard.clearContents()
-        if let oldContents {
-            pasteboard.setString(oldContents, forType: .string)
-        }
+        restorePasteboard(oldContents)
 
         return copiedText
+    }
+
+    // 检测是否有文本输入焦点
+    // 对于没有 AX 支持的应用,使用零宽字符复制测试方法
+    // 策略: 粘贴零宽字符 → 选中它 → 复制 → 检测 changeCount → 撤销
+    static func whasTextInputFocus() async -> Bool {
+        let testMarker = "\u{200B}"
+        let pasteboard = NSPasteboard.general
+        let oldContents = pasteboard.string(forType: .string)
+
+        pasteboard.clearContents()
+        pasteboard.setString(testMarker, forType: .string)
+
+        let oldChangeCount = pasteboard.changeCount
+
+        simulatePaste()
+        simulateShiftLeft()
+        simulateCopy()
+
+        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+
+        // 当为选中文本时,  changeCount 依旧会改变
+        // 所以这里判断当前复制的新内容是否为零宽字符
+        let isZeroCharNotChange = pasteboard.string(forType: .string) == testMarker
+
+        simulateUndo()
+        restorePasteboard(oldContents)
+
+        return (pasteboard.changeCount > oldChangeCount) && isZeroCharNotChange
     }
 
     static func pasteTextToActiveApp(_ text: String) async {
@@ -155,22 +174,67 @@ class AXPasteboardController {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
 
-        // 模拟 Cmd+V 粘贴
-        let source = CGEventSource(stateID: .hidSystemState)
-        let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
-        vDown?.flags = .maskCommand
-        let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
-        vUp?.flags = .maskCommand
-
-        vDown?.post(tap: .cghidEventTap)
-        vUp?.post(tap: .cghidEventTap)
+        simulatePaste()
 
         Task {
             try? await Task.sleep(nanoseconds: 150_000_000)
-            if pasteboard.string(forType: .string) == text, let oldContents {
-                pasteboard.clearContents()
-                pasteboard.setString(oldContents, forType: .string)
-            }
+            restorePasteboard(oldContents)
+        }
+    }
+
+    static func restorePasteboard(_ oldContents: String?) {
+        let pasteboard = NSPasteboard.general
+        if let oldContents {
+            pasteboard.clearContents()
+            pasteboard.setString(oldContents, forType: .string)
+        }
+    }
+}
+
+// MARK: - Keyboard Simulation Extension
+
+extension AXPasteboardController {
+    static func simulatePaste() {
+        if let vDown = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: true),
+           let vUp = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: false)
+        {
+            vDown.flags = .maskCommand
+            vUp.flags = .maskCommand
+            vDown.post(tap: .cghidEventTap)
+            vUp.post(tap: .cghidEventTap)
+        }
+    }
+
+    static func simulateShiftLeft() {
+        if let leftDown = CGEvent(keyboardEventSource: nil, virtualKey: 0x7B, keyDown: true),
+           let leftUp = CGEvent(keyboardEventSource: nil, virtualKey: 0x7B, keyDown: false)
+        {
+            leftDown.flags = .maskShift
+            leftUp.flags = .maskShift
+            leftDown.post(tap: .cghidEventTap)
+            leftUp.post(tap: .cghidEventTap)
+        }
+    }
+
+    static func simulateCopy() {
+        if let cDown = CGEvent(keyboardEventSource: nil, virtualKey: 0x08, keyDown: true),
+           let cUp = CGEvent(keyboardEventSource: nil, virtualKey: 0x08, keyDown: false)
+        {
+            cDown.flags = .maskCommand
+            cUp.flags = .maskCommand
+            cDown.post(tap: .cghidEventTap)
+            cUp.post(tap: .cghidEventTap)
+        }
+    }
+
+    static func simulateUndo() {
+        if let zDown = CGEvent(keyboardEventSource: nil, virtualKey: 0x06, keyDown: true),
+           let zUp = CGEvent(keyboardEventSource: nil, virtualKey: 0x06, keyDown: false)
+        {
+            zDown.flags = .maskCommand
+            zUp.flags = .maskCommand
+            zDown.post(tap: .cghidEventTap)
+            zUp.post(tap: .cghidEventTap)
         }
     }
 }
