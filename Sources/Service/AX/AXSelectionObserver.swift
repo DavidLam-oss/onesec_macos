@@ -1,5 +1,6 @@
 import ApplicationServices
 import Cocoa
+import InputMethodKit
 import SwiftUI
 
 @MainActor
@@ -12,15 +13,11 @@ class AXSelectionObserver {
     private init() {}
 
     func startObserving() {
-        removeCurrentObserver()
-
+        stopObserving()
         guard let app = NSWorkspace.shared.frontmostApplication,
-              let pid = app.processIdentifier as pid_t?
+              let pid = app.processIdentifier as pid_t?,
+              app.localizedName != "终端"
         else {
-            return
-        }
-
-        guard app.localizedName != "终端" else {
             return
         }
 
@@ -42,17 +39,11 @@ class AXSelectionObserver {
         self.observer = observer
         CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
 
-        log.info("开始监听: \(app.localizedName ?? "Unknown")")
-
         // 监听当前焦点元素
         if let focusedElement = AXElementAccessor.getFocusedElement() {
+            log.info("Start Observing: \(app.localizedName ?? "Unknown")")
             addAllNotifications(to: focusedElement)
         }
-    }
-
-    func stopObserving() {
-        removeCurrentObserver()
-        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     private func addAllNotifications(to element: AXUIElement) {
@@ -62,35 +53,21 @@ class AXSelectionObserver {
         let notifications: [String] = [
             kAXSelectedTextChangedNotification as String,
             kAXFocusedUIElementChangedNotification as String,
-            // kAXValueChangedNotification as String,
         ]
 
         for notification in notifications {
             let result = AXObserverAddNotification(observer, element, notification as CFString, selfPtr)
             if result == .success {
-                log.info("✅ 添加通知: \(notification)")
+                log.info("Add Notification: \(notification)")
             }
         }
     }
 
-    private func removeCurrentObserver() {
+    func stopObserving() {
         if let observer = observer {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
         }
         observer = nil
         log.info("Remove AX Observer for current app")
-    }
-}
-
-extension AXSelectionObserver {
-    private func handleSelectionNotification(element: AXUIElement) {
-        guard let selectedText: String = AXElementAccessor.getAttributeValue(
-            element: element,
-            attribute: kAXSelectedTextAttribute
-        ), !selectedText.isEmpty else {
-            return
-        }
-
-        log.info("选中文本: \(selectedText)")
     }
 }

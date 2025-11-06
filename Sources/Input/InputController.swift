@@ -101,6 +101,9 @@ class InputController {
             return Unmanaged.passUnretained(event)
         }
 
+        // 监控输入组合状态
+        IMEStateMonitor.shared.handleCGEvent(type: type, event: event)
+
         // 拦截快捷键的设置
         if keyEventProcessor.isHotkeySetting {
             keyEventProcessor.handleHotkeySettingEvent(type: type, event: event)

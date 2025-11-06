@@ -54,10 +54,13 @@ class AXPasteboardController {
     }
 
     static func handleTextModifyNotification() {
-        guard let cursorRange = AXAtomic.getCursorRange() else { return }
-        log.info("cursorRange: \(cursorRange.location), \(cursorRange.length)")
         Task {
-            await checkTextModification()
+            if !IMEStateMonitor.shared.isComposing {
+                await checkTextModification()
+            }
+            // AXAtomic.getCurrentLineCharCount()
+            // let context = AXAtomic.getCurrentLineWithContext()
+            // log.info("context: \(context)")
         }
     }
 
@@ -76,39 +79,9 @@ class AXPasteboardController {
 
         if !pastedText.contains(context.originalText) {
             log.info("Text Modified: \(context.originalText) -> \(pastedText),  cursorPos: \(context.position)")
-            let body = ["original": context.originalText, "modified": pastedText, "interaction_id": context.interactionID]
-            _ = try? await HTTPClient.shared.post(path: "/audio/update-text", body: body)
+            // let body = ["original": context.originalText, "modified": pastedText, "interaction_id": context.interactionID]
+            // _ = try? await HTTPClient.shared.post(path: "/audio/update-text", body: body)
         }
-    }
-
-    /// 获取指定范围的文本
-    private static func getTextAtRange(element: AXUIElement, location: Int, length: Int) -> String? {
-        guard let totalLength: Int = AXElementAccessor.getAttributeValue(
-            element: element,
-            attribute: kAXNumberOfCharactersAttribute,
-        ) else {
-            return nil
-        }
-
-        // 检查范围是否合法
-        if location < 0 || location >= totalLength {
-            return nil
-        }
-
-        // 根据边界调整长度
-        let actualLength = min(length, totalLength - location)
-        if actualLength <= 0 {
-            return ""
-        }
-
-        var targetRange = CFRangeMake(location, actualLength)
-        let targetRangeValue = AXValueCreate(.cfRange, &targetRange)!
-
-        return AXElementAccessor.getParameterizedAttributeValue(
-            element: element,
-            attribute: kAXStringForRangeParameterizedAttribute,
-            parameter: targetRangeValue,
-        )
     }
 
     static func copyCurrentSelectionAndRestore() async -> String? {
@@ -229,6 +202,19 @@ extension AXPasteboardController {
             zUp.flags = .maskCommand
             zDown.post(tap: .cghidEventTap)
             zUp.post(tap: .cghidEventTap)
+        }
+    }
+
+    static func simulateDelete(times: Int = 0) {
+        let deleteKey: CGKeyCode = 0x33
+
+        for _ in 0 ..< times {
+            if let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: deleteKey, keyDown: true),
+               let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: deleteKey, keyDown: false)
+            {
+                keyDown.post(tap: .cghidEventTap)
+                keyUp.post(tap: .cghidEventTap)
+            }
         }
     }
 }
