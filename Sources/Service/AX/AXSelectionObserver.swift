@@ -25,9 +25,7 @@ class AXSelectionObserver {
         let result = AXObserverCreate(pid, { _, _, notification, _ in
             Task { @MainActor in
                 if notification as String == kAXSelectedTextChangedNotification as String {
-                    AXSelectionObserver.shared.textChangeThrottler.execute {
-                        AXPasteboardController.handleTextModifyNotification()
-                    }
+                    AXPasteboardController.handleTextModifyNotification()
                 }
             }
         }, &observer)

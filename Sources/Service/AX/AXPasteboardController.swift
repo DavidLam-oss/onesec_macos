@@ -56,7 +56,6 @@ class AXPasteboardController {
 
     static func handleTextModifyNotification() {
         Task {
-            try? await Task.sleep(nanoseconds: 50_000_000)
             log.info("isComposing: \(IMEStateMonitor.shared.isComposing)")
             if !IMEStateMonitor.shared.isComposing {
                 await checkTextModification()
