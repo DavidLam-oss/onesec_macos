@@ -42,7 +42,7 @@ class HTTPClient {
             throw HTTPError.statusCode(httpResponse.statusCode)
         }
 
-        log.info("HTTPClient post success: \(path), body: \(data), response: \(httpResponse.statusCode)")
+        log.info("HTTP Post Success: \(path), body: \(data)")
 
         return data
     }

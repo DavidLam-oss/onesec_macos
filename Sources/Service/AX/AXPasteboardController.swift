@@ -9,65 +9,60 @@ import Cocoa
 import Combine
 import Vision
 
+struct PasteContext {
+    let element: AXUIElement
+    let originalText: String
+    let interactionID: String
+    let position: Int
+}
+
 class AXPasteboardController {
     private static var checkModificationTask: Task<Void, Never>?
+    private static var currentCancellable: AnyCancellable?
+    private static var context: PasteContext?
 
     static func pasteTextAndCheckModification(_ summary: String, _ interactionID: String) async {
         guard !summary.isEmpty else { return }
 
-        let context = getPasteContext()
+        if let element = AXElementAccessor.getFocusedElement(),
+           let cursorRange = AXAtomic.getCursorRange()
+        {
+            context = PasteContext(element: element, originalText: summary, interactionID: interactionID, position: cursorRange.location)
+        }
 
         await pasteTextToActiveApp(summary)
 
-        guard let context else { return }
+        guard context != nil else { return }
 
         // 启动检查任务
         // 检查用户是否修改了粘贴内容
         checkModificationTask?.cancel()
+        currentCancellable?.cancel()
+
         checkModificationTask = Task {
-            await withTaskCancellationHandler {
-                var cancellable: AnyCancellable?
-                cancellable = EventBus.shared.eventSubject
-                    .sink { event in
-                        if case .recordingStarted = event {
-                            checkModificationTask?.cancel()
-                        }
+            currentCancellable = EventBus.shared.events.sink { event in
+                if case .recordingStarted = event {
+                    checkModificationTask?.cancel()
+                    Task {
+                        await AXSelectionObserver.shared.stopObserving()
                     }
+                }
+            }
 
-                defer { cancellable?.cancel() }
-
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-
-                guard !Task.isCancelled else { return }
-
-                await checkTextModification(context: context, originalText: summary, interactionID: interactionID)
-            } onCancel: {}
+            await AXSelectionObserver.shared.startObserving()
         }
     }
 
-    private static func getPasteContext() -> (element: AXUIElement, position: Int, length: Int)? {
-        guard let element = AXElementAccessor.getFocusedElement(),
-              let rangeValue: AXValue = AXElementAccessor.getAttributeValue(
-                  element: element,
-                  attribute: kAXSelectedTextRangeAttribute,
-              )
-        else {
-            return nil
+    static func handleTextModifyNotification() {
+        guard let cursorRange = AXAtomic.getCursorRange() else { return }
+        log.info("cursorRange: \(cursorRange.location), \(cursorRange.length)")
+        Task {
+            await checkTextModification()
         }
-
-        var cursorRange = CFRange()
-        guard AXValueGetValue(rangeValue, .cfRange, &cursorRange) else {
-            return nil
-        }
-
-        return (element, cursorRange.location, 0)
     }
 
-    private static func checkTextModification(
-        context: (element: AXUIElement, position: Int, length: Int),
-        originalText: String,
-        interactionID: String,
-    ) async {
+    private static func checkTextModification() async {
+        guard let context = context else { return }
         guard let currentElement = AXElementAccessor.getFocusedElement(),
               CFEqual(context.element, currentElement)
         else {
@@ -75,13 +70,13 @@ class AXPasteboardController {
         }
 
         let pastedText = ContextService.getInputContent(
-            contextLength: originalText.count * 2,
-            cursorPos: context.position + originalText.count / 2
+            contextLength: context.originalText.count * 2,
+            cursorPos: context.position + context.originalText.count / 2
         ) ?? ""
 
-        if pastedText != originalText {
-            log.info("Text Modification: \(originalText) -> \(pastedText)")
-            let body = ["original": originalText, "modified": pastedText, "interaction_id": interactionID]
+        if !pastedText.contains(context.originalText) {
+            log.info("Text Modified: \(context.originalText) -> \(pastedText),  cursorPos: \(context.position)")
+            let body = ["original": context.originalText, "modified": pastedText, "interaction_id": context.interactionID]
             _ = try? await HTTPClient.shared.post(path: "/audio/update-text", body: body)
         }
     }

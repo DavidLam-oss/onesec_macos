@@ -71,7 +71,7 @@ class AXElementAccessor {
 
         return element
     }
-
+    
     static func isEditableElement(_ element: AXUIElement) -> Bool {
         var role: AnyObject?
         AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
