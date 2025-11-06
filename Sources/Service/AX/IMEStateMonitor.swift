@@ -16,6 +16,7 @@ class IMEStateMonitor {
         static let delete: Int64 = 51
         static let backspace: Int64 = 117
         static let arrows: Set<Int64> = [123, 124, 125, 126]
+        static let digits: Set<Int64> = [18, 19, 20, 21, 23, 25, 26, 28, 29] // 1-9
     }
 
     private static let imeKeywords: Set<String> = ["inputmethod", "Pinyin", "Japanese", "Korean", "Wubi", "Zhuyin", "IM."]
@@ -36,6 +37,8 @@ class IMEStateMonitor {
             endComposing()
         case KeyCode.delete, KeyCode.backspace:
             handleDelete()
+        case _ where isComposing && KeyCode.digits.contains(keyCode):
+            endComposing()
         default:
             handleCharacterInput(event)
         }
