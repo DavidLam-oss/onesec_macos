@@ -55,12 +55,11 @@ class AXPasteboardController {
 
     static func handleTextModifyNotification() {
         Task {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            log.info("isComposing: \(IMEStateMonitor.shared.isComposing)")
             if !IMEStateMonitor.shared.isComposing {
                 await checkTextModification()
             }
-            // AXAtomic.getCurrentLineCharCount()
-            // let context = AXAtomic.getCurrentLineWithContext()
-            // log.info("context: \(context)")
         }
     }
 
@@ -79,8 +78,8 @@ class AXPasteboardController {
 
         if !pastedText.contains(context.originalText) {
             log.info("Text Modified: \(context.originalText) -> \(pastedText),  cursorPos: \(context.position)")
-            // let body = ["original": context.originalText, "modified": pastedText, "interaction_id": context.interactionID]
-            // _ = try? await HTTPClient.shared.post(path: "/audio/update-text", body: body)
+            let body = ["original": context.originalText, "modified": pastedText, "interaction_id": context.interactionID]
+            _ = try? await HTTPClient.shared.post(path: "/audio/update-text", body: body)
         }
     }
 
