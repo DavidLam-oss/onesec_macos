@@ -8,6 +8,13 @@
 import ApplicationServices
 
 class AXElementAccessor {
+    private static let editableRoles: Set<String> = [
+        kAXTextFieldRole,
+        kAXTextAreaRole,
+        kAXComboBoxRole,
+        kAXWindowRole,
+    ]
+
     /// 获取 AX 元素属性值
     /// 对 String 类型特殊处理, 过滤空串
     static func getAttributeValue<T>(element: AXUIElement, attribute: String) -> T? {
@@ -71,16 +78,10 @@ class AXElementAccessor {
 
         return element
     }
-    
+
     static func isEditableElement(_ element: AXUIElement) -> Bool {
         var role: AnyObject?
         AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
-
-        let editableRoles = [
-            kAXTextFieldRole,
-            kAXTextAreaRole,
-            kAXComboBoxRole,
-        ]
 
         if let roleString = role as? String,
            editableRoles.contains(roleString)
@@ -91,7 +92,6 @@ class AXElementAccessor {
         var isEditable: AnyObject?
         AXUIElementCopyAttributeValue(element, "AXIsEditable" as CFString, &isEditable)
 
-        log.info("isEditable: \(isEditable) \(role) \(element)")
         return (isEditable as? Bool) ?? false
     }
 }

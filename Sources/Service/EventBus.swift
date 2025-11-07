@@ -55,11 +55,18 @@ class EventBus: @unchecked Sendable {
 }
 
 extension EventBus {
-    var volumeChanged: AnyPublisher<Float, Never> {
+    
+    var recordingSessionEnded: AnyPublisher<Void, Never> {
         eventSubject.share()
             .compactMap { event in
-                guard case let .volumeChanged(volume) = event else { return nil }
-                return volume
+                switch event {
+                case .serverResultReceived,
+                     .notificationReceived(.serverTimeout),
+                     .notificationReceived(.recordingTimeout):
+                    return ()
+                default:
+                    return nil
+                }
             }
             .eraseToAnyPublisher()
     }

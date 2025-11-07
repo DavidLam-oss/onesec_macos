@@ -7,20 +7,8 @@ class OverlayController {
 
     private var panels: [UUID: NSPanel] = [:]
     private let shadowPadding: CGFloat = 50
-    private var savedMouseLocation: NSRect?
-    private var mouseMonitor: Any?
 
-    private init() {
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
-            self?.savedMouseLocation = self?.getMouseLocationBounds()
-        }
-    }
-
-    deinit {
-        if let monitor = mouseMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-    }
+    private init() {}
 
     @discardableResult
     func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0) -> UUID {
@@ -107,7 +95,6 @@ class OverlayController {
         uuids.forEach { hideOverlay(uuid: $0) }
     }
 
-    // 设置自动关闭（用于需要自动消失的 overlay，如通知）
     func setAutoHide(uuid: UUID, after delay: TimeInterval) {
         guard panels[uuid] != nil else {
             log.warning("panel not exist: \(uuid)")
@@ -126,46 +113,50 @@ class OverlayController {
     @discardableResult
     func showOverlayAboveSelection(@ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0) -> UUID? {
         var selectionBounds = getSelectionBounds()
+        var screen: NSScreen?
 
         // 检查边界有效性（无法获取或返回无效的0值）
         if selectionBounds == nil || selectionBounds!.width < 1 || selectionBounds!.height < 1 {
-            // Fallback: 使用保存的鼠标位置
-            guard let mouseBounds = savedMouseLocation else {
+            // Fallback: 使用保存的鼠标位置和屏幕
+            guard let mouseBounds = MouseContextService.shared.getMouseRect() else {
                 return nil
             }
             selectionBounds = mouseBounds
+            screen = MouseContextService.shared.getMouseScreen()
+            log.info("Fallback: \(mouseBounds) \(String(describing: screen))")
         }
 
         let bounds = selectionBounds!
 
-        // 获取屏幕信息
-        guard let screen = NSScreen.main else {
+        // 获取屏幕信息（使用保存的屏幕或主屏幕）
+        guard let finalScreen = screen ?? NSScreen.main else {
             log.warning("无法获取屏幕信息")
             return nil
         }
-        let screenHeight = screen.frame.height
+        log.info("Final Screen: \(finalScreen) \(finalScreen.frame) \(String(describing: selectionBounds))")
+        let screenHeight = finalScreen.frame.height
+        let screenFrame = finalScreen.frame
 
-        // 先创建 UUID
         let uuid = UUID()
-
-        // 使用 UUID 创建内容
         let (hosting, contentSize) = createHostingViewAndGetSize(content: { content(uuid) })
 
         // AX API返回的是Cocoa坐标系（左上角为原点，Y轴向下）
         // 需要转换为NSWindow坐标系（左下角为原点，Y轴向上）
+        // 对于多屏幕，需要将相对于屏幕的坐标转换为全局坐标
 
         let spacing: CGFloat = 8
 
-        // X坐标：左对齐
-        let overlayX = bounds.origin.x - shadowPadding
+        // X坐标：转换为全局坐标
+        let overlayX = bounds.origin.x + screenFrame.origin.x - shadowPadding
 
         // Y坐标转换：
         // 1. AX的Y是从屏幕顶部开始的距离
         // 2. 文本顶部(AX) = bounds.origin.y
         // 3. 转换为NSWindow坐标：screenHeight - axY
         // 4. Panel应该在文本上方，所以Y坐标更大
+        // 5. 加上屏幕的origin.y转换为全局坐标
         let textTopInWindowCoords = screenHeight - bounds.origin.y
-        let overlayY = textTopInWindowCoords + spacing - shadowPadding
+        let overlayY = textTopInWindowCoords + spacing - shadowPadding + screenFrame.origin.y
 
         let panel = NSPanel(
             contentRect: NSRect(x: overlayX, y: overlayY, width: contentSize.width, height: contentSize.height + extraHeight),
@@ -182,27 +173,6 @@ class OverlayController {
 
         panels[uuid] = panel
         return uuid
-    }
-
-    /// 使用鼠标位置创建fallback边界（Cocoa坐标系）
-    private func getMouseLocationBounds() -> NSRect? {
-        let mouseLocation = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) else {
-            return nil
-        }
-
-        // 转换为Cocoa坐标系（屏幕顶部为Y=0）
-        let screenFrame = screen.frame
-        let screenHeight = screenFrame.height
-        let axY = screenHeight - (mouseLocation.y - screenFrame.origin.y)
-
-        // 创建一个最小边界（使用鼠标位置）
-        return NSRect(
-            x: mouseLocation.x - screenFrame.origin.x,
-            y: axY - 10, // 10为补偿
-            width: 100, // 最小宽度
-            height: 20 // 最小高度
-        )
     }
 
     /// 获取选中文本的屏幕坐标

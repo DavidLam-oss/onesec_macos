@@ -16,6 +16,7 @@ class ConnectionCenter: @unchecked Sendable {
     private var udsClient: UDSClient = .init()
     private var permissionService: PermissionService = .shared
     private var networkService: NetworkService = .shared
+    private var mouseContextService: MouseContextService = .shared
     private var inputSerive: InputController?
 
     @Published var wssState: ConnState = .disconnected
