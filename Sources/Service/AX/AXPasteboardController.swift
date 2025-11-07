@@ -88,11 +88,20 @@ class AXPasteboardController {
             return
         }
 
-        let modifiedText = AXAtomic.getTextAtRange(location: ctx.position, length: ctx.originalText.count) ?? ""
+        var modifiedText = AXAtomic.getTextAtRange(location: ctx.position, length: ctx.originalText.count) ?? ""
         if modifiedText.isEmpty {
             return
         }
-        
+
+        if ctx.originalText.last != modifiedText.last {
+            let extendedLength = ctx.originalText.count * 2
+            if let extendedText = AXAtomic.getTextAtRange(location: ctx.position, length: extendedLength),
+               !extendedText.isEmpty
+            {
+                modifiedText = extendedText
+            }
+        }
+
         if modifiedText != ctx.originalText, modifiedText != ctx.lastModifiedText {
             context!.lastModifiedText = modifiedText
             log.info("Text Modified: \(ctx.originalText) -> \(modifiedText)")
