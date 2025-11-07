@@ -7,7 +7,7 @@ struct ActionButton {
 }
 
 struct ContentCard: View {
-    let panelId: UUID
+    let panelID: UUID
     let title: String
     let content: String
     let onTap: (() -> Void)?
@@ -25,8 +25,8 @@ struct ContentCard: View {
     @State private var timerTask: Task<Void, Never>?
     @State private var isHovering = false
 
-    init(panelId: UUID, title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil) {
-        self.panelId = panelId
+    init(panelID: UUID, title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil) {
+        self.panelID = panelID
         self.title = title
         self.content = content
         self.onTap = onTap
@@ -185,7 +185,7 @@ struct ContentCard: View {
 
     private func closeCard() {
         stopAutoCloseTimer()
-        OverlayController.shared.hideOverlay(uuid: panelId)
+        OverlayController.shared.hideOverlay(uuid: panelID)
     }
 
     private func closeTipsSection() {

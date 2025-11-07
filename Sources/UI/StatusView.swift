@@ -181,16 +181,16 @@ struct StatusView: View {
                 autoHide: autoHide,
             )
         case let .hotWordAddRequested(word):
-            overlay.showOverlay { panelId in
+            overlay.showOverlay { panelID in
                 let content = "检测到热词 \"\(word)\", 是否添加到词库？"
                 ContentCard(
-                    panelId: panelId,
+                    panelID: panelID,
                     title: "热词添加",
                     content: content,
                     actionButtons: [
                         ActionButton(title: "添加") {
                             log.info("添加热词: \(word)")
-                            OverlayController.shared.hideOverlay(uuid: panelId)
+                            OverlayController.shared.hideOverlay(uuid: panelID)
 
                             Task {
                                 do {
@@ -203,7 +203,7 @@ struct StatusView: View {
                                     if response.success == true {
                                         _ = await MainActor.run {
                                             overlay.showOverlay { panelId in
-                                                Tooltip(text: "添加成功 请在词库中查看", panelID: panelId, onTap: nil)
+                                                Tooltip(panelID: panelID, content: "添加成功 请在词库中查看")
                                             }
                                         }
                                     }
@@ -251,7 +251,7 @@ struct StatusView: View {
 
         let overlayBuilder: (UUID) -> ContentCard = { panelId in
             ContentCard(
-                panelId: panelId,
+                panelID: panelId,
                 title: title,
                 content: content
             )

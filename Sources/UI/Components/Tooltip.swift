@@ -1,28 +1,68 @@
 import SwiftUI
 
+enum TooltipType {
+    case primary
+    case error
+    case plain
+}
+
 struct Tooltip: View {
-    let text: String
+    let content: String
     let panelID: UUID
+    let type: TooltipType
+    let showBell: Bool
     let onTap: (() -> Void)?
+
+    init(panelID: UUID, content: String, type: TooltipType = .primary, showBell: Bool = true, onTap: (() -> Void)? = nil) {
+        self.panelID = panelID
+        self.content = content
+        self.type = type
+        self.showBell = showBell
+        self.onTap = onTap
+    }
+
+    private var backgroundColor: Color {
+        switch type {
+        case .primary:
+            return Color.overlayPrimary
+        case .error:
+            return destructiveRed
+        case .plain:
+            return Color.overlayBackground
+        }
+    }
+    
+    private var textColor: Color {
+        switch type {
+        case .primary:
+            return .black
+        case .error:
+            return .white
+        case .plain:
+            return Color.overlayText
+        }
+    }
     
     var body: some View {
         HStack(spacing: 6) {
-            Image.systemSymbol("bell")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.black)
-            Text(text)
+            if showBell {
+                Image.systemSymbol("bell")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(textColor)
+            }
+            Text(content)
                 .font(.system(size: 12))
-                .foregroundColor(.black)
+                .foregroundColor(textColor)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.overlayPrimary),
+                .fill(backgroundColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(borderGrey.opacity(0.8), lineWidth: 1),
+                .strokeBorder(borderGrey.opacity(0.8), lineWidth: 1)
         )
         .shadow(color: Color.overlaySecondaryBackground.opacity(0.2), radius: 6, x: 0, y: 0)
         .onAppear {

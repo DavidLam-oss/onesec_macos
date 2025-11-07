@@ -159,21 +159,8 @@ struct StatusIndicator: View {
             isHovered = hovering
 
             if hovering {
-                let uuid = overlay.showOverlay { _ in
-                    Text("按住 fn 开始语音输入 或  点击进行设置")
-                        .font(.system(size: 12))
-                        .foregroundColor(.overlayText)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.overlayBackground),
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(borderGrey.opacity(0.8), lineWidth: 1),
-                        )
-                        .shadow(color: Color.overlaySecondaryBackground.opacity(0.2), radius: 6, x: 0, y: 0)
+                let uuid = overlay.showOverlay { panelId in
+                    Tooltip(panelID: panelId, content: "按住 fn 开始语音输入 或  点击进行设置", type: .plain, showBell: false)
                 }
                 tooltipPanelId = uuid
             } else {
