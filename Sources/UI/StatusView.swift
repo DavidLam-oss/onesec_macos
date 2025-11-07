@@ -202,7 +202,7 @@ struct StatusView: View {
 
                                     if response.success == true {
                                         _ = await MainActor.run {
-                                            overlay.showOverlay { panelId in
+                                            overlay.showOverlay { panelID in
                                                 Tooltip(panelID: panelID, content: "添加成功 请在词库中查看")
                                             }
                                         }
