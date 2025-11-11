@@ -43,7 +43,7 @@ class InputController {
 
     private func initializeTapListener() {
         eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+            tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(buildEventMask()),

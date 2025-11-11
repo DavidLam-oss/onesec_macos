@@ -172,7 +172,7 @@ struct StatusView: View {
                     ]
                 )
             }
-        case let .serverResultReceived(summary, interactionID, _, polishedText):
+        case let .serverResultReceived(summary, interactionID, processMode, polishedText):
             recording.state = .idle
             if summary.isEmpty {
                 return
@@ -186,7 +186,9 @@ struct StatusView: View {
                 if !isEditable {
                     log.info("No focused editable element, attempting fallback paste")
                     if element == nil, await AXPasteboardController.whasTextInputFocus() {
-                        showTranslateOverlay(polishedText: polishedText, summary: summary)
+                        if processMode == "TRANSLATE" {
+                            showTranslateOverlay(polishedText: polishedText, summary: summary)
+                        }
                         await AXPasteboardController.pasteTextToActiveApp(summary)
                         return
                     }
@@ -197,7 +199,9 @@ struct StatusView: View {
                 }
 
                 log.info("Focused editable element found, pasting text")
-                showTranslateOverlay(polishedText: polishedText, summary: summary)
+                if processMode == "TRANSLATE" {
+                    showTranslateOverlay(polishedText: polishedText, summary: summary)
+                }
                 await AXPasteboardController.pasteTextAndCheckModification(summary, interactionID)
             }
         default:
