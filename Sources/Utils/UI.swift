@@ -55,6 +55,19 @@ extension Color {
         adaptive(light: Color(red: 248 / 255, green: 248 / 255, blue: 248 / 255), dark: Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255))
     }
 
+    static var overlayButtonBackground: Color {
+        adaptive(light: Color(red: 255 / 255, green: 255 / 255, blue: 255 / 255), dark: Color(red: 28 / 255, green: 28 / 255, blue: 28 / 255))
+    }
+
+    static var overlayButtonHoverBackground: Color {
+        adaptive(light: Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255), dark: Color(red: 34 / 255, green: 34 / 255, blue: 34 / 255))
+    }
+
+    /// Overlay Code 背景色
+    static var overlayCodeBackground: Color {
+        adaptive(light: Color(red: 248 / 255, green: 248 / 255, blue: 248 / 255), dark: Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255))
+    }
+
     /// Overlay 主要文本：亮色模式黑色，暗色模式白色
     static var overlayText: Color {
         adaptive(light: .black, dark: .white)

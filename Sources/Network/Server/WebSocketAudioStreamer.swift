@@ -287,6 +287,25 @@ extension WebSocketAudioStreamer {
             }
             EventBus.shared.publish(.serverResultReceived(summary: summary, interactionID: interactionID, processMode: processMode, polishedText: polishedText ?? ""))
 
+        case .terminalLinuxChoice:
+            cancelResponseTimeoutTimer()
+            guard let data = json["data"] as? [String: Any],
+                  let commands = data["commands"] as? [[String: Any]]
+            else {
+                return
+            }
+
+            let bundleID = data["bundle_id"] as? String ?? ""
+            let appName = data["app_name"] as? String ?? ""
+            let endpointIdentifier = data["endpoint_identifier"] as? String ?? ""
+
+            let linuxCommands = commands.compactMap {
+                LinuxCommand(distro: $0["distro"] as? String ?? "",
+                             command: $0["command"] as? String ?? "",
+                             displayName: $0["display_name"] as? String ?? "")
+            }
+            EventBus.shared.publish(.terminalLinuxChoice(bundleID: bundleID, appName: appName, endpointIdentifier: endpointIdentifier, commands: linuxCommands))
+
         default:
             break
         }

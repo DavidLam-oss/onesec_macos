@@ -174,6 +174,14 @@ struct StatusView: View {
             }
         case let .serverResultReceived(summary, interactionID, processMode, polishedText):
             recording.state = .idle
+            // let commands = [
+            //     LinuxCommand(distro: "Debian", command: "sudo apt update && sudo apt install git", displayName: "Debian"),
+            //     LinuxCommand(distro: "RedHat", command: "sudo yum install git", displayName: "RedHat"),
+            // ]
+            // OverlayController.shared.showOverlay { panelID in
+            //     LinuxCommandChoiceCard(panelID: panelID, commands: commands, bundleID: "", appName: "", endpointIdentifier: "")
+            // }
+            // return;
             if summary.isEmpty {
                 return
             }
@@ -193,7 +201,6 @@ struct StatusView: View {
                         return
                     }
 
-                    // 显示覆盖层
                     showOverlay(for: recording.mode, with: summary)
                     return
                 }
@@ -203,6 +210,12 @@ struct StatusView: View {
                     showTranslateOverlay(polishedText: polishedText, summary: summary)
                 }
                 await AXPasteboardController.pasteTextAndCheckModification(summary, interactionID)
+            }
+        case let .terminalLinuxChoice(bundleID, appName, endpointIdentifier, commands):
+            recording.state = .idle
+            log.info("Receive terminalLinuxChoice: \(commands)")
+            OverlayController.shared.showOverlay { panelID in
+                LinuxCommandChoiceCard(panelID: panelID, commands: commands, bundleID: bundleID, appName: appName, endpointIdentifier: endpointIdentifier)
             }
         default:
             break

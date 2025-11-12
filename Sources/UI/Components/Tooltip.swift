@@ -37,7 +37,7 @@ struct Tooltip: View {
         case .primary:
             return .black
         case .error:
-            return .white
+            return .black
         case .plain:
             return Color.overlayText
         }
@@ -72,3 +72,11 @@ struct Tooltip: View {
         }
     }
 }
+
+// extension Tooltip {
+//     private func show(content: String) {
+//         OverlayController.shared.showOverlay { panelID in
+//             Tooltip(panelID: panelID, content: content, type: type, showBell: showBell, onTap: onTap)
+//         }
+//     }
+// }

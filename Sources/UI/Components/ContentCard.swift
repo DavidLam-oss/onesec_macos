@@ -6,14 +6,15 @@ struct ActionButton {
     let action: () -> Void
 }
 
-struct ContentCard: View {
+struct ContentCard<CustomContent: View>: View {
     let panelID: UUID
     let title: String
     let content: [String]
     let onTap: (() -> Void)?
     let actionButtons: [ActionButton]?
+    let customContent: (() -> CustomContent)?
 
-    private let cardWidth: CGFloat = 240
+    private let cardWidth: CGFloat = 250
     private let autoCloseDuration = 12
     private let maxContentHeight: CGFloat = 600
 
@@ -26,14 +27,22 @@ struct ContentCard: View {
     @State private var timerTask: Task<Void, Never>?
     @State private var isHovering = false
 
-    init(panelID: UUID, title: String, content: [String], onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil) {
+    init(
+        panelID: UUID,
+        title: String,
+        content: [String] = [],
+        onTap: (() -> Void)? = nil,
+        actionButtons: [ActionButton]? = nil,
+        @ViewBuilder customContent: @escaping () -> CustomContent
+    ) {
         self.panelID = panelID
         self.title = title
         self.content = content
         self.onTap = onTap
         self.actionButtons = actionButtons
+        self.customContent = customContent
     }
-
+    
     var body: some View {
         VStack {
             Spacer()
@@ -71,44 +80,47 @@ struct ContentCard: View {
                 }
 
                 if !isContentCollapsed {
-                    ScrollView(.vertical, showsIndicators: contentHeight > maxContentHeight) {
-                        VStack(alignment: .leading, spacing: content.count > 1 ? 12 : 0) {
-                            ForEach(content.indices, id: \.self) { index in
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text(content[index])
-                                        .font(.system(size: 12.5, weight: .regular))
-                                        .foregroundColor(.overlaySecondaryText)
-                                        .lineSpacing(3.8)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let customContent = customContent {
+                        customContent()
+                    } else {
+                        ScrollView(.vertical, showsIndicators: contentHeight > maxContentHeight) {
+                            VStack(alignment: .leading, spacing: content.count > 1 ? 12 : 0) {
+                                ForEach(content.indices, id: \.self) { index in
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text(content[index])
+                                            .font(.system(size: 12.5, weight: .regular))
+                                            .foregroundColor(.overlaySecondaryText)
+                                            .lineSpacing(3.8)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                                    if content.count > 1 {
-                                        Button(action: { handleCopyContent(index: index) }) {
-                                            Text(copiedContentIndex == index ? "已复制" : "复制")
-                                                .font(.system(size: 11, weight: .medium))
-                                                .foregroundColor(.overlayText)
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 6)
-                                                        .stroke(Color.overlayBorder, lineWidth: 1)
-                                                )
+                                        if content.count > 1 {
+                                            Button(action: { handleCopyContent(index: index) }) {
+                                                Text(copiedContentIndex == index ? "已复制" : "复制")
+                                                    .font(.system(size: 11, weight: .medium))
+                                                    .padding(.horizontal, 10)
+                                                    .padding(.vertical, 6)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 6)
+                                                            .stroke(Color.overlayBorder, lineWidth: 1)
+                                                    )
+                                            }
+                                            .buttonStyle(HoverButtonStyle(normalColor: .overlaySecondaryText, hoverColor: .overlayText))
+                                            .disabled(copiedContentIndex == index)
                                         }
-                                        .buttonStyle(PlainButtonStyle())
-                                        .disabled(copiedContentIndex == index)
                                     }
                                 }
                             }
-                        }
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.onAppear {
-                                    contentHeight = geometry.size.height
+                            .background(
+                                GeometryReader { geometry in
+                                    Color.clear.onAppear {
+                                        contentHeight = geometry.size.height
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
+                        .frame(maxHeight: maxContentHeight)
                     }
-                    .frame(maxHeight: maxContentHeight)
 
                     HStack {
                         if let buttons = actionButtons, !buttons.isEmpty {
@@ -117,7 +129,6 @@ struct ContentCard: View {
                                     Button(action: buttons[index].action) {
                                         Text(buttons[index].title)
                                             .font(.system(size: 11, weight: .medium))
-                                            .foregroundColor(.overlayText)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 6)
                                             .overlay(
@@ -125,7 +136,7 @@ struct ContentCard: View {
                                                     .stroke(Color.overlayBorder, lineWidth: 1)
                                             )
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                    .buttonStyle(HoverButtonStyle(normalColor: .overlaySecondaryText, hoverColor: .overlayText))
                                 }
                             }
                         }
@@ -276,5 +287,22 @@ struct ContentCard: View {
     private func stopAutoCloseTimer() {
         timerTask?.cancel()
         timerTask = nil
+    }
+}
+
+extension ContentCard where CustomContent == EmptyView {
+    init(
+        panelID: UUID,
+        title: String,
+        content: [String],
+        onTap: (() -> Void)? = nil,
+        actionButtons: [ActionButton]? = nil
+    ) {
+        self.panelID = panelID
+        self.title = title
+        self.content = content
+        self.onTap = onTap
+        self.actionButtons = actionButtons
+        self.customContent = nil
     }
 }

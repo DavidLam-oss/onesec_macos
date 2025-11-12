@@ -344,17 +344,16 @@ extension AudioSinkNodeRecorder {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case .serverResultReceived:
+                case .serverResultReceived,
+                     .terminalLinuxChoice:
                     if self?.recordState == .processing {
                         self?.resetState()
                     }
 
                 case .notificationReceived(.serverTimeout),
                      .notificationReceived(.recordingTimeout):
-                    Task { @MainActor [weak self] in
-                        self?.recordState = .recordingTimeout
-                        self?.resetState()
-                    }
+                    self?.recordState = .recordingTimeout
+                    self?.resetState()
 
                 default:
                     break

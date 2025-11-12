@@ -18,6 +18,7 @@ enum MessageType: String, CaseIterable {
     case hotkeySettingResult = "hotkey_setting_result"
     case contextUpdated = "context_update"
     case resourceRequested = "resource_requested"
+    case terminalLinuxChoice = "terminal_linux_choice"
 }
 
 struct WebSocketMessage {
@@ -174,4 +175,12 @@ struct FocusElementInfo {
             "ax_description": axDescription,
         ]
     }
+}
+
+
+//
+struct LinuxCommand: Codable {
+    let distro: String
+    let command: String
+    let displayName: String
 }

@@ -3,7 +3,7 @@ import Foundation
 struct HTTPResponse {
     let code: Int
     let message: String
-    let data: [String: Any]
+    let data: [String: Any]?
     let timestamp: Int64?
     let success: Bool?
 }
@@ -56,10 +56,11 @@ class HTTPClient {
         
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let code = json["code"] as? Int,
-              let message = json["message"] as? String,
-              let dataDict = json["data"] as? [String: Any] else {
+              let message = json["message"] as? String else {
             throw HTTPError.invalidJSON
         }
+        
+        let dataDict = json["data"] as? [String: Any]
         
         return HTTPResponse(
             code: code,

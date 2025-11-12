@@ -15,6 +15,7 @@ enum AppEvent {
     case recordingStopped
     case audioDataReceived(data: Data)
     case serverResultReceived(summary: String, interactionID: String, processMode: String, polishedText: String)
+    case terminalLinuxChoice(bundleID: String, appName: String, endpointIdentifier: String, commands: [LinuxCommand])
     case modeUpgraded(from: RecordMode, to: RecordMode)
     case notificationReceived(NotificationMessageType)
     //
@@ -62,7 +63,8 @@ extension EventBus {
                 switch event {
                 case .serverResultReceived,
                      .notificationReceived(.serverTimeout),
-                     .notificationReceived(.recordingTimeout):
+                     .notificationReceived(.recordingTimeout),
+                     .terminalLinuxChoice:
                     return ()
                 default:
                     return nil
