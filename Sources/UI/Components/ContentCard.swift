@@ -4,6 +4,7 @@ import SwiftUI
 struct ActionButton {
     let title: String
     let action: () -> Void
+    let clickToClose: Bool = true
 }
 
 struct ContentCard<CustomContent: View>: View {
@@ -42,7 +43,7 @@ struct ContentCard<CustomContent: View>: View {
         self.actionButtons = actionButtons
         self.customContent = customContent
     }
-    
+
     var body: some View {
         VStack {
             Spacer()
@@ -126,7 +127,12 @@ struct ContentCard<CustomContent: View>: View {
                         if let buttons = actionButtons, !buttons.isEmpty {
                             HStack(spacing: 8) {
                                 ForEach(buttons.indices, id: \.self) { index in
-                                    Button(action: buttons[index].action) {
+                                    Button(action: {
+                                        buttons[index].action()
+                                        if buttons[index].clickToClose {
+                                            closeCard()
+                                        }
+                                    }) {
                                         Text(buttons[index].title)
                                             .font(.system(size: 11, weight: .medium))
                                             .padding(.horizontal, 10)
@@ -303,6 +309,20 @@ extension ContentCard where CustomContent == EmptyView {
         self.content = content
         self.onTap = onTap
         self.actionButtons = actionButtons
-        self.customContent = nil
+        customContent = nil
+    }
+}
+
+extension ContentCard {
+    static func show(title: String, content: [String], onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil) {
+        OverlayController.shared.showOverlay { panelID in
+            ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons)
+        }
+    }
+
+    static func showAboveSelection(title: String, content: [String], onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil) {
+        OverlayController.shared.showOverlayAboveSelection { panelID in
+            ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons)
+        }
     }
 }

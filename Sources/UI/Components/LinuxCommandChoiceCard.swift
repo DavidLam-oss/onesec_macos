@@ -97,9 +97,7 @@ struct CommandItem: View {
 
                 OverlayController.shared.hideOverlay(uuid: panelID)
                 if response.success == true {
-                    OverlayController.shared.showOverlay { panelID in
-                        Tooltip(panelID: panelID, content: response.message)
-                    }
+                    Tooltip.show(content: response.message)
                 }
 
                 await AXPasteboardController.pasteTextToActiveApp(command.command
@@ -107,10 +105,16 @@ struct CommandItem: View {
 
             } catch {
                 OverlayController.shared.hideOverlay(uuid: panelID)
-                OverlayController.shared.showOverlay { panelID in
-                    Tooltip(panelID: panelID, content: response.message, type: .error)
-                }
+                Tooltip.show(content: response.message, type: .error)
             }
+        }
+    }
+}
+
+extension LinuxCommandChoiceCard {
+    static func show(commands: [LinuxCommand], bundleID: String, appName: String, endpointIdentifier: String) {
+        OverlayController.shared.showOverlay { panelID in
+            LinuxCommandChoiceCard(panelID: panelID, commands: commands, bundleID: bundleID, appName: appName, endpointIdentifier: endpointIdentifier)
         }
     }
 }

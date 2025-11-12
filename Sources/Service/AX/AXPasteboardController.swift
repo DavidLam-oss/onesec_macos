@@ -96,7 +96,9 @@ class AXPasteboardController {
             }
         }
 
-        if modifiedText != ctx.originalText, modifiedText != ctx.lastModifiedText {
+        if modifiedText != ctx.originalText, modifiedText != ctx.lastModifiedText,
+           !ConnectionCenter.shared.currentRecordingAppContext.focusContext.inputContent.starts(with: modifiedText)
+        {
             context!.lastModifiedText = modifiedText
             log.info("Text Modified: \(ctx.originalText) -> \(modifiedText)")
         }

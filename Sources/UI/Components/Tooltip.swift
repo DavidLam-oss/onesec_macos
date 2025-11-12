@@ -31,7 +31,7 @@ struct Tooltip: View {
             return Color.overlayBackground
         }
     }
-    
+
     private var textColor: Color {
         switch type {
         case .primary:
@@ -42,7 +42,7 @@ struct Tooltip: View {
             return Color.overlayText
         }
     }
-    
+
     var body: some View {
         HStack(spacing: 6) {
             if showBell {
@@ -73,10 +73,10 @@ struct Tooltip: View {
     }
 }
 
-// extension Tooltip {
-//     private func show(content: String) {
-//         OverlayController.shared.showOverlay { panelID in
-//             Tooltip(panelID: panelID, content: content, type: type, showBell: showBell, onTap: onTap)
-//         }
-//     }
-// }
+extension Tooltip {
+    static func show(content: String, type: TooltipType = .primary, showBell: Bool = true, onTap: (() -> Void)? = nil) {
+        OverlayController.shared.showOverlay { panelID in
+            Tooltip(panelID: panelID, content: content, type: type, showBell: showBell, onTap: onTap)
+        }
+    }
+}

@@ -138,38 +138,22 @@ struct StatusView: View {
                 autoHide: autoHide,
             )
         case let .hotWordAddRequested(word):
-            overlay.showOverlay { panelID in
-                let content = "检测到热词 \"\(word)\", 是否添加到词库？"
-                ContentCard(
-                    panelID: panelID,
-                    title: "热词添加",
-                    content: [content],
-                    actionButtons: [
-                        ActionButton(title: "添加") {
-                            log.info("添加热词: \(word)")
-                            OverlayController.shared.hideOverlay(uuid: panelID)
+            ContentCard<EmptyView>.show(title: "热词添加", content: ["检测到热词 \"\(word)\", 是否添加到词库？"], actionButtons: [
+                ActionButton(title: "添加") {
+                    Task { @MainActor in
+                        do {
+                            let response = try await HTTPClient.shared.post(
+                                path: "/hotword/create",
+                                body: ["hotword": word]
+                            )
 
-                            Task {
-                                do {
-                                    let response = try await HTTPClient.shared.post(
-                                        path: "/hotword/create",
-                                        body: ["hotword": word]
-                                    )
-                                    log.info("热词创建成功: \(response.message)")
-
-                                    if response.success == true {
-                                        _ = await MainActor.run {
-                                            overlay.showOverlay { panelID in
-                                                Tooltip(panelID: panelID, content: "添加成功 请在词库中查看")
-                                            }
-                                        }
-                                    }
-                                } catch {}
+                            if response.success == true {
+                                Tooltip.show(content: "添加成功 请在词库中查看")
                             }
-                        },
-                    ]
-                )
-            }
+                        } catch {}
+                    }
+                },
+            ])
         case let .serverResultReceived(summary, interactionID, processMode, polishedText):
             recording.state = .idle
             if summary.isEmpty {
@@ -197,7 +181,7 @@ struct StatusView: View {
                         return
                     }
 
-                    showOverlay(for: recording.mode, with: summary)
+                    ContentCard<EmptyView>.showAboveSelection(title: recording.mode == .command ? "翻译结果" : "识别结果", content: [summary])
                     return
                 }
 
@@ -210,41 +194,13 @@ struct StatusView: View {
         case let .terminalLinuxChoice(bundleID, appName, endpointIdentifier, commands):
             recording.state = .idle
             log.info("Receive terminalLinuxChoice: \(commands)")
-            OverlayController.shared.showOverlay { panelID in
-                LinuxCommandChoiceCard(panelID: panelID, commands: commands, bundleID: bundleID, appName: appName, endpointIdentifier: endpointIdentifier)
-            }
+            LinuxCommandChoiceCard.show(commands: commands, bundleID: bundleID, appName: appName, endpointIdentifier: endpointIdentifier)
         default:
             break
         }
     }
 
-    private func showOverlay(for mode: RecordMode, with content: String) {
-        let (title, showAboveSelection) = mode == .command
-            ? ("翻译结果", true)
-            : ("识别结果", false)
-
-        let overlayBuilder: (UUID) -> ContentCard = { panelId in
-            ContentCard(
-                panelID: panelId,
-                title: title,
-                content: [content]
-            )
-        }
-
-        if showAboveSelection {
-            overlay.showOverlayAboveSelection(content: overlayBuilder)
-        } else {
-            overlay.showOverlay(content: overlayBuilder)
-        }
-    }
-
     private func showTranslateOverlay(polishedText: String, summary: String) {
-        overlay.showOverlay(content: { panelId in
-            ContentCard(
-                panelID: panelId,
-                title: "翻译结果",
-                content: [polishedText, summary]
-            )
-        })
+        ContentCard<EmptyView>.show(title: "翻译结果", content: [polishedText, summary])
     }
 }
