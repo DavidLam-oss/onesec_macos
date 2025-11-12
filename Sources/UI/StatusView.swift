@@ -187,6 +187,10 @@ struct StatusView: View {
             }
 
             Task { @MainActor in
+                if processMode == "TERMINAL" {
+                    await AXPasteboardController.pasteTextToActiveApp(summary)
+                    return
+                }
                 let element = AXElementAccessor.getFocusedElement()
                 let isEditable = element.map { AXElementAccessor.isEditableElement($0) } ?? false
 
