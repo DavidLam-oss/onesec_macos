@@ -1,6 +1,5 @@
 import ApplicationServices
 import Cocoa
-import InputMethodKit
 import SwiftUI
 
 @MainActor
@@ -8,9 +7,30 @@ class AXSelectionObserver {
     static let shared = AXSelectionObserver()
 
     private var observer: AXObserver?
+    private var appObserver: NSObjectProtocol?
     private let textChangeThrottler = Throttler(interval: 2.0)
 
-    private init() {}
+    private init() {
+        setupAppSwitchObserver()
+    }
+
+    private func setupAppSwitchObserver() {
+        appObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+
+            if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+                log.info("Application switched to: \(app.localizedName ?? "Unknown")")
+                _ = CGEvent(source: CGEventSource(stateID: .hidSystemState))
+                Task { @MainActor in
+                    self.startObserving()
+                }
+            }
+        }
+    }
 
     func startObserving() {
         stopObserving()
@@ -56,10 +76,7 @@ class AXSelectionObserver {
         ]
 
         for notification in notifications {
-            let result = AXObserverAddNotification(observer, element, notification as CFString, selfPtr)
-            if result == .success {
-                log.info("Add Notification: \(notification)")
-            }
+            AXObserverAddNotification(observer, element, notification as CFString, selfPtr)
         }
     }
 

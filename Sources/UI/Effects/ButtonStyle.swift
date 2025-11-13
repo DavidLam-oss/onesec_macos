@@ -10,7 +10,14 @@ struct HoverButtonStyle: ButtonStyle {
             .foregroundColor(isHovered ? hoverColor : normalColor)
             .background(isHovered ? Color.overlayButtonHoverBackground : .overlayButtonBackground)
             .animation(.quickSpringAnimation, value: isHovered)
-            .onHover { isHovered = $0 }
+            .onHover { hovering in
+                isHovered = hovering
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
     }
 }
 

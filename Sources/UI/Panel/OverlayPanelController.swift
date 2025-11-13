@@ -103,6 +103,7 @@ class OverlayController {
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight)
         setupPanel(panel, hosting: hosting)
         panel.isMovableByWindowBackground = true
+        panel.becomeKey()
         animateFadeIn(panel)
 
         panels[uuid] = panel
@@ -154,7 +155,7 @@ private extension OverlayController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hasShadow = false
         panel.contentView = hosting
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFront(nil)
     }
 
     func animateFadeIn(_ panel: NSPanel) {

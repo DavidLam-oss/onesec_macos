@@ -1,7 +1,8 @@
 import AppKit
 
 @MainActor
-class MenuBuilder {
+final class MenuBuilder {
+    static let shared = MenuBuilder()
     private var settingsPanelId: UUID?
     private let overlay = OverlayController.shared
 

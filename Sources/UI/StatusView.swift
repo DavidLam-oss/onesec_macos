@@ -4,76 +4,9 @@ import SwiftUI
 
 struct StatusView: View {
     @State var recording = RecordingState()
-    @State var menuBuilder = MenuBuilder()
     @State var notificationPanelId: UUID?
 
     private let overlay = OverlayController.shared
-
-    private func showNotificationMessage(
-        title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil,
-    ) {
-        notificationPanelId = overlay.showOverlay { panelId in
-            NotificationCard(
-                title: title,
-                content: content,
-                panelId: panelId,
-                modeColor: recording.modeColor,
-                autoHide: autoHide,
-                onTap: onTap,
-                onClose: {
-                    notificationPanelId = nil
-                }
-            )
-        }
-    }
-
-    private func handlePermissionChange(_ permissionsState: [PermissionType: PermissionStatus]) {
-        guard !permissionsState.isEmpty else { return }
-
-        if !ConnectionCenter.shared.hasPermissions() {
-            // 如果没有通知面板，显示权限警告
-            if notificationPanelId == nil {
-                showPermissionAlert()
-                SoundService.shared.playSound(.notification)
-            } else {
-                // 如果已有通知面板，更新内容
-                if let panelId = notificationPanelId {
-                    overlay.hideOverlay(uuid: panelId)
-                }
-                showPermissionAlert()
-            }
-        } else if let panelId = notificationPanelId {
-            overlay.hideOverlay(uuid: panelId)
-            notificationPanelId = nil
-        }
-    }
-
-    private func showPermissionAlert() {
-        let permissionState = ConnectionCenter.shared.permissionsState
-        var missingPermissions: [String] = []
-
-        if permissionState[.microphone] != .granted {
-            missingPermissions.append("麦克风")
-        }
-        if permissionState[.accessibility] != .granted {
-            missingPermissions.append("辅助功能")
-        }
-
-        guard !missingPermissions.isEmpty else { return }
-
-        showNotificationMessage(
-            title: "权限缺失",
-            content: "需要\(missingPermissions.joined(separator: "、"))权限，点击前往设置",
-            autoHide: false,
-            onTap: {
-                if permissionState[.accessibility] != .granted {
-                    PermissionService.shared.request(.accessibility) { _ in }
-                } else if permissionState[.microphone] != .granted {
-                    PermissionService.shared.request(.microphone) { _ in }
-                }
-            },
-        )
-    }
 
     var body: some View {
         // 状态指示器
@@ -83,7 +16,7 @@ struct StatusView: View {
             mode: recording.mode
         ).onTapGesture {
             overlay.hideAllOverlays()
-            menuBuilder.showMenu(in: NSApp.windows.first?.contentView ?? NSView())
+            MenuBuilder.shared.showMenu(in: NSApp.windows.first?.contentView ?? NSView())
         }
         .padding(.bottom, 4)
         .frame(width: 200, height: 80, alignment: .bottom)
@@ -100,7 +33,9 @@ struct StatusView: View {
             handlePermissionChange(permissionsState)
         }
     }
+}
 
+extension StatusView {
     private func handleEvent(_ event: AppEvent) {
         switch event {
         case let .volumeChanged(volume):
@@ -167,6 +102,7 @@ struct StatusView: View {
                     await AXPasteboardController.pasteTextToActiveApp(summary)
                     return
                 }
+
                 let element = AXElementAccessor.getFocusedElement()
                 let isEditable = element.map { AXElementAccessor.isEditableElement($0) } ?? false
 
@@ -182,7 +118,7 @@ struct StatusView: View {
                     }
 
                     if recording.mode == .command {
-                        ContentCard<EmptyView>.showAboveSelection(title: "命令处理结果", content: [summary])
+                        ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: [summary])
                     } else {
                         ContentCard<EmptyView>.show(title: "识别结果", content: [summary])
                     }
@@ -202,6 +138,72 @@ struct StatusView: View {
         default:
             break
         }
+    }
+
+    private func showNotificationMessage(
+        title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil,
+    ) {
+        notificationPanelId = overlay.showOverlay { panelId in
+            NotificationCard(
+                title: title,
+                content: content,
+                panelId: panelId,
+                modeColor: recording.modeColor,
+                autoHide: autoHide,
+                onTap: onTap,
+                onClose: {
+                    notificationPanelId = nil
+                }
+            )
+        }
+    }
+
+    private func handlePermissionChange(_ permissionsState: [PermissionType: PermissionStatus]) {
+        guard !permissionsState.isEmpty else { return }
+
+        if !ConnectionCenter.shared.hasPermissions() {
+            // 如果没有通知面板，显示权限警告
+            if notificationPanelId == nil {
+                showPermissionAlert()
+                SoundService.shared.playSound(.notification)
+            } else {
+                // 如果已有通知面板，更新内容
+                if let panelId = notificationPanelId {
+                    overlay.hideOverlay(uuid: panelId)
+                }
+                showPermissionAlert()
+            }
+        } else if let panelId = notificationPanelId {
+            overlay.hideOverlay(uuid: panelId)
+            notificationPanelId = nil
+        }
+    }
+
+    private func showPermissionAlert() {
+        let permissionState = ConnectionCenter.shared.permissionsState
+        var missingPermissions: [String] = []
+
+        if permissionState[.microphone] != .granted {
+            missingPermissions.append("麦克风")
+        }
+        if permissionState[.accessibility] != .granted {
+            missingPermissions.append("辅助功能")
+        }
+
+        guard !missingPermissions.isEmpty else { return }
+
+        showNotificationMessage(
+            title: "权限缺失",
+            content: "需要\(missingPermissions.joined(separator: "、"))权限，点击前往设置",
+            autoHide: false,
+            onTap: {
+                if permissionState[.accessibility] != .granted {
+                    PermissionService.shared.request(.accessibility) { _ in }
+                } else if permissionState[.microphone] != .granted {
+                    PermissionService.shared.request(.microphone) { _ in }
+                }
+            },
+        )
     }
 
     private func showTranslateOverlay(polishedText: String) {
