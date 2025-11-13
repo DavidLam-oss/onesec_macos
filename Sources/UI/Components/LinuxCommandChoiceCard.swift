@@ -56,9 +56,10 @@ struct CommandItem: View {
                 .lineSpacing(3.8)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(6)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
                 .background(Color.overlayCodeBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
             Button(action: handleSelect) {
                 Text(isCopied ? "已选择" : "选择")

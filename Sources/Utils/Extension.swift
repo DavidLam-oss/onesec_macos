@@ -1,20 +1,32 @@
 //
-//  extension.swift
+//  Extension.swift
 //  OnesecCore
 //
 //  Created by 王晓雨 on 2025/10/29.
 //
 
+import SwiftUI
+
 extension String {
     var cleaned: String {
-        self.replacingOccurrences(
+        replacingOccurrences(
             of: "\\s+", with: " ", options: .regularExpression
         ).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var formattedCommand: String {
-        self.split(separator: "\n", omittingEmptySubsequences: true)
+        split(separator: "\n", omittingEmptySubsequences: true)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .joined(separator: " && \\\n")
+    }
+}
+
+extension Text {
+    func monospacedDigitIfAvailable() -> Text {
+        if #available(macOS 13.0, iOS 15.0, *) {
+            return self.fontDesign(.monospaced)
+        } else {
+            return self
+        }
     }
 }

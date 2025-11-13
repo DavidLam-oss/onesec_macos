@@ -171,21 +171,22 @@ struct ContentCard<CustomContent: View>: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         Text("这条消息将在 ")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10.5))
                             .foregroundColor(Color.overlaySecondaryText)
 
                         Text("\(remainingSeconds)")
-                            .font(.system(size: 11, design: .monospaced))
-                            .fontWeight(.bold)
+                            .font(.system(size: 10.5))
+                            .monospacedDigitIfAvailable()
+                            .fontWeight(.semibold)
                             .foregroundColor(Color.overlaySecondaryText)
 
                         Text(" 秒后自动关闭，")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10.5))
                             .foregroundColor(Color.overlaySecondaryText)
 
                         Button(action: closeTipsSection) {
                             Text("点击停止")
-                                .font(.system(size: 11))
+                                .font(.system(size: 10.5))
                                 .foregroundColor(Color.overlayText)
                         }
                         .buttonStyle(UnderlineButtonStyle())

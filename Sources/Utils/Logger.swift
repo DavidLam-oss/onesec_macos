@@ -22,4 +22,3 @@ enum Logger {
 }
 
 let log = Logger.log
-

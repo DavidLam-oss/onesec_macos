@@ -65,7 +65,7 @@ extension Color {
 
     /// Overlay Code 背景色
     static var overlayCodeBackground: Color {
-        adaptive(light: Color(red: 248 / 255, green: 248 / 255, blue: 248 / 255), dark: Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255))
+        adaptive(light: Color(red: 248 / 255, green: 248 / 255, blue: 248 / 255), dark: Color(red: 30 / 255, green: 30 / 255, blue: 30 / 255))
     }
 
     /// Overlay 主要文本：亮色模式黑色，暗色模式白色
