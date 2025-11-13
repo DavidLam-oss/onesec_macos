@@ -137,6 +137,11 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
     <true/>
     <key>NSSupportsSuddenTermination</key>
     <true/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
     <key>LSBackgroundOnly</key>
     <true/>
     <key>LSUIElement</key>

@@ -25,11 +25,11 @@ class HTTPClient {
 
     func post(path: String, body: [String: Any]) async throws -> HTTPResponse {
         let (sign, time) = Signature.generateSignature(params: body)
-        
+
         var signedBody = body
         signedBody["sign"] = sign
         signedBody["time"] = time
-        
+
         guard let url = URL(string: baseURL + path) else {
             throw HTTPError.invalidURL
         }
@@ -49,19 +49,20 @@ class HTTPClient {
         guard (200 ... 299).contains(httpResponse.statusCode) else {
             throw HTTPError.statusCode(httpResponse.statusCode)
         }
-        
+
         if let responseString = String(data: data, encoding: .utf8) {
             log.info("POST \(path) Response: \(responseString)")
         }
-        
+
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let code = json["code"] as? Int,
-              let message = json["message"] as? String else {
+              let message = json["message"] as? String
+        else {
             throw HTTPError.invalidJSON
         }
-        
+
         let dataDict = json["data"] as? [String: Any]
-        
+
         return HTTPResponse(
             code: code,
             message: message,
