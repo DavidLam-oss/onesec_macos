@@ -44,8 +44,15 @@ class AXSelectionObserver {
         var observer: AXObserver?
         let result = AXObserverCreate(pid, { _, _, notification, _ in
             Task { @MainActor in
+                log.info("Notification: \(notification)")
                 if notification as String == kAXSelectedTextChangedNotification as String {
                     AXPasteboardController.checkTextModification()
+                    AXAtomic.getCursorPositionInCocoa()
+                    AXTranslationAccessor.scheduleTranslationUIView()
+
+                
+                    // let text = await ContextService.getSelectedText()
+                    // log.info("Text: \(text)")
                 } else if notification as String == kAXFocusedUIElementChangedNotification as String {
                     log.info("Focused UI Element Changed")
                 }
@@ -65,10 +72,10 @@ class AXSelectionObserver {
             self.tryAddNotificationsForFocusedElement(app: app, retryCount: 3)
         }
     }
-    
+
     private func tryAddNotificationsForFocusedElement(app: NSRunningApplication, retryCount: Int = 0) {
         guard observer != nil else { return }
-        
+
         if let focusedElement = AXElementAccessor.getFocusedElement() {
             log.info("Start Observing: \(app.localizedName ?? "Unknown")")
             addAllNotifications(to: focusedElement)

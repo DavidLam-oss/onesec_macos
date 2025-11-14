@@ -351,6 +351,7 @@ extension AudioSinkNodeRecorder {
                     }
 
                 case .notificationReceived(.serverTimeout),
+                     .notificationReceived(.serverUnavailable),
                      .notificationReceived(.recordingTimeout):
                     self?.recordState = .recordingTimeout
                     self?.resetState()

@@ -119,9 +119,9 @@ extension StatusView {
 
                     // TODO: 处理显示位置
                     if recording.mode == .command {
-                        ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: [summary], cardWidth: 280, spacingX: 8, spacingY: 14)
+                        ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: [summary], cardWidth: 260, spacingX: 8, spacingY: 14)
                     } else {
-                        ContentCard<EmptyView>.show(title: "识别结果", content: [summary], cardWidth: 300)
+                        ContentCard<EmptyView>.show(title: "识别结果", content: [summary])
                     }
                     return
                 }

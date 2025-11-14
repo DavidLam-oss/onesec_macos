@@ -114,7 +114,7 @@ class OverlayController {
     }
 
     @discardableResult
-    func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View) -> UUID? {
+    func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0) -> UUID? {
         guard let screen = MouseContextService.shared.getMouseScreen() ?? NSScreen.main else {
             return nil
         }
@@ -129,7 +129,7 @@ class OverlayController {
             spacing: 0
         )
 
-        let panel = createPanel(origin: origin, size: contentSize)
+        let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight)
         setupPanel(panel, hosting: hosting)
         panel.isMovableByWindowBackground = true
         animateFadeIn(panel)

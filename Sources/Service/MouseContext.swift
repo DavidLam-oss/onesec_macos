@@ -4,7 +4,7 @@ import Combine
 class MouseContextService: @unchecked Sendable {
     static let shared = MouseContextService()
 
-    private var mouseContextMap: [NSEvent.EventType: (position: NSPoint, screen: NSScreen)] = [:]
+    @Published var mouseContextState: [NSEvent.EventType: (position: NSPoint, screen: NSScreen)] = [:]
     private var isRecordingActive = false
     private var mouseUpMonitor: Any?
     private var mouseDownMonitor: Any?
@@ -27,7 +27,7 @@ class MouseContextService: @unchecked Sendable {
     private func setupMouseMonitors() {
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
             guard let self, !self.isRecordingActive else { return }
-            self.mouseContextMap.removeAll()
+            self.mouseContextState.removeAll()
             self.saveMouseContext(type: .leftMouseDown)
         }
 
@@ -42,7 +42,7 @@ class MouseContextService: @unchecked Sendable {
             .sink { [weak self] event in
                 guard let self else { return }
                 if case .recordingStarted = event {
-                    if self.mouseContextMap[.leftMouseUp] == nil {
+                    if self.mouseContextState[.leftMouseUp] == nil {
                         self.saveMouseContext(type: .leftMouseUp)
                     }
                     self.isRecordingActive = true
@@ -63,12 +63,12 @@ class MouseContextService: @unchecked Sendable {
             return
         }
 
-        mouseContextMap[type] = (position: mouseLocation, screen: screen)
+        mouseContextState[type] = (position: mouseLocation, screen: screen)
     }
 
     func getMouseRect() -> NSRect? {
-        guard let mouseDown = mouseContextMap[.leftMouseDown],
-              let mouseUp = mouseContextMap[.leftMouseUp]
+        guard let mouseDown = mouseContextState[.leftMouseDown],
+              let mouseUp = mouseContextState[.leftMouseUp]
         else {
             return nil
         }
@@ -88,6 +88,10 @@ class MouseContextService: @unchecked Sendable {
     }
 
     func getMouseScreen() -> NSScreen? {
-        mouseContextMap[.leftMouseUp]?.screen
+        mouseContextState[.leftMouseUp]?.screen
+    }
+
+    func getMousePoint(type: NSEvent.EventType) -> NSPoint? {
+        mouseContextState[type]?.position
     }
 }

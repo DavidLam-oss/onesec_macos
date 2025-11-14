@@ -68,6 +68,7 @@ enum NotificationMessageType: Equatable {
     case serverTimeout
     case recordingTimeout
     case authTokenFailed
+    case serverUnavailable
     case networkUnavailable
     case custom(title: String, content: String)
 
@@ -79,6 +80,8 @@ enum NotificationMessageType: Equatable {
             "录音超时"
         case .authTokenFailed:
             JWTValidator.isValid(Config.shared.AUTH_TOKEN) ? "鉴权失败" : "未登录"
+        case .serverUnavailable:
+            "服务不可用"
         case .networkUnavailable:
             "网络不可用"
         case let .custom(title, _):
@@ -94,6 +97,8 @@ enum NotificationMessageType: Equatable {
             "服务器录音响应超时"
         case .authTokenFailed:
             JWTValidator.isValid(Config.shared.AUTH_TOKEN) ? "用户鉴权失败，请返回客户端重新登陆" : "用户未登录，请登陆后使用"
+        case .serverUnavailable:
+            "服务不可用，请检查网络连接"
         case .networkUnavailable:
             "网络不可用，请检查网络连接"
         case let .custom(_, content):

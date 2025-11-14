@@ -24,10 +24,11 @@ class ConnectionCenter: @unchecked Sendable {
     @Published var permissionsState: [PermissionType: PermissionStatus] = [:]
     @Published var networkState: NetworkStatus = .unavailable
     @Published var audioRecorderState: RecordState = .idle
+    @Published var mouseContextState: [NSEvent.EventType: (position: NSPoint, screen: NSScreen)] = [:]
 
     @Published var currentMouseScreen: NSScreen? = nil
     @Published var isAuthed: Bool = JWTValidator.isValid(Config.shared.AUTH_TOKEN)
-    @Published var currentRecordingAppContext: AppContext = AppContext.empty
+    @Published var currentRecordingAppContext: AppContext = .empty
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -47,6 +48,7 @@ class ConnectionCenter: @unchecked Sendable {
         bind(udsClient.$connectionState, to: \.udsState)
         bind(permissionService.$permissionsState, to: \.permissionsState)
         bind(networkService.$networkStatus, to: \.networkState)
+        bind(mouseContextService.$mouseContextState, to: \.mouseContextState)
     }
 
     func canRecord() -> Bool {
@@ -59,7 +61,7 @@ class ConnectionCenter: @unchecked Sendable {
 
     func hasPermissions() -> Bool {
         guard permissionsState.count != 0 else { return false }
-        
+
         let required: [PermissionType] = [.accessibility, .microphone]
         return required.allSatisfy { permissionsState[$0] == .granted }
     }
@@ -84,6 +86,9 @@ extension ConnectionCenter {
                     .last!
                     .replacingOccurrences(of: ">", with: "")
 
+                if stateName == "mouseContextState" {
+                    return
+                }
                 log.debug("\("[\(stateName)]".green) → \("\(newValue)".green)")
             }
             .store(in: &cancellables)
@@ -105,7 +110,7 @@ extension ConnectionCenter {
                 switch event {
                 case .notificationReceived(.authTokenFailed):
                     self?.isAuthed = false
-                case .recordingContextUpdated(let context):
+                case let .recordingContextUpdated(context):
                     self?.currentRecordingAppContext = context
                 default:
                     break
@@ -117,6 +122,22 @@ extension ConnectionCenter {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.handlePermissionChange()
+            }
+            .store(in: &cancellables)
+
+        $wssState
+            .scan((previous: nil as ConnState?, current: nil as ConnState?)) { state, new in
+                (previous: state.current, current: new)
+            }
+            .receive(on: DispatchQueue.main)
+            .sink { state in
+                guard state.previous == .connected,
+                      let current = state.current,
+                      current == .disconnected || current == .cancelled
+                else {
+                    return
+                }
+                EventBus.shared.publish(.notificationReceived(.serverUnavailable))
             }
             .store(in: &cancellables)
     }
