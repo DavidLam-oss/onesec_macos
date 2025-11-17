@@ -23,11 +23,11 @@ class AXInputHistoryContextAccessor {
         var current = element
         var bestContent: String?
 
-        for _ in 0 ..< 8 {
+        for level in 0 ..< 8 {
             guard let parent = AXElementAccessor.getParent(of: current) else { break }
             current = parent
 
-            if let content = searchChatContent(in: current, excludeHash: excludeHash) {
+            if let content = searchChatContent(in: current, excludeHash: excludeHash, level: level, flag: true) {
                 if content.count >= needHistoryLength {
                     return content
                 }
@@ -40,7 +40,7 @@ class AXInputHistoryContextAccessor {
         return bestContent
     }
 
-    private static func searchChatContent(in element: AXUIElement, excludeHash: CFHashCode) -> String? {
+    private static func searchChatContent(in element: AXUIElement, excludeHash: CFHashCode, level: Int, flag _: Bool = false) -> String? {
         guard let children = AXElementAccessor.getChildren(of: element), !children.isEmpty else {
             return nil
         }
@@ -88,7 +88,7 @@ class AXInputHistoryContextAccessor {
             } else {
                 let shouldRecurse = recursiveRoles.contains { role.contains($0) }
                 if shouldRecurse, charCount < maxChars {
-                    if let childText = searchChatContent(in: child, excludeHash: excludeHash) {
+                    if let childText = searchChatContent(in: child, excludeHash: excludeHash, level: level + 1) {
                         let len = childText.count
                         if len > 0 {
                             texts.append(childText)

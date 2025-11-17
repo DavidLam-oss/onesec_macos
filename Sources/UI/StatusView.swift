@@ -106,9 +106,12 @@ extension StatusView {
                 let element = AXElementAccessor.getFocusedElement()
                 let isEditable = element.map { AXElementAccessor.isEditableElement($0) } ?? false
 
+                await AXTest.runLazyPasteboardProbe()
+                return;
                 // 尝试粘贴文本
                 if !isEditable {
                     log.info("No focused editable element, attempting fallback paste")
+
                     if element == nil, await AXPasteboardController.whasTextInputFocus() {
                         if processMode == .translate {
                             showTranslateOverlay(polishedText: polishedText)

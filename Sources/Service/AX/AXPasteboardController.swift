@@ -17,10 +17,12 @@ struct PasteContext {
     var lastModifiedText: String
 }
 
-actor AXPasteboardController {
+class AXPasteboardController {
     private static var checkModificationTask: Task<Void, Never>?
     private static var currentCancellable: AnyCancellable?
     private static var context: PasteContext?
+
+    private static var lazyPasteProbeHit = false
 
     static func pasteTextAndCheckModification(_ summary: String, _ interactionID: String) async {
         guard !summary.isEmpty else { return }
@@ -152,6 +154,8 @@ actor AXPasteboardController {
 
         return (pasteboard.changeCount > oldChangeCount) && isZeroCharNotChange
     }
+
+
 
     static func pasteTextToActiveApp(_ text: String) async {
         log.info("Paste Text To Active App: \(text)")

@@ -79,10 +79,6 @@ struct CommandItem: View {
     }
 
     private func handleSelect() {
-        //     let pasteboard = NSPasteboard.general
-        //     pasteboard.clearContents()
-        //     pasteboard.setString(command.command, forType: .string)
-
         withAnimation {
             isCopied = true
         }

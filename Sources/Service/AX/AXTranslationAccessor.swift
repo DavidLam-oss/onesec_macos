@@ -52,6 +52,7 @@ class AXTranslationAccessor {
             text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             text == pasteboardText
         {
+            log.info("No text to translate")
             reset()
             return
         }
