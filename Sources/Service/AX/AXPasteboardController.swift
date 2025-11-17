@@ -17,7 +17,7 @@ struct PasteContext {
     var lastModifiedText: String
 }
 
-class AXPasteboardController {
+actor AXPasteboardController {
     private static var checkModificationTask: Task<Void, Never>?
     private static var currentCancellable: AnyCancellable?
     private static var context: PasteContext?
@@ -39,22 +39,22 @@ class AXPasteboardController {
         // 启动检查任务
         // 检查用户是否修改了粘贴内容
         // 延迟发送至下一轮录音周期开始
-        checkModificationTask?.cancel()
-        currentCancellable?.cancel()
+        // checkModificationTask?.cancel()
+        // currentCancellable?.cancel()
 
-        checkModificationTask = Task {
-            currentCancellable = EventBus.shared.events.sink { event in
-                if case .recordingStarted = event {
-                    Task {
-                        checkModificationTask?.cancel()
-                        await AXSelectionObserver.shared.stopObserving()
-                        await submitTextModification()
-                    }
-                }
-            }
+        // checkModificationTask = Task {
+        //     currentCancellable = EventBus.shared.events.sink { event in
+        //         if case .recordingStarted = event {
+        //             Task {
+        //                 checkModificationTask?.cancel()
+        //                 await AXSelectionObserver.shared.stopObserving()
+        //                 await submitTextModification()
+        //             }
+        //         }
+        //     }
 
-            await AXSelectionObserver.shared.startObserving()
-        }
+        //     await AXSelectionObserver.shared.startObserving()
+        // }
     }
 
     private static func submitTextModification() async {
@@ -104,6 +104,7 @@ class AXPasteboardController {
         }
     }
 
+    @MainActor
     static func copyCurrentSelectionAndRestore() async -> String? {
         let pasteboard = NSPasteboard.general
         let oldContents = pasteboard.string(forType: .string)

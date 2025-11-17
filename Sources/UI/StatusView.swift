@@ -96,8 +96,8 @@ extension StatusView {
             }
 
             Task { @MainActor in
-                if processMode == .terminal ||
-                    isTerminalAppWithoutAXSupport(ConnectionCenter.shared.currentRecordingAppContext.appInfo)
+                if processMode == .terminal
+                // isTerminalAppWithoutAXSupport(ConnectionCenter.shared.currentRecordingAppContext.appInfo)
                 {
                     await AXPasteboardController.pasteTextToActiveApp(summary)
                     return

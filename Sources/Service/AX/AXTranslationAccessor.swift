@@ -1,68 +1,62 @@
+import AppKit
 import Combine
 import SwiftUI
 
+@MainActor
 class AXTranslationAccessor {
+    private static var mouseDownMonitor: Any?
+    private static var mouseUpMonitor: Any?
+
     private static var currentSelectedText: String = ""
-    private static var isRecording: Bool = false
-    private static var cancellable: AnyCancellable?
+    private static var pasteboardText = ""
+
     private static var translationPanelID: UUID?
+    private static var hasMouseDown: Bool = false
+    private static var mouseDownPoint: NSPoint?
 
     static func setupMouseUpListener() {
-        cancellable = ConnectionCenter.shared.$mouseContextState
-            .receive(on: DispatchQueue.main)
-            .sink { mouseState in
-                guard isRecording, !currentSelectedText.isEmpty,
-                      let mouseUpPoint = mouseState[.leftMouseUp]?.position
-                else {
+        mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { _ in
+            Task { @MainActor in
+                hasMouseDown = true
+                mouseDownPoint = NSEvent.mouseLocation
+                pasteboardText = NSPasteboard.general.string(forType: .string) ?? ""
+            }
+        }
+
+        mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { _ in
+            Task { @MainActor in
+                guard hasMouseDown, let downPoint = mouseDownPoint else { return }
+                hasMouseDown = false
+                mouseDownPoint = nil
+
+                let mouseUpPoint = NSEvent.mouseLocation
+                let distance = sqrt(pow(mouseUpPoint.x - downPoint.x, 2) + pow(mouseUpPoint.y - downPoint.y, 2))
+
+                // let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+                // let twoChineseWidth = ("中" as NSString).size(withAttributes: [.font: font]).width * 2
+
+                guard distance > 25 else {
+                    reset()
                     return
                 }
 
-                // 鼠标左键up事件发生，结束记录并显示ContentCard
-                Task { @MainActor in
-                    endTranslationRecording(mousePoint: mouseUpPoint)
-                }
+                await endTranslationRecording(mousePoint: mouseUpPoint)
             }
-    }
-
-    static func scheduleTranslationUIView() {
-        Task { @MainActor in
-            let text = await ContextService.getSelectedText()
-            let previousText = currentSelectedText
-
-            if (text == nil ||
-                text!.isEmpty ||
-                text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) &&
-                translationPanelID != nil
-            {
-                OverlayController.shared.hideOverlay(uuid: translationPanelID!)
-                translationPanelID = nil
-            }
-
-            // 检测从无/空到有的变化，标记记录开始
-            if (previousText.isEmpty) && text != nil && !text!.isEmpty {
-                // 开始记录
-                currentSelectedText = text!
-                isRecording = true
-
-                // 确保监听器已设置
-                if cancellable == nil {
-                    setupMouseUpListener()
-                }
-                return
-            }
-
-            // 更新当前文本
-            currentSelectedText = text ?? ""
         }
     }
 
-    @MainActor
-    private static func endTranslationRecording(mousePoint: NSPoint) {
-        guard isRecording else { return }
+    private static func endTranslationRecording(mousePoint: NSPoint) async {
+        let text = await ContextService.getSelectedText()
+        if text == nil ||
+            text!.isEmpty ||
+            text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            text == pasteboardText
+        {
+            reset()
+            return
+        }
+        currentSelectedText = text!
 
-        isRecording = false
-
-        // 显示ContentCard
         OverlayController.shared.hideAllOverlays()
         translationPanelID = OverlayController.shared.showOverlayAbovePoint(point: mousePoint) { panelID in
             LazyTranslationCard(
@@ -75,6 +69,14 @@ class AXTranslationAccessor {
         }
 
         // 清空记录
+        currentSelectedText = ""
+    }
+
+    private static func reset() {
+        if translationPanelID != nil {
+            OverlayController.shared.hideOverlay(uuid: translationPanelID!)
+            translationPanelID = nil
+        }
         currentSelectedText = ""
     }
 }

@@ -174,11 +174,10 @@ class InputController {
         audioRecorder.stopRecording()
     }
 
-    private func modeUpgrade(from: RecordMode, to: RecordMode) {
-        if to == .normal {
-            return
+    private func modeUpgrade(from _: RecordMode, to: RecordMode) {
+        if to == .command {
+            audioRecorder.handleModeUpgrade()
         }
-        EventBus.shared.publish(.modeUpgraded(from: from, to: to))
     }
 }
 

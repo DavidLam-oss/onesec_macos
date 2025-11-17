@@ -404,6 +404,14 @@ extension AudioSinkNodeRecorder {
         EventBus.shared.publish(.recordingStarted(recordMode: recordMode))
     }
 
+    func handleModeUpgrade() {
+        if isRecordingStarted {
+            EventBus.shared.publish(.modeUpgraded(from: .normal, to: .command))
+        } else {
+            recordMode = .command
+        }
+    }
+
     private func checkAndHandleTimeout() {
         if queueStartTime == nil {
             queueStartTime = Date()

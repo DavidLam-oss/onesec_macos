@@ -18,6 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         StatusPanelManager.shared.showPanel()
         Task { @MainActor in
             AXSelectionObserver.shared.startObserving()
+            AXTranslationAccessor.setupMouseUpListener()
         }
     }
 }

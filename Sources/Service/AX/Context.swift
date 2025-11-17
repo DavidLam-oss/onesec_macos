@@ -58,7 +58,7 @@ class ContextService {
         if let text: String = AXElementAccessor.getAttributeValue(
             element: element,
             attribute: kAXSelectedTextAttribute,
-        ) {
+        ), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return text
         }
 
@@ -72,7 +72,8 @@ class ContextService {
                     element: element,
                     attribute: kAXStringForRangeParameterizedAttribute,
                     parameter: range
-                )
+                ),
+                !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 return text
             }

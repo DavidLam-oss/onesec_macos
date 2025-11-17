@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 class Throttler {
     private var lastExecutionTime: Date?
     private let interval: TimeInterval

@@ -44,13 +44,12 @@ class AXSelectionObserver {
         var observer: AXObserver?
         let result = AXObserverCreate(pid, { _, _, notification, _ in
             Task { @MainActor in
-                log.info("Notification: \(notification)")
+                // log.info("Notification: \( notification)")
                 if notification as String == kAXSelectedTextChangedNotification as String {
-                    AXPasteboardController.checkTextModification()
-                    AXAtomic.getCursorPositionInCocoa()
-                    AXTranslationAccessor.scheduleTranslationUIView()
+                    // AXPasteboardController.checkTextModification()
+                    // AXAtomic.getCursorPositionInCocoa()
+                    // AXTranslationAccessor.scheduleTranslationUIView()
 
-                
                     // let text = await ContextService.getSelectedText()
                     // log.info("Text: \(text)")
                 } else if notification as String == kAXFocusedUIElementChangedNotification as String {
@@ -107,6 +106,5 @@ class AXSelectionObserver {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
         }
         observer = nil
-        log.info("Remove AX Observer for current app")
     }
 }
