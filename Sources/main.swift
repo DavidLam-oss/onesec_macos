@@ -19,6 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             AXSelectionObserver.shared.startObserving()
             AXTranslationAccessor.setupMouseUpListener()
+            // Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            //     log.info("pasteboard changeCount: \(NSPasteboard.general.changeCount)")
+            // }
         }
     }
 }

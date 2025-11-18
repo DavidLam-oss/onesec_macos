@@ -91,14 +91,14 @@ extension StatusView {
             ])
         case let .serverResultReceived(summary, interactionID, processMode, polishedText):
             recording.state = .idle
-            Task { @MainActor in
-                AXTest.runLazyPasteboardProbe()
-            }
-            return;
+            // Task { @MainActor in
+            //     AXTest.runLazyPasteboardProbe()
+            // }
+            // return;
             if summary.isEmpty {
                 return
             }
-            
+
             Task { @MainActor in
                 if processMode == .terminal,
                    isTerminalAppWithoutAXSupport(ConnectionCenter.shared.currentRecordingAppContext.appInfo)
