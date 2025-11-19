@@ -92,7 +92,7 @@ extension StatusView {
         case let .serverResultReceived(summary, interactionID, processMode, polishedText):
             recording.state = .idle
             // Task { @MainActor in
-            //     AXTest.runLazyPasteboardProbe()
+            //     AXPasteProbe.runPasteProbe(summary)
             // }
             // return;
             if summary.isEmpty {
@@ -100,9 +100,7 @@ extension StatusView {
             }
 
             Task { @MainActor in
-                if processMode == .terminal,
-                   isTerminalAppWithoutAXSupport(ConnectionCenter.shared.currentRecordingAppContext.appInfo)
-                {
+                if processMode == .terminal, isTerminalAppWithoutAXSupport() {
                     await AXPasteboardController.pasteTextToActiveApp(summary)
                     return
                 }
@@ -128,7 +126,7 @@ extension StatusView {
                 // 首先根据白名单使用零宽字符复制测试方法
                 log.info("No focused editable element, attempting fallback paste")
 
-                if isAppShouldTestWithZeroWidthChar(ConnectionCenter.shared.currentRecordingAppContext.appInfo) {
+                if isAppShouldTestWithZeroWidthChar() {
                     if await AXPasteboardController.whasTextInputFocus() {
                         await AXPasteboardController.pasteTextToActiveApp(summary)
                         return

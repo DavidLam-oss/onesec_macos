@@ -68,6 +68,7 @@ class AXSelectionObserver {
         // 系统更新焦点元素需要时间
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            self.tryEnableManualAccessibility(pid: pid, retryCount: 3)
             self.tryAddNotificationsForFocusedElement(app: app, retryCount: 3)
         }
     }
@@ -82,6 +83,22 @@ class AXSelectionObserver {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
                 self.tryAddNotificationsForFocusedElement(app: app, retryCount: retryCount - 1)
+            }
+        }
+    }
+
+    private func tryEnableManualAccessibility(pid: pid_t, retryCount: Int = 0) {
+        let axApp = AXUIElementCreateApplication(pid)
+        let attr = "AXManualAccessibility" as CFString
+        let value: CFTypeRef = kCFBooleanTrue
+        let err = AXUIElementSetAttributeValue(axApp, attr, value)
+        if err == .success {
+            log.info("AXManualAccessibility for pid \(pid): \(err.rawValue)")
+        } else if retryCount > 0 {
+            log.info("tryEnableManualAccessibility retry \(retryCount) for pid \(pid): \(err.rawValue)")
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                tryEnableManualAccessibility(pid: pid, retryCount: retryCount - 1)
             }
         }
     }

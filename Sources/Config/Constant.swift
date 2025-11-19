@@ -7,13 +7,15 @@ let terminalAppsWithoutAXSupport: Set<String> = [
 ]
 
 let appShouldTestWithZeroWidthChar: Set<String> = [
-    "com.tencent.xinWeChat"
+    "com.tencent.xinWeChat",
 ]
 
-func isTerminalAppWithoutAXSupport(_ appInfo: AppInfo) -> Bool {
-    terminalAppsWithoutAXSupport.contains(appInfo.bundleID)
+func isTerminalAppWithoutAXSupport() -> Bool {
+    let appInfo = ConnectionCenter.shared.currentRecordingAppContext.appInfo
+    return terminalAppsWithoutAXSupport.contains(appInfo.bundleID)
 }
 
-func isAppShouldTestWithZeroWidthChar(_ appInfo: AppInfo) -> Bool {
-    appShouldTestWithZeroWidthChar.contains(appInfo.bundleID)
+func isAppShouldTestWithZeroWidthChar() -> Bool {
+    let appInfo = ConnectionCenter.shared.currentRecordingAppContext.appInfo
+    return appShouldTestWithZeroWidthChar.contains(appInfo.bundleID)
 }
