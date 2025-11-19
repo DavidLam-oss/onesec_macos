@@ -85,7 +85,7 @@ extension Color {
 
     /// Overlay 边框：半透明边框
     static var overlayBorder: Color {
-        adaptive(light: Color.black.opacity(0.15), dark: Color.white.opacity(0.15))
+        adaptive(light: Color.black.opacity(0.15), dark: Color.white.opacity(0.2))
     }
 
     /// Overlay 禁用状态颜色

@@ -50,7 +50,7 @@ struct NotificationCard: View {
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Color.overlayBorder, lineWidth: 1.2)
             )
-            .shadow(color: .overlayBackground.opacity(0.3), radius: 8, x: 0, y: 0)
+            .shadow(color: .overlayBackground.opacity(0.2), radius: 6, x: 0, y: 0)
             .onTapGesture {
                 onTap?()
             }
