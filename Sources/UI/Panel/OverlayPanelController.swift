@@ -1,5 +1,10 @@
 import Combine
+import ObjectiveC
 import SwiftUI
+
+enum PanelType {
+    case translate
+}
 
 @MainActor
 class OverlayController {
@@ -10,12 +15,11 @@ class OverlayController {
     private let statusBarHeight: CGFloat = 36
     private let defaultSpacing: CGFloat = 4
 
-    private init() {}
-
     @discardableResult
-    func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0) -> UUID {
-        let uuid = UUID()
+    func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX _: CGFloat = 0, spacingY _: CGFloat = 0, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID {
         let statusFrame = StatusPanelManager.shared.getPanelFrame()
+
+        let uuid = UUID()
         let (hosting, contentSize) = createHostingViewAndGetSize(content: { content(uuid) })
 
         let origin = calculateOverlayOrigin(
@@ -24,10 +28,24 @@ class OverlayController {
             spacing: defaultSpacing
         )
 
+        // 如果指定了 panelType，尝试找到现有的同类型 panel
+        if let panelType = panelType, let existingUUID = findPanelUUIDByType(panelType) {
+            moveAndUpdateExistingPanel(
+                uuid: existingUUID,
+                content: content,
+                origin: origin,
+                contentSize: contentSize,
+                extraHeight: extraHeight
+            )
+
+            return existingUUID
+        }
+
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight)
         setupPanel(panel, hosting: hosting)
         animateFadeIn(panel)
 
+        panel.panelType = panelType
         panels[uuid] = panel
         return uuid
     }
@@ -69,6 +87,17 @@ class OverlayController {
         panels.keys.forEach { hideOverlay(uuid: $0) }
     }
 
+    private func hideOverlaysByPanelType(_ panelType: PanelType) {
+        let uuidsToHide = panels.compactMap { uuid, panel in
+            panel.panelType == panelType ? uuid : nil
+        }
+        uuidsToHide.forEach { hideOverlay(uuid: $0) }
+    }
+
+    private func findPanelUUIDByType(_ panelType: PanelType) -> UUID? {
+        return panels.first { $0.value.panelType == panelType }?.key
+    }
+
     func setAutoHide(uuid: UUID, after delay: TimeInterval) {
         guard panels[uuid] != nil else {
             log.warning("panel not exist: \(uuid)")
@@ -83,7 +112,7 @@ class OverlayController {
     }
 
     @discardableResult
-    func showOverlayAboveSelection(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX: CGFloat = 14, spacingY: CGFloat = 14, extraHeight: CGFloat = 0) -> UUID? {
+    func showOverlayAboveSelection(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX: CGFloat = 14, spacingY: CGFloat = 14, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID? {
         let (bounds, isExactBounds) = getValidSelectionBounds()
         guard let bounds = bounds else {
             return nil
@@ -104,17 +133,34 @@ class OverlayController {
             spacingY: isExactBounds ? 0 : spacingY
         )
 
+        if let panelType = panelType, let existingUUID = findPanelUUIDByType(panelType) {
+            moveAndUpdateExistingPanel(
+                uuid: existingUUID,
+                content: content,
+                origin: origin,
+                contentSize: contentSize,
+                extraHeight: extraHeight
+            )
+
+            return existingUUID
+        }
+
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight)
         setupPanel(panel, hosting: hosting)
         panel.isMovableByWindowBackground = true
         animateFadeIn(panel)
 
+        panel.panelType = panelType
         panels[uuid] = panel
         return uuid
     }
 
     @discardableResult
-    func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0) -> UUID? {
+    func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID? {
+        if let panelType = panelType {
+            hideOverlaysByPanelType(panelType)
+        }
+
         guard let screen = MouseContextService.shared.getMouseScreen() ?? NSScreen.main else {
             return nil
         }
@@ -134,6 +180,7 @@ class OverlayController {
         panel.isMovableByWindowBackground = true
         animateFadeIn(panel)
 
+        panel.panelType = panelType
         panels[uuid] = panel
         return uuid
     }
@@ -163,7 +210,7 @@ private extension OverlayController {
 
     func animateFadeIn(_ panel: NSPanel) {
         panel.alphaValue = 0.0
-        panel.animations = ["alphaValue": createSpringFadeInAnimation()]
+        panel.animations = ["alphaValue": CASpringAnimation.createSpringFadeInAnimation(keyPath: "alphaValue")]
         panel.animator().alphaValue = 1.0
     }
 
@@ -191,6 +238,28 @@ private extension OverlayController {
         x = max(minX, min(x, maxX))
 
         return NSPoint(x: x, y: y)
+    }
+
+    private func moveAndUpdateExistingPanel(
+        uuid: UUID,
+        @ViewBuilder content: (_ panelId: UUID) -> some View,
+        origin: NSPoint,
+        contentSize _: NSSize,
+        extraHeight: CGFloat
+    ) {
+        guard let panel = panels[uuid] else { return }
+
+        let (hosting, actualSize) = createHostingViewAndGetSize(content: { content(uuid) })
+
+        panel.contentView = hosting
+
+        let newFrame = NSRect(
+            origin: origin,
+            size: NSSize(width: actualSize.width, height: actualSize.height + extraHeight)
+        )
+
+        panel.animations = ["frame": CASpringAnimation.createSpringFrameMoveAnimation(keyPath: "frame", fromValue: panel.frame, toValue: newFrame)]
+        panel.animator().setFrame(newFrame, display: true)
     }
 
     func getValidSelectionBounds() -> (bounds: NSRect?, isExact: Bool) {
@@ -236,20 +305,8 @@ private extension OverlayController {
             rect.size.width = max(rect.size.width, 1)
         }
 
-        log.info("rangeValue: \(rangeValue), range: \(range.location), \(range.length), boundsValue: \(boundsValue)")
+        log.info("range: \(range.location), \(range.length), boundsValue: \(boundsValue)")
         return NSRect(x: rect.origin.x, y: rect.origin.y, width: rect.width, height: rect.height)
-    }
-
-    func createSpringFadeInAnimation() -> CASpringAnimation {
-        let animation = CASpringAnimation(keyPath: "alphaValue")
-        animation.fromValue = 0.0
-        animation.toValue = 1.0
-        animation.mass = 1.0
-        animation.stiffness = 300.0
-        animation.damping = 20.0
-        animation.initialVelocity = 0.0
-        animation.duration = animation.settlingDuration
-        return animation
     }
 
     func createHostingViewAndGetSize(@ViewBuilder content: () -> some View) -> (
@@ -265,5 +322,18 @@ private extension OverlayController {
         tempPanel.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
         return (hosting, hosting.fittingSize)
+    }
+}
+
+extension NSPanel {
+    private static var panelTypeKey: UInt8 = 0
+
+    var panelType: PanelType? {
+        get {
+            return objc_getAssociatedObject(self, &Self.panelTypeKey) as? PanelType
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.panelTypeKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
     }
 }

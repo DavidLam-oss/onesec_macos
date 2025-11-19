@@ -8,7 +8,6 @@ class AXSelectionObserver {
 
     private var observer: AXObserver?
     private var appObserver: NSObjectProtocol?
-    private let textChangeThrottler = Throttler(interval: 2.0)
 
     private init() {
         setupAppSwitchObserver()
@@ -24,7 +23,6 @@ class AXSelectionObserver {
 
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
                 log.info("Application switched to: \(app.localizedName ?? "Unknown")")
-                _ = CGEvent(source: CGEventSource(stateID: .hidSystemState))
                 Task { @MainActor in
                     self.startObserving()
                 }
@@ -44,14 +42,9 @@ class AXSelectionObserver {
         var observer: AXObserver?
         let result = AXObserverCreate(pid, { _, _, notification, _ in
             Task { @MainActor in
-                // log.info("Notification: \( notification)")
+                // log.info("Notification: \(notification)")
                 if notification as String == kAXSelectedTextChangedNotification as String {
                     // AXPasteboardController.checkTextModification()
-                    // AXAtomic.getCursorPositionInCocoa()
-                    // AXTranslationAccessor.scheduleTranslationUIView()
-
-                    // let text = await ContextService.getSelectedText()
-                    // log.info("Text: \(text)")
                 } else if notification as String == kAXFocusedUIElementChangedNotification as String {
                     log.info("Focused UI Element Changed")
                 }
@@ -66,40 +59,10 @@ class AXSelectionObserver {
         CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
 
         // 系统更新焦点元素需要时间
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            self.tryEnableManualAccessibility(pid: pid, retryCount: 3)
-            self.tryAddNotificationsForFocusedElement(app: app, retryCount: 3)
-        }
-    }
-
-    private func tryAddNotificationsForFocusedElement(app: NSRunningApplication, retryCount: Int = 0) {
-        guard observer != nil else { return }
-
-        if let focusedElement = AXElementAccessor.getFocusedElement() {
-            log.info("Start Observing: \(app.localizedName ?? "Unknown")")
-            addAllNotifications(to: focusedElement)
-        } else if retryCount > 0 {
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-                self.tryAddNotificationsForFocusedElement(app: app, retryCount: retryCount - 1)
-            }
-        }
-    }
-
-    private func tryEnableManualAccessibility(pid: pid_t, retryCount: Int = 0) {
-        let axApp = AXUIElementCreateApplication(pid)
-        let attr = "AXManualAccessibility" as CFString
-        let value: CFTypeRef = kCFBooleanTrue
-        let err = AXUIElementSetAttributeValue(axApp, attr, value)
-        if err == .success {
-            log.info("AXManualAccessibility for pid \(pid): \(err.rawValue)")
-        } else if retryCount > 0 {
-            log.info("tryEnableManualAccessibility retry \(retryCount) for pid \(pid): \(err.rawValue)")
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-                tryEnableManualAccessibility(pid: pid, retryCount: retryCount - 1)
-            }
+        Task {
+            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+            self.tryEnableManualAccessibility(app: app, retryCount: 5)
+            self.tryAddNotificationsForFocusedElement(app: app, retryCount: 5)
         }
     }
 
@@ -123,5 +86,36 @@ class AXSelectionObserver {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
         }
         observer = nil
+    }
+}
+
+extension AXSelectionObserver {
+    private func tryAddNotificationsForFocusedElement(app: NSRunningApplication, retryCount: Int = 0) {
+        guard observer != nil else { return }
+
+        if let focusedElement = AXElementAccessor.getFocusedElement() {
+            log.info("Start Observing: \(app.localizedName ?? "Unknown")")
+            addAllNotifications(to: focusedElement)
+        } else if retryCount > 0 {
+            Task {
+                try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+                self.tryAddNotificationsForFocusedElement(app: app, retryCount: retryCount - 1)
+            }
+        }
+    }
+
+    private func tryEnableManualAccessibility(app: NSRunningApplication, retryCount: Int = 0) {
+        if AXUIElementSetAttributeValue(
+            AXUIElementCreateApplication(app.processIdentifier),
+            "AXManualAccessibility" as CFString,
+            kCFBooleanTrue
+        ) == .success {
+            log.info("AXManualAccessibility success for app \(app.localizedName ?? "Unknown")")
+        } else if retryCount > 0 {
+            Task {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                tryEnableManualAccessibility(app: app, retryCount: retryCount - 1)
+            }
+        }
     }
 }

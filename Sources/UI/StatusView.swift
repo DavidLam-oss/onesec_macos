@@ -89,22 +89,14 @@ extension StatusView {
                     }
                 },
             ])
-        case let .serverResultReceived(summary, interactionID, processMode, polishedText):
+        case let .serverResultReceived(summary, _, processMode, polishedText):
             recording.state = .idle
-            // Task { @MainActor in
-            //     AXPasteProbe.runPasteProbe(summary)
-            // }
-            // return;
             if summary.isEmpty {
                 return
             }
 
-            Task { @MainActor in
-                if processMode == .terminal, isTerminalAppWithoutAXSupport() {
-                    await AXPasteboardController.pasteTextToActiveApp(summary)
-                    return
-                }
-
+            Task {
+                var canPaste = false
                 let element = AXElementAccessor.getFocusedElement()
                 let isEditable = element.map { AXElementAccessor.isEditableElement($0) } ?? false
 
@@ -113,37 +105,46 @@ extension StatusView {
                 // 如果是可编辑的元素则直接粘贴, 否则弹窗
                 if element != nil {
                     if isEditable {
+                        canPaste = true
                         await AXPasteboardController.pasteTextToActiveApp(summary)
-                        return
-                    } else {
-                        ContentCard<EmptyView>.show(title: "识别结果", content: [summary])
-                        showTranslateOverlay(polishedText: polishedText)
                     }
                 }
 
                 // 2.
                 // 当前应用不支持 AX
                 // 首先根据白名单使用零宽字符复制测试方法
-                log.info("No focused editable element, attempting fallback paste")
-
-                if isAppShouldTestWithZeroWidthChar() {
+                if !canPaste, isAppShouldTestWithZeroWidthChar() {
+                    log.info("No focused editable element, attempting zero width char paste test")
                     if await AXPasteboardController.whasTextInputFocus() {
+                        canPaste = true
                         await AXPasteboardController.pasteTextToActiveApp(summary)
-                        return
+                    }
+                }
+
+                // 3.
+                // 使用粘贴探针检测是否可以粘贴
+                if !canPaste {
+                    log.info("Zero char paste test failed, using paste probe")
+                    canPaste = await AXPasteProbe.runPasteProbe(summary)
+                }
+
+                log.info("canPaste: \(canPaste)")
+
+                if processMode == .translate {
+                    if canPaste {
+                        ContentCard<EmptyView>.showAboveSelection(title: "输入原文", content: [polishedText], onTap: nil, actionButtons: nil, cardWidth: 260, spacingX: 8, spacingY: 14, panelType: .translate)
+                    } else {
+                        ContentCard<EmptyView>.show(title: "识别结果", content: [polishedText, summary], panelType: .translate)
                     }
                     return
                 }
 
-                // TODO: 处理显示位置
-                if recording.mode == .command {
-                    ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: [summary], cardWidth: 260, spacingX: 8, spacingY: 14)
-                } else {
-                    ContentCard<EmptyView>.show(title: "识别结果", content: [summary])
-                }
-
-                log.info("Focused editable element found, pasting text")
-                if processMode == .translate {
-                    showTranslateOverlay(polishedText: polishedText)
+                if !canPaste {
+                    if recording.mode == .command {
+                        ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: [summary], cardWidth: 260, spacingX: 8, spacingY: 14)
+                    } else {
+                        ContentCard<EmptyView>.show(title: "识别结果", content: [summary])
+                    }
                 }
             }
         case let .terminalLinuxChoice(bundleID, appName, endpointIdentifier, commands):
@@ -218,22 +219,6 @@ extension StatusView {
                     PermissionService.shared.request(.microphone) { _ in }
                 }
             },
-        )
-    }
-
-    private func showTranslateOverlay(polishedText: String) {
-        OverlayController.shared.showOverlayAboveSelection(
-            content: { panelID in
-                ContentCard<EmptyView>(
-                    panelID: panelID,
-                    title: "输入原文",
-                    content: [polishedText],
-                    onTap: nil,
-                    actionButtons: nil
-                )
-            },
-            spacingX: 0,
-            spacingY: 10
         )
     }
 }

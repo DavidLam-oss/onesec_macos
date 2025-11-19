@@ -6,7 +6,7 @@ class AXPasteProbe {
     private static var timeMarker: Date?
     private static var pasteContent: String = ""
 
-    static func runPasteProbe(_ content: String) {
+    static func runPasteProbe(_ content: String) async -> Bool {
         readCount = 0
         timeMarker = nil
         lazyPasteProbeHit = false
@@ -16,33 +16,33 @@ class AXPasteProbe {
         timeMarker = Date()
         AXPasteboardController.simulatePaste()
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let deadline = Date().addingTimeInterval(0.6)
-            while !lazyPasteProbeHit, Date() < deadline {
-                Thread.sleep(forTimeInterval: 0.01)
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let deadline = Date().addingTimeInterval(0.6)
+                while !lazyPasteProbeHit, Date() < deadline {
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
+                log.debug("🧪  \(lazyPasteProbeHit ? "可输入" : "不可输入")")
+                continuation.resume(returning: lazyPasteProbeHit)
             }
-            log.debug("🧪  \(lazyPasteProbeHit ? "可输入" : "不可输入")")
         }
     }
 }
 
 extension AXPasteProbe {
     @objc static func pasteboard(_ pasteboard: NSPasteboard, provideDataForType _: NSPasteboard.PasteboardType) {
-        lazyPasteProbeHit = true
         readCount += 1
 
         if let startTime = timeMarker {
             let elapsed = Date().timeIntervalSince(startTime) * 1000
             if readCount == 1 {
                 NSPasteboard.general.declareTypes([.string], owner: self)
-                log.info("第一次simulatePaste到第一次被读的时间: \(String(format: "%.2f", elapsed))ms")
+                log.info("粘贴被读取时间: \(String(format: "%.2f", elapsed))ms")
             } else if readCount == 2 {
+                lazyPasteProbeHit = true
                 pasteboard.setString(pasteContent, forType: .string)
-                log.info("第二次declareTypes到第二次被读取的时间: \(String(format: "%.2f", elapsed))ms")
-            } else {
-                log.info("剪切板被读取 \(readCount) 次, 间隔时间: \(String(format: "%.2f", elapsed))ms")
+                log.info("粘贴后 declareTypes 被读取的时间: \(String(format: "%.2f", elapsed))ms")
             }
-            timeMarker = nil
         }
 
         timeMarker = Date()

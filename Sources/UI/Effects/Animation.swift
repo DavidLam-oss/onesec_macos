@@ -24,3 +24,25 @@ extension Animation {
     static var quickSpringAnimation: Animation { AnimationConstants.quickSpring }
     static var morphAnimation: Animation { AnimationConstants.morphSpring }
 }
+
+extension CASpringAnimation {
+    static func createSpringFadeInAnimation(keyPath: String) -> CASpringAnimation {
+        let animation = CASpringAnimation(keyPath: keyPath)
+        animation.fromValue = 0.0
+        animation.toValue = 1.0
+        animation.stiffness = 300.0
+        animation.damping = 20.0
+        animation.duration = animation.settlingDuration
+        return animation
+    }
+
+    static func createSpringFrameMoveAnimation(keyPath: String, fromValue: NSRect, toValue: NSRect) -> CASpringAnimation {
+        let springAnimation = CASpringAnimation(keyPath: keyPath)
+        springAnimation.fromValue = NSValue(rect: fromValue)
+        springAnimation.toValue = NSValue(rect: toValue)
+        springAnimation.damping = 30
+        springAnimation.stiffness = 300
+        springAnimation.duration = springAnimation.settlingDuration
+        return springAnimation
+    }
+}
