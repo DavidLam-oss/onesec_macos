@@ -18,7 +18,7 @@ class AXPasteProbe {
 
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                let deadline = Date().addingTimeInterval(0.6)
+                let deadline = Date().addingTimeInterval(1)
                 while !lazyPasteProbeHit, Date() < deadline {
                     Thread.sleep(forTimeInterval: 0.01)
                 }

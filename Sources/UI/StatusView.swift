@@ -103,7 +103,7 @@ extension StatusView {
                 // 1.
                 // 当前应用有焦点元素, 说明支持 AX
                 // 如果是可编辑的元素则直接粘贴, 否则弹窗
-                if element != nil {
+                if element != nil, !isAppWithoutAXSupport() {
                     if isEditable {
                         canPaste = true
                         await AXPasteboardController.pasteTextToActiveApp(summary)
