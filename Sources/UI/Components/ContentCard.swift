@@ -20,6 +20,7 @@ struct ContentCard<CustomContent: View>: View {
     private let maxContentHeight: CGFloat = 200
 
     @State private var isContentCopied = false
+    @State private var showActionBar = false
     @State private var contentHeight: CGFloat = 0
     @State private var remainingSeconds = 9
     @State private var timerTask: Task<Void, Never>?
@@ -32,6 +33,7 @@ struct ContentCard<CustomContent: View>: View {
         onTap: (() -> Void)? = nil,
         actionButtons: [ActionButton]? = nil,
         cardWidth: CGFloat = 300,
+        showActionBar: Bool = true,
         @ViewBuilder customContent: @escaping () -> CustomContent
     ) {
         self.panelID = panelID
@@ -40,6 +42,7 @@ struct ContentCard<CustomContent: View>: View {
         self.onTap = onTap
         self.actionButtons = actionButtons
         self.cardWidth = cardWidth
+        self.showActionBar = showActionBar
         self.customContent = customContent
     }
 
@@ -99,22 +102,24 @@ struct ContentCard<CustomContent: View>: View {
                 }
 
                 // Footer
-                HStack {
-                    Spacer()
-                    Button(action: handleCopyContent) {
-                        HStack(spacing: 4) {
-                            Image.systemSymbol(isContentCopied ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 12, weight: .semibold))
-                                .scaleEffect(isContentCopied ? 1.1 : 1.0)
-                                .animation(.quickSpringAnimation, value: isContentCopied).frame(height: 12)
+                if showActionBar {
+                    HStack {
+                        Spacer()
+                        Button(action: handleCopyContent) {
+                            HStack(spacing: 4) {
+                                Image.systemSymbol(isContentCopied ? "checkmark" : "doc.on.doc")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .scaleEffect(isContentCopied ? 1.1 : 1.0)
+                                    .animation(.quickSpringAnimation, value: isContentCopied).frame(height: 12)
 
-                            Text("复制").font(.system(size: 12, weight: .semibold))
+                                Text("复制").font(.system(size: 12, weight: .semibold))
+                            }
                         }
+                        .buttonStyle(HoverButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
+                        .disabled(isContentCopied)
+                        .opacity(isHovering ? (isContentCopied ? 0.5 : 1.0) : 0.0)
+                        .animation(.easeInOut(duration: 0.2), value: isHovering)
                     }
-                    .buttonStyle(HoverButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
-                    .disabled(isContentCopied)
-                    .opacity(isHovering ? (isContentCopied ? 0.5 : 1.0) : 0.0)
-                    .animation(.easeInOut(duration: 0.2), value: isHovering)
                 }
             }
             .padding(.horizontal, 13)

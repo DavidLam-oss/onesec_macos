@@ -13,7 +13,8 @@ struct LinuxCommandChoiceCard: View {
             Spacer()
             ContentCard(
                 panelID: panelID,
-                title: "选择命令"
+                title: "选择命令",
+                showActionBar: false
             ) {
                 VStack(spacing: 13) {
                     ForEach(commands.indices, id: \.self) { index in
@@ -45,36 +46,37 @@ struct CommandItem: View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
                 Text(command.displayName + " 系")
-                    .font(.system(size: 12))
+                    .font(.system(size: 13.5))
                     .foregroundColor(.overlayText)
                 Spacer()
             }
 
-            Text(command.command)
-                .font(.system(size: 12, weight: .regular, design: .monospaced))
-                .foregroundColor(.overlaySecondaryText)
-                .lineSpacing(3.8)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color.overlayCodeBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            HStack {
+                Text(command.command)
+                    .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .foregroundColor(.overlaySecondaryText)
+                    .lineSpacing(3.8)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 7)
+                    .background(Color.overlayCodeBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            Button(action: handleSelect) {
-                Text(isCopied ? "已选择" : "选择")
-                    .font(.system(size: 11, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.overlayBorder, lineWidth: 1)
-                    )
+                Button(action: handleSelect) {
+                    Text(isCopied ? "已选择" : "选择")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.overlayBorder, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(HoverButtonStyle(normalColor: .overlaySecondaryText, hoverColor: .overlayText))
+                .disabled(isCopied)
+                .opacity(isCopied ? 0.5 : 1.0)
             }
-            .padding(.top, 2)
-            .buttonStyle(HoverButtonStyle(normalColor: .overlaySecondaryText, hoverColor: .overlayText))
-            .disabled(isCopied)
-            .opacity(isCopied ? 0.5 : 1.0)
         }
     }
 
