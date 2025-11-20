@@ -20,7 +20,7 @@ struct ContentCard<CustomContent: View>: View {
     private let maxContentHeight: CGFloat = 200
 
     @State private var isContentCopied = false
-    @State private var showActionBar = false
+    @State private var showActionBar = true
     @State private var contentHeight: CGFloat = 0
     @State private var remainingSeconds = 9
     @State private var timerTask: Task<Void, Never>?
@@ -123,7 +123,7 @@ struct ContentCard<CustomContent: View>: View {
                 }
             }
             .padding(.horizontal, 13)
-            .padding(.vertical, 12)
+            .padding(.vertical, 11)
 
             // Bottom Timer Tip
             ZStack(alignment: .leading) {

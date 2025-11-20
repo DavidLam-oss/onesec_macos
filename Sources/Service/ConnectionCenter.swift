@@ -27,7 +27,7 @@ class ConnectionCenter: @unchecked Sendable {
     @Published var mouseContextState: [NSEvent.EventType: (position: NSPoint, screen: NSScreen)] = [:]
 
     @Published var currentMouseScreen: NSScreen? = nil
-    @Published var isAuthed: Bool = JWTValidator.isValid(Config.shared.AUTH_TOKEN)
+    @Published var isAuthed: Bool = JWTValidator.isValid(Config.shared.USER_CONFIG.authToken)
     @Published var currentRecordingAppContext: AppContext = .empty
 
     private var cancellables = Set<AnyCancellable>()

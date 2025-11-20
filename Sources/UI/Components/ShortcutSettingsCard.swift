@@ -239,8 +239,8 @@ struct ShortcutSettingsCard: View {
             cancelEditing()
         }
         .onAppear {
-            normalKeyCodes = Config.shared.NORMAL_KEY_CODES
-            commandKeyCodes = Config.shared.COMMAND_KEY_CODES
+            normalKeyCodes = Config.shared.USER_CONFIG.normalKeyCodes
+            commandKeyCodes = Config.shared.USER_CONFIG.commandKeyCodes
 
             EventBus.shared.events
                 .receive(on: DispatchQueue.main)
@@ -259,7 +259,7 @@ struct ShortcutSettingsCard: View {
 
     private func cancelEditing() {
         if let mode = currentEditingMode {
-            let originalCodes = mode == .normal ? Config.shared.NORMAL_KEY_CODES : Config.shared.COMMAND_KEY_CODES
+            let originalCodes = mode == .normal ? Config.shared.USER_CONFIG.normalKeyCodes : Config.shared.USER_CONFIG.commandKeyCodes
             let combination = originalCodes.map { KeyMapper.keyCodeToString($0) }
             EventBus.shared.publish(.hotkeySettingResulted(mode: mode, hotkeyCombination: combination))
             currentEditingMode = nil
@@ -273,7 +273,7 @@ struct ShortcutSettingsCard: View {
             combination.compactMap { KeyMapper.stringToKeyCodeMap[$0] })
 
         if isConflict {
-            let originalCodes = mode == .normal ? Config.shared.NORMAL_KEY_CODES : Config.shared.COMMAND_KEY_CODES
+            let originalCodes = mode == .normal ? Config.shared.USER_CONFIG.normalKeyCodes : Config.shared.USER_CONFIG.commandKeyCodes
 
             if mode == .normal {
                 normalKeyCodes = originalCodes

@@ -62,9 +62,9 @@ class KeyEventProcessor {
             let otherKeyCodes: [Int64]
             
             if hotkeySettingMode == .normal {
-                otherKeyCodes = Config.shared.COMMAND_KEY_CODES.sorted()
+                otherKeyCodes = Config.shared.USER_CONFIG.commandKeyCodes.sorted()
             } else {
-                otherKeyCodes = Config.shared.NORMAL_KEY_CODES.sorted()
+                otherKeyCodes = Config.shared.USER_CONFIG.normalKeyCodes.sorted()
             }
             
             let isConflict = newKeyCodes == otherKeyCodes

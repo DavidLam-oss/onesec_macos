@@ -6,29 +6,30 @@
 //
 
 import Combine
+import Foundation
 
 class Config: ObservableObject {
     static let shared = Config()
-    
+
     @Published var UDS_CHANNEL: String = ""
     @Published var SERVER: String = ""
-    @Published var AUTH_TOKEN: String = ""
-    @Published var DEBUG_MODE: Bool = true
-    @Published var NORMAL_KEY_CODES: [Int64] = [63, 49] // 默认 Fn
-    @Published var COMMAND_KEY_CODES: [Int64] = [63, 55] // 默认 Fn+LCmd
-    @Published var TEXT_PROCESS_MODE: TextProcessMode = .auto
-    
-    private init() {}
+
+    @Published var TEXT_PROCESS_MODE: TextProcessMode = .translate
+    @Published var USER_CONFIG = UserConfigService.shared.loadUserConfig()
 
     func saveHotkeySetting(mode: RecordMode, hotkeyCombination: [String]) {
-        let keyCodes = hotkeyCombination.compactMap { KeyMapper.stringToKeyCodeMap[$0] }
-        if mode == .normal {
-            NORMAL_KEY_CODES = keyCodes
-        } else if mode == .command {
-            COMMAND_KEY_CODES = keyCodes
-        }
+        let modeString = mode == .normal ? "normal" : "command"
 
-        log.info("Hotkey updated for mode: \(mode), keyCodes: \(keyCodes)")
+        if let index: Array<UserConfig.HotkeyConfig>.Index = USER_CONFIG.hotkeyConfigs.firstIndex(where: { $0.mode == modeString }) {
+            USER_CONFIG.hotkeyConfigs[index] = UserConfig.HotkeyConfig(mode: modeString, hotkeyCombination: hotkeyCombination)
+        }
+        UserConfigService.shared.saveUserConfig(USER_CONFIG)
+        log.info("Hotkey updated for mode: \(mode), combination: \(hotkeyCombination)")
+    }
+
+    func setLastSyncFocusJudgmentSheetTime(_ date: Date) {
+        USER_CONFIG.lastSyncFocusJudgmentSheetTime = date.timeIntervalSince1970
+        UserConfigService.shared.saveUserConfig(USER_CONFIG)
     }
 }
 
@@ -61,6 +62,176 @@ enum TextProcessMode: String, CaseIterable {
             "结构重组, 深度优化"
         case .terminal:
             "终端风格, 一键省心"
+        }
+    }
+}
+
+struct UserConfig: Codable {
+    let theme: String
+    let environment: Environment
+    var lastSyncFocusJudgmentSheetTime: Double
+    let translation: Translation
+    var authToken: String
+    let user: User
+    var hotkeyConfigs: [HotkeyConfig]
+
+    var lastSyncTime: Date? {
+        return lastSyncFocusJudgmentSheetTime > 0 ? Date(timeIntervalSince1970: lastSyncFocusJudgmentSheetTime) : nil
+    }
+
+    init() {
+        theme = "light"
+        environment = Environment()
+        lastSyncFocusJudgmentSheetTime = 0
+        translation = Translation()
+        authToken = ""
+        user = User()
+        hotkeyConfigs = []
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        theme = try container.decodeIfPresent(String.self, forKey: .theme) ?? "light"
+        environment = try container.decodeIfPresent(Environment.self, forKey: .environment) ?? Environment()
+        lastSyncFocusJudgmentSheetTime = try container.decodeIfPresent(Double.self, forKey: .lastSyncFocusJudgmentSheetTime) ?? 0
+        translation = try container.decodeIfPresent(Translation.self, forKey: .translation) ?? Translation()
+        authToken = try container.decodeIfPresent(String.self, forKey: .authToken) ?? ""
+        user = try container.decodeIfPresent(User.self, forKey: .user) ?? User()
+        hotkeyConfigs = try container.decodeIfPresent([HotkeyConfig].self, forKey: .hotkeyConfigs) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case theme
+        case environment
+        case lastSyncFocusJudgmentSheetTime
+        case translation
+        case authToken = "auth_token"
+        case user
+        case hotkeyConfigs = "hotkey_configs"
+    }
+
+    var normalKeyCodes: [Int64] {
+        for config in hotkeyConfigs {
+            if config.mode == "normal" {
+                let keyString = config.hotkeyCombination.joined(separator: "+")
+                return KeyMapper.parseKeyString(keyString) ?? [63]
+            }
+        }
+        return [63]
+    }
+
+    var commandKeyCodes: [Int64] {
+        for config in hotkeyConfigs {
+            if config.mode == "command" {
+                let keyString = config.hotkeyCombination.joined(separator: "+")
+                return KeyMapper.parseKeyString(keyString) ?? [63, 55]
+            }
+        }
+        return [63, 55]
+    }
+
+    struct Environment: Codable {
+        let preferredSystem: String
+        let hostSystems: [String: String]
+
+        init() {
+            preferredSystem = "debian"
+            hostSystems = [:]
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            preferredSystem = try container.decodeIfPresent(String.self, forKey: .preferredSystem) ?? "debian"
+            hostSystems = try container.decodeIfPresent([String: String].self, forKey: .hostSystems) ?? [:]
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case preferredSystem = "preferred_system"
+            case hostSystems = "host_systems"
+        }
+    }
+
+    struct Translation: Codable {
+        let showComparison: Bool
+
+        init() {
+            showComparison = false
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            showComparison = try container.decodeIfPresent(Bool.self, forKey: .showComparison) ?? false
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case showComparison = "show_comparison"
+        }
+    }
+
+    struct User: Codable {
+        let phone: String
+        let preferredLinuxDistro: String
+        let createdAt: String
+        let userId: Int
+        let userName: String
+        let invitationCodeUsed: String
+        let isActive: Bool
+
+        init() {
+            phone = ""
+            preferredLinuxDistro = "debian"
+            createdAt = ""
+            userId = 0
+            userName = ""
+            invitationCodeUsed = ""
+            isActive = true
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            phone = try container.decodeIfPresent(String.self, forKey: .phone) ?? ""
+            preferredLinuxDistro = try container.decodeIfPresent(String.self, forKey: .preferredLinuxDistro) ?? "debian"
+            createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+            userId = try container.decodeIfPresent(Int.self, forKey: .userId) ?? 0
+            userName = try container.decodeIfPresent(String.self, forKey: .userName) ?? ""
+            invitationCodeUsed = try container.decodeIfPresent(String.self, forKey: .invitationCodeUsed) ?? ""
+            isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case phone
+            case preferredLinuxDistro = "preferred_linux_distro"
+            case createdAt = "created_at"
+            case userId = "user_id"
+            case userName = "user_name"
+            case invitationCodeUsed = "invitation_code_used"
+            case isActive = "is_active"
+        }
+    }
+
+    struct HotkeyConfig: Codable {
+        let mode: String
+        let hotkeyCombination: [String]
+
+        init() {
+            mode = ""
+            hotkeyCombination = []
+        }
+
+        init(mode: String, hotkeyCombination: [String]) {
+            self.mode = mode
+            self.hotkeyCombination = hotkeyCombination
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? ""
+            hotkeyCombination = try container.decodeIfPresent([String].self, forKey: .hotkeyCombination) ?? []
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case mode
+            case hotkeyCombination = "hotkey_combination"
         }
     }
 }

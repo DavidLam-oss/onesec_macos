@@ -15,36 +15,37 @@ struct CommandParser: ParsableCommand {
     var server = "114.55.98.75:443" // 114.55.98.75:8000 staging-api.miaoyan.cn 192.168.50.171:8000
 
     @Option(name: .shortAndLong, help: "设置鉴权 Token")
-    var authToken: String
-
-    @Option(name: .shortAndLong, help: "设置 Debug 模式")
-    var debugMode: Bool = true
+    var authToken: String = ""
 
     @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn)")
-    var normalKeys: String = "Fn+LOpt"
+    var normalKeys: String = ""
 
     @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+LCmd)")
-    var commandKeys: String = "Fn+LCmd"
+    var commandKeys: String = ""
 
     mutating func run() throws {
         guard ServerValidator.isValid(server) else {
             throw ValidationError("Invalid Server: \(server)")
         }
 
+        let userConfig = Config.shared.USER_CONFIG
+        log.info("User Config: \n\(userConfig)")
+
         Config.shared.UDS_CHANNEL = udsChannel
         Config.shared.SERVER = server
-        Config.shared.AUTH_TOKEN = authToken
-        Config.shared.DEBUG_MODE = debugMode
-        Config.shared.NORMAL_KEY_CODES = try parseKeys(normalKeys, name: "普通模式按键")
-        Config.shared.COMMAND_KEY_CODES = try parseKeys(commandKeys, name: "命令模式按键")
 
-        log.info("Hotkey inited with normal: \(normalKeys), command: \(commandKeys)")
-    }
-
-    private func parseKeys(_ keyString: String, name: String) throws -> [Int64] {
-        guard let codes = KeyMapper.parseKeyString(keyString) else {
-            throw ValidationError("Invalid \(name) Config: \(keyString)")
+        if !authToken.isEmpty {
+            Config.shared.USER_CONFIG.authToken = authToken
         }
-        return codes
+
+        if !normalKeys.isEmpty {
+            let normalKeyArray = normalKeys.split(separator: "+").map { String($0) }
+            Config.shared.saveHotkeySetting(mode: .normal, hotkeyCombination: normalKeyArray)
+        }
+
+        if !commandKeys.isEmpty {
+            let commandKeyArray = commandKeys.split(separator: "+").map { String($0) }
+            Config.shared.saveHotkeySetting(mode: .command, hotkeyCombination: commandKeyArray)
+        }
     }
 }

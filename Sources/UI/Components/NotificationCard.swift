@@ -36,7 +36,7 @@ struct NotificationCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Spacer(minLength: 0)
+                Spacer()
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -47,7 +47,7 @@ struct NotificationCard: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 18)
                     .strokeBorder(Color.overlayBorder, lineWidth: 1.2)
             )
             .shadow(color: .overlayBackground.opacity(0.2), radius: 6, x: 0, y: 0)

@@ -11,8 +11,10 @@ import Foundation
 class UserConfigService {
     static let shared = UserConfigService()
 
+    var appBundleId: String = "com.ripplestar.miaoyan"
+    var appConfigFileName: String = "config.json"
+
     private let fileManager = FileManager.default
-    private let configFileName = "config.json"
     private var configDirectory: URL?
 
     private init() {
@@ -29,7 +31,7 @@ class UserConfigService {
             return
         }
 
-        configDirectory = appSupport.appendingPathComponent("com.ripplestar.miaoyan")
+        configDirectory = appSupport.appendingPathComponent(appBundleId)
 
         if let dir = configDirectory, !fileManager.fileExists(atPath: dir.path) {
             try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -37,35 +39,28 @@ class UserConfigService {
     }
 
     private var configFileURL: URL? {
-        configDirectory?.appendingPathComponent(configFileName)
+        configDirectory?.appendingPathComponent(appConfigFileName)
     }
 
-    func getLastSyncFocusJudgmentSheetTime() -> Date? {
-        guard let fileURL = configFileURL,
-              let data = try? Data(contentsOf: fileURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let timestamp = json["lastSyncFocusJudgmentSheetTime"] as? TimeInterval
-        else {
-            return nil
-        }
-        return Date(timeIntervalSince1970: timestamp)
-    }
-
-    func setLastSyncFocusJudgmentSheetTime(_ date: Date) {
+    func saveUserConfig(_ config: UserConfig) {
         guard let fileURL = configFileURL else { return }
 
-        var json: [String: Any] = [:]
-        if let data = try? Data(contentsOf: fileURL),
-           let existingJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        {
-            json = existingJson
-        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
 
-        json["lastSyncFocusJudgmentSheetTime"] = date.timeIntervalSince1970
-
-        if let data = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted) {
+        if let data = try? encoder.encode(config) {
             try? data.write(to: fileURL)
+            log.info("UserConfig saved")
         }
+    }
+
+    func loadUserConfig() -> UserConfig {
+        guard let fileURL = configFileURL,
+              let data = try? Data(contentsOf: fileURL),
+              let config = try? JSONDecoder().decode(UserConfig.self, from: data)
+        else { return UserConfig() }
+
+        return config
     }
 
     func saveData(_ data: Any, filename: String) {

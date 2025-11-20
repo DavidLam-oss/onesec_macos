@@ -37,7 +37,7 @@ class HTTPClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(Config.shared.AUTH_TOKEN)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(Config.shared.USER_CONFIG.authToken)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: signedBody)
 
         let (data, response) = try await session.data(for: request)

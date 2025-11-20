@@ -20,7 +20,7 @@ class SyncScheduler {
     private init() {}
 
     func start() {
-        guard let lastSyncTime = UserConfigService.shared.getLastSyncFocusJudgmentSheetTime() else {
+        guard let lastSyncTime: Date = Config.shared.USER_CONFIG.lastSyncTime else {
             log.info("First launch, no last sync time found, immediately execute sync task")
             performSync()
             scheduleNextSync()
@@ -104,8 +104,7 @@ class SyncScheduler {
                 }
             }
 
-            // 更新最后同步时间
-            UserConfigService.shared.setLastSyncFocusJudgmentSheetTime(Date())
+            Config.shared.setLastSyncFocusJudgmentSheetTime(Date())
             log.info("Sync completed, updated last sync time")
 
         } catch {

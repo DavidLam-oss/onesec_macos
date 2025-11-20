@@ -207,7 +207,7 @@ struct LazyTranslationCard: View {
                 }
             }
             .padding(.horizontal, 13)
-            .padding(.vertical, 12)
+            .padding(.vertical, 11)
 
             // Bottom Timer Tip
             VStack(spacing: 0) {

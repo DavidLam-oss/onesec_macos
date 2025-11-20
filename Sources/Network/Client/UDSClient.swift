@@ -194,8 +194,8 @@ extension UDSClient {
             return
         }
 
-        Config.shared.AUTH_TOKEN = authToken
-        ConnectionCenter.shared.isAuthed = JWTValidator.isValid(Config.shared.AUTH_TOKEN)
+        Config.shared.USER_CONFIG.authToken = authToken
+        ConnectionCenter.shared.isAuthed = JWTValidator.isValid(Config.shared.USER_CONFIG.authToken)
         log.info("ConnectionCenter.shared.isAuthed \(ConnectionCenter.shared.isAuthed)")
 
         for config in hotkeyConfigs {
