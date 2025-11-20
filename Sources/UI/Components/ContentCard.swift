@@ -16,13 +16,12 @@ struct ContentCard<CustomContent: View>: View {
     let customContent: (() -> CustomContent)?
     let cardWidth: CGFloat
 
-    private let autoCloseDuration = 12
-    private let maxContentHeight: CGFloat = 350
+    private let autoCloseDuration = 9
+    private let maxContentHeight: CGFloat = 200
 
     @State private var isContentCopied = false
-    @State private var showBottomSection = true
     @State private var contentHeight: CGFloat = 0
-    @State private var remainingSeconds = 12
+    @State private var remainingSeconds = 9
     @State private var timerTask: Task<Void, Never>?
     @State private var isHovering = false
 
@@ -54,7 +53,7 @@ struct ContentCard<CustomContent: View>: View {
 
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8.5) {
+            VStack(alignment: .leading, spacing: 9) {
                 // Title Bar
                 HStack(spacing: 8) {
                     Text(title)
@@ -72,13 +71,10 @@ struct ContentCard<CustomContent: View>: View {
                     .opacity(isHovering ? 1.0 : 0.0)
                     .animation(.easeInOut(duration: 0.2), value: isHovering)
                 }
-                .padding(.bottom, 8.5)
-                .overlay(
-                    Rectangle()
-                        .fill(Color.overlayBorder.opacity(0.5))
-                        .frame(height: 1.2).padding(.horizontal, -13),
-                    alignment: .bottom
-                )
+
+                Rectangle()
+                    .fill(Color.overlayBorder.opacity(0.5))
+                    .frame(height: 1.4).padding(.horizontal, -13).padding(.bottom, 1)
 
                 // Content
                 if let customContent = customContent {
@@ -125,20 +121,18 @@ struct ContentCard<CustomContent: View>: View {
             .padding(.vertical, 12)
 
             // Bottom Timer Tip
-            if showBottomSection {
-                ZStack(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.overlayPrimary.opacity(0.3))
-                        .frame(height: 3.5)
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(Color.overlayPrimary.opacity(0.3))
+                    .frame(height: 3.5)
 
-                    Rectangle()
-                        .fill(Color.overlayPrimary)
-                        .frame(width: cardWidth * CGFloat(remainingSeconds) / CGFloat(autoCloseDuration), height: 3)
-                        .animation(.linear(duration: 1.0), value: remainingSeconds)
-                }
-                .frame(height: 3.5)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                Rectangle()
+                    .fill(Color.overlayPrimary)
+                    .frame(width: cardWidth * CGFloat(remainingSeconds) / CGFloat(autoCloseDuration), height: 3)
+                    .animation(.linear(duration: 1.0), value: remainingSeconds)
             }
+            .frame(height: 3.5)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
         .background(Color.overlayBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -158,13 +152,6 @@ struct ContentCard<CustomContent: View>: View {
     private func closeCard() {
         stopAutoCloseTimer()
         OverlayController.shared.hideOverlay(uuid: panelID)
-    }
-
-    private func closeTipsSection() {
-        stopAutoCloseTimer()
-        withAnimation(.springAnimation) {
-            showBottomSection = false
-        }
     }
 
     private func handleCopyContent() {
