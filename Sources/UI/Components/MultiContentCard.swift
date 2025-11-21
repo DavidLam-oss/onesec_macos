@@ -11,6 +11,7 @@ struct MultiContentCard: View {
     let panelID: UUID
     let title: String
     let items: [ContentItem]
+    let cardWidth: CGFloat
 
     var body: some View {
         VStack {
@@ -18,7 +19,8 @@ struct MultiContentCard: View {
             ContentCard(
                 panelID: panelID,
                 title: title,
-                showActionBar: false
+                cardWidth: cardWidth,
+                showActionBar: false,
             ) {
                 VStack(spacing: 0) {
                     ForEach(items) { item in
@@ -30,7 +32,7 @@ struct MultiContentCard: View {
                 }
             }
         }
-        .frame(width: 300)
+        .frame(width: cardWidth)
     }
 }
 
@@ -97,9 +99,9 @@ private struct ContentItemView: View {
 }
 
 extension MultiContentCard {
-    static func show(title: String, items: [ContentItem], spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
+    static func show(title: String, items: [ContentItem], cardWidth: CGFloat = 260, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
         OverlayController.shared.showOverlay(content: { panelID in
-            MultiContentCard(panelID: panelID, title: title, items: items)
+            MultiContentCard(panelID: panelID, title: title, items: items, cardWidth: cardWidth)
         }, spacingX: spacingX, spacingY: spacingY, panelType: panelType)
     }
 }

@@ -27,13 +27,13 @@ struct LazyTranslationCard: View {
 
     let onTap: (() -> Void)?
     let actionButtons: [ActionButton]?
-    let cardWidth: CGFloat
     let expandDirection: ExpandDirection
 
     private let autoCloseDuration = 9
     private let compactSize: CGFloat = 25
-    private let maxContentHeight: CGFloat = 200
+    private let maxContentHeight: CGFloat = 300
 
+    @State private var cardWidth: CGFloat
     @State private var isContentCopied = false
     @State private var remainingSeconds = 9
     @State private var timerTask: Task<Void, Never>?
@@ -51,7 +51,7 @@ struct LazyTranslationCard: View {
         content: String = "",
         onTap: (() -> Void)? = nil,
         actionButtons: [ActionButton]? = nil,
-        cardWidth: CGFloat = 300,
+        cardWidth: CGFloat = 200,
         isCompactMode: Bool = false,
         expandDirection: ExpandDirection = .up,
     ) {
@@ -60,8 +60,8 @@ struct LazyTranslationCard: View {
         self.content = content
         self.onTap = onTap
         self.actionButtons = actionButtons
-        self.cardWidth = cardWidth
         self.expandDirection = expandDirection
+        _cardWidth = State(initialValue: cardWidth)
         _isExpanded = State(initialValue: !isCompactMode)
     }
 
@@ -316,12 +316,14 @@ struct LazyTranslationCard: View {
                     return
                 }
 
-                translationResult = TranslationResult(
+                let result = TranslationResult(
                     originalText: data["original_text"] as? String ?? "",
                     translatedText: data["translated_text"] as? String ?? "",
                     sourceLanguage: data["source_language"] as? String ?? "",
                     targetLanguage: data["target_language"] as? String ?? ""
                 )
+                translationResult = result
+                cardWidth = getTextCardWidth(text: result.translatedText)
                 isLoading = false
                 startAutoCloseTimer()
             } catch {

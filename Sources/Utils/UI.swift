@@ -5,6 +5,7 @@
 //  Created by 王晓雨 on 2025/10/16.
 //
 
+import AppKit
 import SwiftUI
 
 let auroraGreen = Color(hex: "#2EDDA8")
@@ -197,4 +198,24 @@ extension Image {
             Image(nsImage: NSImage(named: NSImage.Name(name)) ?? NSImage())
         }
     }
+}
+
+// Font
+
+func getTextWidth(text: String, font: NSFont = NSFont.systemFont(ofSize: 13.5)) -> CGFloat {
+    let size = (text as NSString).size(withAttributes: [.font: font])
+    return size.width
+}
+
+func getTextCardWidth(text: String) -> CGFloat {
+    let textWidth = getTextWidth(text: text)
+    return {
+        switch textWidth {
+        case ..<100: return 200
+        case ..<200: return 260
+        case ..<500: return 300
+        case ..<1000: return 330
+        default: return 360
+        }
+    }()
 }

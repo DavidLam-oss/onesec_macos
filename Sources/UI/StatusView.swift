@@ -91,6 +91,8 @@ extension StatusView {
             ])
         case let .serverResultReceived(summary, _, processMode, polishedText):
             recording.state = .idle
+            let textWidth = getTextWidth(text: summary)
+
             if summary.isEmpty {
                 return
             }
@@ -107,7 +109,7 @@ extension StatusView {
                         await AXPasteboardController.pasteTextToActiveApp(summary)
                     }
 
-                    handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText)
+                    handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText, textWidth: textWidth)
                     return
                 }
 
@@ -124,7 +126,7 @@ extension StatusView {
                         await AXPasteboardController.pasteTextToActiveApp(summary)
                     }
 
-                    handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText)
+                    handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText, textWidth: textWidth)
                     return
                 }
 
@@ -133,7 +135,7 @@ extension StatusView {
                 // 使用粘贴探针检测是否可以粘贴
                 log.info("Fallback to paste probe")
                 canPaste = await AXPasteProbe.runPasteProbe(summary)
-                handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText)
+                handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText, textWidth: textWidth)
             }
         case let .terminalLinuxChoice(bundleID, appName, endpointIdentifier, commands):
             recording.state = .idle
@@ -144,23 +146,25 @@ extension StatusView {
         }
     }
 
-    private func handleAlert(canPaste: Bool, processMode: TextProcessMode, summary: String, polishedText: String) {
+    private func handleAlert(canPaste: Bool, processMode: TextProcessMode, summary: String, polishedText: String, textWidth _: CGFloat) {
+        let cardWidth: CGFloat = getTextCardWidth(text: summary)
+
         if canPaste {
             if processMode == .translate {
-                ContentCard<EmptyView>.showAboveSelection(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: 260, spacingX: 8, spacingY: 14, panelType: .translate)
+                ContentCard<EmptyView>.showAboveSelection(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate)
             }
         } else {
             if processMode == .translate {
                 MultiContentCard.show(title: "识别结果", items: [
                     ContentItem(title: "原文", content: polishedText),
                     ContentItem(title: "译文", content: summary),
-                ], panelType: .translate)
+                ], cardWidth: cardWidth, panelType: .translate)
                 return
             }
             if recording.mode == .command {
-                ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: summary, cardWidth: 260, spacingX: 8, spacingY: 14, panelType: .command)
+                ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: summary, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
             } else {
-                ContentCard<EmptyView>.show(title: "识别结果", content: summary, panelType: .notification)
+                ContentCard<EmptyView>.show(title: "识别结果", content: summary, cardWidth: cardWidth, panelType: .notification)
             }
         }
     }
