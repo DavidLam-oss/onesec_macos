@@ -1,0 +1,105 @@
+import AppKit
+import SwiftUI
+
+struct ContentItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let content: String
+}
+
+struct MultiContentCard: View {
+    let panelID: UUID
+    let title: String
+    let items: [ContentItem]
+
+    var body: some View {
+        VStack {
+            Spacer()
+            ContentCard(
+                panelID: panelID,
+                title: title,
+                showActionBar: false
+            ) {
+                VStack(spacing: 0) {
+                    ForEach(items) { item in
+                        ContentItemView(
+                            panelID: panelID,
+                            item: item,
+                        )
+                    }
+                }
+            }
+        }
+        .frame(width: 300)
+    }
+}
+
+private struct ContentItemView: View {
+    let panelID: UUID
+    let item: ContentItem
+
+    @State private var isCopied = false
+    @State private var isHovering = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text(item.title)
+                    .font(.system(size: 13.5))
+                    .foregroundColor(.overlayText)
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 9) {
+                Text(item.content)
+                    .font(.system(size: 13.5, weight: .regular))
+                    .foregroundColor(.overlaySecondaryText)
+                    .lineSpacing(3.8)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack {
+                    Spacer()
+                    Button(action: handleCopyContent) {
+                        HStack(spacing: 4) {
+                            Image.systemSymbol(isCopied ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 12, weight: .semibold))
+                                .scaleEffect(isCopied ? 1.1 : 1.0)
+                                .animation(.quickSpringAnimation, value: isCopied).frame(height: 12)
+
+                            Text("复制").font(.system(size: 12, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(HoverIconButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
+                    .disabled(isCopied)
+                    .opacity(isHovering ? (isCopied ? 0.5 : 1.0) : 0.0)
+                    .animation(.easeInOut(duration: 0.2), value: isHovering)
+                }
+            }
+        }
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+
+    private func handleCopyContent() {
+        withAnimation {
+            isCopied = true
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            withAnimation {
+                isCopied = false
+            }
+        }
+    }
+}
+
+extension MultiContentCard {
+    static func show(title: String, items: [ContentItem], spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
+        OverlayController.shared.showOverlay(content: { panelID in
+            MultiContentCard(panelID: panelID, title: title, items: items)
+        }, spacingX: spacingX, spacingY: spacingY, panelType: panelType)
+    }
+}
