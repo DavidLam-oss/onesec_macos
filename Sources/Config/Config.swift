@@ -14,7 +14,7 @@ class Config: ObservableObject {
     @Published var UDS_CHANNEL: String = ""
     @Published var SERVER: String = ""
 
-    @Published var TEXT_PROCESS_MODE: TextProcessMode = .translate
+    @Published var TEXT_PROCESS_MODE: TextProcessMode = .auto
     @Published var USER_CONFIG = UserConfigService.shared.loadUserConfig()
 
     func saveHotkeySetting(mode: RecordMode, hotkeyCombination: [String]) {

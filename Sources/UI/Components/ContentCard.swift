@@ -25,6 +25,7 @@ struct ContentCard<CustomContent: View>: View {
     @State private var remainingSeconds = 9
     @State private var timerTask: Task<Void, Never>?
     @State private var isHovering = false
+    @State private var hasBeenHovered = false
 
     init(
         panelID: UUID,
@@ -138,7 +139,8 @@ struct ContentCard<CustomContent: View>: View {
                     .animation(.linear(duration: 1.0), value: remainingSeconds)
             }
             .frame(height: 3.5)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .opacity(hasBeenHovered ? 0 : 1)
+            .animation(.easeInOut(duration: 0.2), value: hasBeenHovered)
         }
         .background(Color.overlayBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -150,6 +152,10 @@ struct ContentCard<CustomContent: View>: View {
         .onTapGesture { onTap?() }
         .onHover { hovering in
             isHovering = hovering
+            if hovering && !hasBeenHovered {
+                hasBeenHovered = true
+                stopAutoCloseTimer()
+            }
         }
         .onAppear { startAutoCloseTimer() }
         .onDisappear { stopAutoCloseTimer() }
@@ -182,15 +188,14 @@ struct ContentCard<CustomContent: View>: View {
             var currentSeconds = autoCloseDuration
             while currentSeconds >= 0 {
                 guard !Task.isCancelled else { return }
+                guard !hasBeenHovered else { return }
 
-                if !isHovering {
-                    remainingSeconds = currentSeconds
-                    if currentSeconds == 0 {
-                        closeCard()
-                        return
-                    }
-                    currentSeconds -= 1
+                remainingSeconds = currentSeconds
+                if currentSeconds == 0 {
+                    closeCard()
+                    return
                 }
+                currentSeconds -= 1
 
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }

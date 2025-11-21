@@ -38,6 +38,7 @@ struct LazyTranslationCard: View {
     @State private var remainingSeconds = 9
     @State private var timerTask: Task<Void, Never>?
     @State private var isHovering = false
+    @State private var hasBeenHovered = false
     @State private var isExpanded = false
     @State private var isLoading = false
     @State private var translationResult: TranslationResult? = nil
@@ -107,8 +108,6 @@ struct LazyTranslationCard: View {
         .onHover { hovering in
             isHovering = hovering
         }
-        .onAppear { startAutoCloseTimer() }
-        .onDisappear { stopAutoCloseTimer() }
     }
 
     private var cardContent: some View {
@@ -224,7 +223,8 @@ struct LazyTranslationCard: View {
                 }
                 .frame(height: 3.5)
             }
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .opacity(hasBeenHovered ? 0 : 1)
+            .animation(.easeInOut(duration: 0.2), value: hasBeenHovered)
         }
         .background(Color.overlayBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -236,9 +236,12 @@ struct LazyTranslationCard: View {
         .onTapGesture { onTap?() }
         .onHover { hovering in
             isHovering = hovering
+            if hovering && !hasBeenHovered {
+                hasBeenHovered = true
+                stopAutoCloseTimer()
+            }
         }
         .onAppear {
-            startAutoCloseTimer()
             fetchTranslation()
         }
         .onDisappear { stopAutoCloseTimer() }
@@ -273,15 +276,14 @@ struct LazyTranslationCard: View {
             var currentSeconds = autoCloseDuration
             while currentSeconds >= 0 {
                 guard !Task.isCancelled else { return }
+                guard !hasBeenHovered else { return }
 
-                if !isHovering {
-                    remainingSeconds = currentSeconds
-                    if currentSeconds == 0 {
-                        closeCard()
-                        return
-                    }
-                    currentSeconds -= 1
+                remainingSeconds = currentSeconds
+                if currentSeconds == 0 {
+                    closeCard()
+                    return
                 }
+                currentSeconds -= 1
 
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
@@ -321,6 +323,7 @@ struct LazyTranslationCard: View {
                     targetLanguage: data["target_language"] as? String ?? ""
                 )
                 isLoading = false
+                startAutoCloseTimer()
             } catch {
                 errorMessage = "翻译失败：\(error.localizedDescription)"
                 isLoading = false
