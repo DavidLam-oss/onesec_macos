@@ -1,11 +1,6 @@
 import AppKit
 import SwiftUI
 
-enum ExpandDirection {
-    case up
-    case down
-}
-
 struct ContentHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -69,7 +64,10 @@ struct LazyTranslationCard: View {
         VStack {
             if !isExpanded {
                 compactView
-                    .transition(.scale(scale: 0.1, anchor: expandDirection == .up ? .bottom : .top).combined(with: .opacity))
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.1, anchor: expandDirection == .up ? .bottom : .top).combined(with: .opacity),
+                        removal: expandDirection == .up ? .identity : .scale(scale: 0.1, anchor: .top).combined(with: .opacity)
+                    ))
             } else {
                 cardContent
                     .transition(.scale(scale: 0.1, anchor: expandDirection == .up ? .bottom : .top).combined(with: .opacity))
@@ -322,12 +320,14 @@ struct LazyTranslationCard: View {
                     sourceLanguage: data["source_language"] as? String ?? "",
                     targetLanguage: data["target_language"] as? String ?? ""
                 )
-                translationResult = result
+
                 cardWidth = getTextCardWidth(text: result.translatedText)
+                translationResult = result
+
                 isLoading = false
                 startAutoCloseTimer()
             } catch {
-                errorMessage = "翻译失败：\(error.localizedDescription)"
+                errorMessage = "翻译失败: \(error.localizedDescription)"
                 isLoading = false
             }
         }
@@ -355,6 +355,6 @@ extension LazyTranslationCard {
     static func showAboveSelection(title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil, cardWidth: CGFloat = 250, spacingX: CGFloat = 0, spacingY: CGFloat = 0, isCompactMode: Bool = false, expandDirection: ExpandDirection = .down) {
         OverlayController.shared.showOverlayAboveSelection(content: { panelID in
             LazyTranslationCard(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons, cardWidth: cardWidth, isCompactMode: isCompactMode, expandDirection: expandDirection)
-        }, spacingX: spacingX, spacingY: spacingY)
+        }, spacingX: spacingX, spacingY: spacingY, expandDirection: expandDirection)
     }
 }

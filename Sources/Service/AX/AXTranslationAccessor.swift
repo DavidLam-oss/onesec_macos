@@ -6,21 +6,27 @@ import SwiftUI
 class AXTranslationAccessor {
     private static var mouseDownMonitor: Any?
     private static var mouseUpMonitor: Any?
-
-    private static var currentSelectedText: String = ""
     private static var pasteboardText = ""
-
     private static var translationPanelID: UUID?
-    private static var hasMouseDown: Bool = false
     private static var mouseDownPoint: NSPoint?
+    private static var cancellable: AnyCancellable?
 
     static func setupMouseUpListener() {
+        cancellable = Config.shared.$TEXT_PROCESS_MODE
+            .sink { mode in
+                if mode == .translate {
+                    startMonitoring()
+                } else {
+                    stopMonitoring()
+                }
+            }
+    }
+    
+    private static func startMonitoring() {
+        guard mouseDownMonitor == nil else { return }
+        
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { _ in
             Task { @MainActor in
-                if Config.shared.TEXT_PROCESS_MODE != .translate {
-                    return
-                }
-                hasMouseDown = true
                 mouseDownPoint = NSEvent.mouseLocation
                 pasteboardText = NSPasteboard.general.string(forType: .string) ?? ""
             }
@@ -28,12 +34,11 @@ class AXTranslationAccessor {
 
         mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { _ in
             Task { @MainActor in
-                guard hasMouseDown, let downPoint = mouseDownPoint else { return }
-                hasMouseDown = false
+                guard let downPoint = mouseDownPoint else { return }
                 mouseDownPoint = nil
 
-                let mouseUpPoint = NSEvent.mouseLocation
-                let distance = sqrt(pow(mouseUpPoint.x - downPoint.x, 2) + pow(mouseUpPoint.y - downPoint.y, 2))
+                let upPoint = NSEvent.mouseLocation
+                let distance = hypot(upPoint.x - downPoint.x, upPoint.y - downPoint.y)
 
                 // 25 约为两个中文字符宽度
                 guard distance > 25 else {
@@ -41,44 +46,47 @@ class AXTranslationAccessor {
                     return
                 }
 
-                await endTranslationRecording(mousePoint: mouseUpPoint)
+                await endTranslationRecording(mousePoint: upPoint, direction: upPoint.y > downPoint.y ? .up : .down)
             }
         }
     }
+    
+    private static func stopMonitoring() {
+        if let monitor = mouseDownMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseDownMonitor = nil
+        }
+        if let monitor = mouseUpMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseUpMonitor = nil
+        }
+        mouseDownPoint = nil
+    }
 
-    private static func endTranslationRecording(mousePoint: NSPoint) async {
-        let text = await ContextService.getSelectedText()
-        if text == nil ||
-            text!.isEmpty ||
-            text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            text == pasteboardText
-        {
+    private static func endTranslationRecording(mousePoint: NSPoint, direction: ExpandDirection) async {
+        guard let text = await ContextService.getSelectedText(),
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              text != pasteboardText
+        else {
             log.info("No text to translate")
             reset()
             return
         }
-        currentSelectedText = text!
 
         OverlayController.shared.hideAllOverlays()
-        translationPanelID = OverlayController.shared.showOverlayAbovePoint(point: mousePoint) { panelID in
+        translationPanelID = OverlayController.shared.showOverlayAbovePoint(point: mousePoint, content: { panelID in
             LazyTranslationCard(
                 panelID: panelID,
                 title: "识别结果",
-                content: currentSelectedText,
+                content: text,
                 isCompactMode: true,
-                expandDirection: .down
+                expandDirection: direction
             )
-        }
-
-        // 清空记录
-        currentSelectedText = ""
+        }, expandDirection: direction)
     }
 
     private static func reset() {
-        if translationPanelID != nil {
-            OverlayController.shared.hideOverlay(uuid: translationPanelID!)
-            translationPanelID = nil
-        }
-        currentSelectedText = ""
+        translationPanelID.map { OverlayController.shared.hideOverlay(uuid: $0) }
+        translationPanelID = nil
     }
 }

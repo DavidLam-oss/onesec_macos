@@ -8,6 +8,11 @@ enum PanelType {
     case notification
 }
 
+enum ExpandDirection {
+    case up
+    case down
+}
+
 @MainActor
 class OverlayController {
     static let shared = OverlayController()
@@ -31,7 +36,7 @@ class OverlayController {
         )
 
         // 如果指定了 panelType，尝试找到现有的同类型 panel
-        if let panelType = panelType, let existingUUID = findPanelUUIDByType(panelType) {
+        if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
             moveAndUpdateExistingPanel(
                 uuid: existingUUID,
                 content: content,
@@ -96,7 +101,7 @@ class OverlayController {
         uuidsToHide.forEach { hideOverlay(uuid: $0) }
     }
 
-    private func findPanelUUIDByType(_ panelType: PanelType) -> UUID? {
+    private func findPanelByType(_ panelType: PanelType) -> UUID? {
         return panels.first { $0.value.panelType == panelType }?.key
     }
 
@@ -114,7 +119,7 @@ class OverlayController {
     }
 
     @discardableResult
-    func showOverlayAboveSelection(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX: CGFloat = 14, spacingY: CGFloat = 14, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID? {
+    func showOverlayAboveSelection(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX: CGFloat = 14, spacingY: CGFloat = 14, extraHeight: CGFloat = 0, panelType: PanelType? = nil, expandDirection: ExpandDirection? = nil) -> UUID? {
         let (bounds, isExactBounds) = getValidSelectionBounds()
         guard let bounds = bounds else {
             return nil
@@ -135,7 +140,7 @@ class OverlayController {
             spacingY: isExactBounds ? 0 : spacingY
         )
 
-        if let panelType = panelType, let existingUUID = findPanelUUIDByType(panelType) {
+        if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
             moveAndUpdateExistingPanel(
                 uuid: existingUUID,
                 content: content,
@@ -147,18 +152,25 @@ class OverlayController {
             return existingUUID
         }
 
+        hosting.onSizeChanged = { [weak self] in
+            self?.handlePanelSizeChange(uuid: uuid)
+        }
+
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight)
         setupPanel(panel, hosting: hosting)
-        panel.isMovableByWindowBackground = true
+
         animateFadeIn(panel)
 
         panel.panelType = panelType
+        panel.expandDirection = expandDirection
+        panel.isMovableByWindowBackground = true
+        panel.initialOriginY = origin.y
         panels[uuid] = panel
         return uuid
     }
 
     @discardableResult
-    func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID? {
+    func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0, panelType: PanelType? = nil, expandDirection: ExpandDirection? = nil) -> UUID? {
         if let panelType = panelType {
             hideOverlaysByPanelType(panelType)
         }
@@ -177,12 +189,18 @@ class OverlayController {
             spacing: 0
         )
 
+        hosting.onSizeChanged = { [weak self] in
+            self?.handlePanelSizeChange(uuid: uuid)
+        }
+
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight)
         setupPanel(panel, hosting: hosting)
-        panel.isMovableByWindowBackground = true
         animateFadeIn(panel)
 
         panel.panelType = panelType
+        panel.isMovableByWindowBackground = true
+        panel.expandDirection = expandDirection
+        panel.initialOriginY = origin.y
         panels[uuid] = panel
         return uuid
     }
@@ -312,9 +330,9 @@ private extension OverlayController {
     }
 
     func createHostingViewAndGetSize(@ViewBuilder content: () -> some View) -> (
-        hosting: NSHostingView<AnyView>, size: NSSize
+        hosting: AutoResizingHostingView<AnyView>, size: NSSize
     ) {
-        let hosting = NSHostingView(rootView: AnyView(content().padding(shadowPadding)))
+        let hosting = AutoResizingHostingView(rootView: AnyView(content().padding(shadowPadding)))
         let tempPanel = NSPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -323,12 +341,31 @@ private extension OverlayController {
         )
         tempPanel.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
+
         return (hosting, hosting.fittingSize)
+    }
+
+    // Panel Size 变化时, 扩展的原点为左上角点
+    // 处理向上展开的 panel 大小变化原点固定左下角
+    private func handlePanelSizeChange(uuid: UUID) {
+        guard let panel = panels[uuid],
+              let contentView = panel.contentView,
+              panel.expandDirection == .up else { return }
+
+        let oldFrame = panel.frame
+        var newOrigin = oldFrame.origin
+
+        newOrigin.y = panel.initialOriginY ?? newOrigin.y
+
+        let newFrame = NSRect(origin: newOrigin, size: contentView.fittingSize)
+        panel.setFrame(newFrame, display: true, animate: false)
     }
 }
 
 extension NSPanel {
     private static var panelTypeKey: UInt8 = 0
+    private static var expandDirectionKey: UInt8 = 1
+    private static var initialOriginYKey: UInt8 = 2
 
     var panelType: PanelType? {
         get {
@@ -336,6 +373,24 @@ extension NSPanel {
         }
         set {
             objc_setAssociatedObject(self, &Self.panelTypeKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    var expandDirection: ExpandDirection? {
+        get {
+            return objc_getAssociatedObject(self, &Self.expandDirectionKey) as? ExpandDirection
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.expandDirectionKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    var initialOriginY: CGFloat? {
+        get {
+            return objc_getAssociatedObject(self, &Self.initialOriginYKey) as? CGFloat
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.initialOriginYKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 }
