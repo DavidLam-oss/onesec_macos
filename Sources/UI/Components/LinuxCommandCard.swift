@@ -107,6 +107,9 @@ struct CommandItem: View {
             isCopied = true
         }
 
+        let panel = OverlayController.shared.getPanel(uuid: panelID)
+        guard let panel else { return }
+        panel.resignKey()
         OverlayController.shared.hideOverlay(uuid: panelID)
 
         Task { @MainActor in
@@ -124,11 +127,6 @@ struct CommandItem: View {
                     }
                 }
 
-                if shouldShowEditor,
-                   let panel = OverlayController.shared.getPanel(uuid: panelID)
-                {
-                    panel.resignKey()
-                }
                 await AXPasteboardController.pasteTextToActiveApp(editableCommand
                     .formattedCommand)
 

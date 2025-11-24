@@ -109,6 +109,7 @@ extension StatusView {
                     log.info("Use zero width char paste test")
                     if await AXPasteboardController.whasTextInputFocus() {
                         canPaste = true
+                        if processMode == .terminal && summary.newlineCount >= 1 { return }
                         await AXPasteboardController.pasteTextToActiveApp(summary)
                     }
 
@@ -125,6 +126,7 @@ extension StatusView {
                     log.info("Use AX paste test")
                     if isEditable {
                         canPaste = true
+                        if processMode == .terminal && summary.newlineCount >= 1 { return }
                         await AXPasteboardController.pasteTextToActiveApp(summary)
                     }
 
@@ -135,6 +137,7 @@ extension StatusView {
                 // 对于 AX 黑名单应用
                 // 使用粘贴探针检测是否可以粘贴
                 log.info("Fallback to paste probe")
+                if processMode == .terminal && summary.newlineCount >= 1 { return }
                 canPaste = await AXPasteProbe.runPasteProbe(summary)
             }
         case let .terminalLinuxChoice(_, _, _, commands):
@@ -152,7 +155,7 @@ extension StatusView {
         if canPaste {
             if processMode == .translate {
                 ContentCard<EmptyView>.showAboveSelection(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate)
-            } else if processMode == .terminal {
+            } else if processMode == .terminal, summary.newlineCount >= 1 {
                 let commands = [
                     LinuxCommand(distro: "", command: summary, displayName: ""),
                 ]
