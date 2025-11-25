@@ -29,7 +29,17 @@ class AXPasteProbe {
     }
 
     static func isPasteAllowed() async -> Bool {
-        return await runPasteProbe("")
+        let oldContent = NSPasteboard.general.string(forType: .string)
+        let canPaste = await runPasteProbe("")
+
+        if let oldContent,
+           let currentContent = NSPasteboard.general.string(forType: .string),
+           currentContent.isEmpty
+        {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(oldContent, forType: .string)
+        }
+        return canPaste
     }
 }
 
@@ -44,6 +54,7 @@ extension AXPasteProbe {
                 log.info("粘贴被读取时间: \(String(format: "%.2f", elapsed))ms")
             } else if readCount == 2 {
                 lazyPasteProbeHit = true
+                pasteboard.clearContents()
                 pasteboard.setString(pasteContent, forType: .string)
                 log.info("粘贴后 declareTypes 被读取的时间: \(String(format: "%.2f", elapsed))ms")
             }

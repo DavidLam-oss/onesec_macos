@@ -89,24 +89,23 @@ extension StatusView {
                     }
                 },
             ])
-        case let .serverResultReceived(summary, _, processMode, polishedText):
+        case let .serverResultReceived(text, _, processMode, polishedText):
             recording.state = .idle
-
-            if summary.isEmpty {
+            if text.isEmpty {
                 return
             }
 
             Task {
                 let canPaste = await canPasteNow()
                 defer {
-                    handleAlert(canPaste: canPaste, processMode: processMode, summary: summary, polishedText: polishedText)
+                    handleAlert(canPaste: canPaste, processMode: processMode, text: text, polishedText: polishedText)
                 }
 
-                if processMode == .terminal && summary.newlineCount >= 1 {
+                if processMode == .terminal && text.newlineCount >= 1 {
                     return
                 }
                 if canPaste {
-                    await AXPasteboardController.pasteTextToActiveApp(summary)
+                    await AXPasteboardController.pasteTextToActiveApp(text)
                     return
                 }
             }
@@ -145,27 +144,27 @@ extension StatusView {
         return await AXPasteProbe.isPasteAllowed()
     }
 
-    private func handleAlert(canPaste: Bool, processMode: TextProcessMode, summary: String, polishedText: String) {
-        let cardWidth: CGFloat = getTextCardWidth(text: summary)
+    private func handleAlert(canPaste: Bool, processMode: TextProcessMode, text: String, polishedText: String) {
+        let cardWidth: CGFloat = getTextCardWidth(text: text)
 
         if canPaste {
             if processMode == .translate {
                 ContentCard<EmptyView>.show(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate, canMove: true)
-            } else if processMode == .terminal, summary.newlineCount >= 1 {
-                LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: summary, displayName: "")])
+            } else if processMode == .terminal, text.newlineCount >= 1 {
+                LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: text, displayName: "")])
             }
         } else {
             if processMode == .translate {
                 MultiContentCard.show(title: "识别结果", items: [
                     ContentItem(title: "原文", content: polishedText),
-                    ContentItem(title: "译文", content: summary),
+                    ContentItem(title: "译文", content: text),
                 ], cardWidth: cardWidth, panelType: .translate)
                 return
             }
             if recording.mode == .command {
-                ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: summary, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
+                ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: text, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
             } else {
-                ContentCard<EmptyView>.show(title: "识别结果", content: summary, cardWidth: cardWidth, panelType: .notification)
+                ContentCard<EmptyView>.show(title: "识别结果", content: text, cardWidth: cardWidth, panelType: .notification)
             }
         }
     }

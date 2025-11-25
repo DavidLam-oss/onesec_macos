@@ -110,7 +110,6 @@ class AXPasteboardController {
     static func copyCurrentSelectionAndRestore() async -> String? {
         let pasteboard = NSPasteboard.general
         let oldContents: String? = pasteboard.string(forType: .string)
-        let oldChangeCount: Int = pasteboard.changeCount
         pasteboard.clearContents()
 
         // 模拟 Cmd+C 复制
@@ -120,11 +119,9 @@ class AXPasteboardController {
         try? await Task.sleep(nanoseconds: 150_000_000)
 
         let copiedText = pasteboard.string(forType: .string)
-
         // 恢复原剪贴板内容
-        if let oldContents,
-            pasteboard.changeCount == oldChangeCount + 2 
-        {
+        if let oldContents {
+            pasteboard.clearContents()
             pasteboard.setString(oldContents, forType: .string)
         }
 
@@ -184,6 +181,7 @@ class AXPasteboardController {
     static func restorePasteboard(_ oldContents: String?) {
         let pasteboard = NSPasteboard.general
         if let oldContents {
+            pasteboard.clearContents()
             pasteboard.setString(oldContents, forType: .string)
         }
     }
