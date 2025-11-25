@@ -92,9 +92,6 @@ extension StatusView {
         case let .serverResultReceived(summary, _, processMode, polishedText):
             recording.state = .idle
 
-            // LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: summary, displayName: "")])
-            // return;
-
             if summary.isEmpty {
                 return
             }
@@ -123,6 +120,7 @@ extension StatusView {
     }
 
     private func canPasteNow() async -> Bool {
+        // 1.
         // 首先根据白名单使用零宽字符复制测试方法
         if isAppShouldTestWithZeroWidthChar() {
             log.info("Use zero width char paste test")
@@ -152,12 +150,9 @@ extension StatusView {
 
         if canPaste {
             if processMode == .translate {
-                ContentCard<EmptyView>.showAboveSelection(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate)
+                ContentCard<EmptyView>.show(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate, canMove: true)
             } else if processMode == .terminal, summary.newlineCount >= 1 {
-                let commands = [
-                    LinuxCommand(distro: "", command: summary, displayName: ""),
-                ]
-                LinuxCommandCard.show(commands: commands)
+                LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: summary, displayName: "")])
             }
         } else {
             if processMode == .translate {

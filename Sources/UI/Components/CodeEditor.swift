@@ -61,10 +61,10 @@ protocol Themeable {
 struct EditorTheme: Identifiable, Themeable {
     var id = UUID()
     var name: String
-    var font: NSFont = .monospacedSystemFont(ofSize: 12, weight: .regular)
+    var font: NSFont = .monospacedSystemFont(ofSize: 13.5, weight: .regular)
 
     var syntaxOptions: [SyntaxOption]
-    var backgroundColor: NSColor = .textBackgroundColor
+    var backgroundColor: NSColor = Color.overlaySecondaryBackground.nsColor
 
     static var `default`: EditorTheme {
         .init(name: "Default", syntaxOptions: SyntaxOption.default)
@@ -74,59 +74,76 @@ struct EditorTheme: Identifiable, Themeable {
 struct CodeEditor: NSViewRepresentable {
     @Binding var text: String
     var theme: EditorTheme
-    var padding: CGFloat = 12
+    var padding: CGFloat = 10
 
-    @State var textView: NSTextView?
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else { return scrollView }
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSTextView.scrollableTextView()
-        guard let textView = view.documentView as? NSTextView else { return view }
+        textView.font = theme.font
+        textView.isEditable = true
+        textView.isRichText = false
+        textView.backgroundColor = theme.backgroundColor
+        textView.insertionPointColor = Color.overlaySecondaryPrimary.nsColor
+        textView.string = text
+        textView.delegate = context.coordinator
 
-        DispatchQueue.main.asyncAfter(deadline: .now()) {
-            self.textView = textView
-            configureTextView(with: context)
+        scrollView.contentInsets = .init(top: padding, left: padding, bottom: padding, right: padding)
+        scrollView.automaticallyAdjustsContentInsets = false
+        
+        context.coordinator.textView = textView
+        applySyntaxStyling(to: textView)
+        
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+        
+        if textView.string != text {
+            let selectedRange = textView.selectedRange()
+            textView.string = text
+            let safeRange = NSRange(location: min(selectedRange.location, text.count), length: 0)
+            textView.setSelectedRange(safeRange)
         }
-
-        view.contentInsets = .init(top: padding, left: padding, bottom: padding, right: padding)
-        view.automaticallyAdjustsContentInsets = false
-        return view
+        
+        applySyntaxStyling(to: textView)
     }
 
-    func updateNSView(_: NSView, context _: Context) {
-        applySyntaxStyling()
-    }
+    func applySyntaxStyling(to textView: NSTextView) {
+        guard let textStorage = textView.textStorage, textStorage.length > 0 else { return }
+        
+        let selectedRange = textView.selectedRange()
+        let fullRange = NSRange(location: 0, length: textStorage.length)
+        
+        textStorage.beginEditing()
+        
 
-    func applySyntaxStyling() {
-        let attributedString = NSMutableAttributedString(string: text)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 3.5
+        
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
+        textStorage.addAttribute(.font, value: theme.font, range: fullRange)
+        textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
 
-        let fullRange = NSRange(location: 0, length: text.utf8.count)
-
-        // Default styling for the text.
-        attributedString.addAttribute(.font, value: theme.font, range: fullRange)
-        attributedString.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
-
-        // Apply styling for the text that matches the a SyntaxOption object.
         for option in theme.syntaxOptions {
             let regex = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: option.word))\\b", options: .caseInsensitive)
-            let matches = regex?.matches(in: text, options: [], range: fullRange) ?? []
-
+            let matches = regex?.matches(in: textStorage.string, options: [], range: fullRange) ?? []
             for match in matches {
-                attributedString.addAttribute(.foregroundColor, value: option.color, range: match.range)
-                attributedString.addAttribute(.font, value: option.font, range: match.range)
+                textStorage.addAttribute(.foregroundColor, value: option.color, range: match.range)
+                textStorage.addAttribute(.font, value: option.font, range: match.range)
             }
         }
 
-        textView?.textStorage?.setAttributedString(attributedString)
-    }
+        if let commentRegex = try? NSRegularExpression(pattern: "^\\s*#.*$", options: .anchorsMatchLines) {
+            let commentMatches = commentRegex.matches(in: textStorage.string, options: [], range: fullRange)
+            for match in commentMatches {
+                textStorage.addAttribute(.foregroundColor, value: Color.overlaySecondaryPrimary.nsColor, range: match.range)
+            }
+        }
 
-    func configureTextView(with context: Context) {
-        textView?.font = theme.font
-        textView?.isEditable = true
-        textView?.isRichText = false
-        textView?.backgroundColor = theme.backgroundColor
-
-        // Assigning the coordinator as the textView delegate.
-        textView?.delegate = context.coordinator
+        textStorage.endEditing()
+        textView.setSelectedRange(selectedRange)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -137,19 +154,16 @@ struct CodeEditor: NSViewRepresentable {
 extension CodeEditor {
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: CodeEditor
-        var textView: NSTextView?
+        weak var textView: NSTextView?
 
         init(_ parent: CodeEditor) {
             self.parent = parent
-            textView = parent.textView
         }
 
-        // TODO: Add delegate methods for the NSTextView.
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            DispatchQueue.main.async {
-                self.parent.text = textView.string
-            }
+            parent.text = textView.string
         }
     }
 }
+

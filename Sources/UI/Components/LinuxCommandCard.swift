@@ -15,6 +15,7 @@ struct LinuxCommandCard: View {
             ContentCard(
                 panelID: panelID,
                 title: isChoiceMode ? "选择命令" : "命令处理",
+                cardWidth: 400,
                 showActionBar: false
             ) {
                 VStack(spacing: 13) {
@@ -28,7 +29,6 @@ struct LinuxCommandCard: View {
                 }
             }
         }
-        .frame(width: 300)
     }
 }
 
@@ -84,17 +84,9 @@ struct CommandItem: View {
 
             VStack(alignment: .trailing, spacing: 10) {
                 if shouldShowEditor {
-                    CodeEditor(text: $text, theme: .default)
+                    CodeEditor(text: $editableCommand, theme: .default)
                         .frame(minHeight: 100)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
-                    // CodeEditor(
-                    //     text: $editableCommand,
-                    //     backgroundColor: NSColor(Color.overlayCodeBackground),
-                    //     textColor: NSColor(Color.overlayText),
-                    //     fontSize: 14
-                    // )
-                    // .frame(minHeight: 110)
-                    // .clipShape(RoundedRectangle(cornerRadius: 6))
                 } else {
                     Text(command.command)
                         .font(.system(size: 14, weight: .regular))

@@ -22,19 +22,28 @@ class OverlayController {
     private let shadowPadding: CGFloat = 40
     private let statusBarHeight: CGFloat = 36
     private let defaultSpacing: CGFloat = 4
+    private var lastDraggedPosition: NSPoint?
 
     @discardableResult
-    func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX _: CGFloat = 0, spacingY _: CGFloat = 0, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID {
+    func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX _: CGFloat = 0, spacingY _: CGFloat = 0, extraHeight: CGFloat = 0, panelType: PanelType? = nil, canMove: Bool = false) -> UUID {
         let statusFrame = StatusPanelManager.shared.getPanel().frame
 
         let uuid = UUID()
         let (hosting, contentSize) = createHostingViewAndGetSize(content: { content(uuid) })
 
-        let origin = calculateOverlayOrigin(
-            statusFrame: statusFrame,
-            contentSize: contentSize,
-            spacing: defaultSpacing
-        )
+        let origin: NSPoint
+        if canMove,
+           panelType == .translate,
+           let savedPosition = lastDraggedPosition
+        {
+            origin = savedPosition
+        } else {
+            origin = calculateOverlayOrigin(
+                statusFrame: statusFrame,
+                contentSize: contentSize,
+                spacing: defaultSpacing
+            )
+        }
 
         // 如果指定了 panelType，尝试找到现有的同类型 panel
         if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
@@ -51,6 +60,7 @@ class OverlayController {
 
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight, panelType: panelType)
         panel.panelType = panelType
+        panel.isMovableByWindowBackground = canMove
 
         setupPanel(panel, hosting: hosting)
         animateFadeIn(panel)
@@ -88,6 +98,9 @@ class OverlayController {
 
     func hideOverlay(uuid: UUID) {
         guard let panel = panels[uuid] else { return }
+        if panel.isMovableByWindowBackground, panel.panelType == .translate {
+            lastDraggedPosition = panel.frame.origin
+        }
         panel.close()
         panels.removeValue(forKey: uuid)
     }

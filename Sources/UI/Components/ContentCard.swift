@@ -228,10 +228,10 @@ extension ContentCard where CustomContent == EmptyView {
 }
 
 extension ContentCard {
-    static func show(title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil, cardWidth: CGFloat = 250, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
+    static func show(title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil, cardWidth: CGFloat = 250, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil, canMove: Bool = false) {
         OverlayController.shared.showOverlay(content: { panelID in
             ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons, cardWidth: cardWidth)
-        }, spacingX: spacingX, spacingY: spacingY, panelType: panelType)
+        }, spacingX: spacingX, spacingY: spacingY, panelType: panelType, canMove: canMove)
     }
 
     static func showAboveSelection(title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil, cardWidth: CGFloat = 250, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
