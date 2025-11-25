@@ -82,14 +82,14 @@ struct StatusIndicator: View {
                 .frame(width: baseSize, height: baseSize)
 
             // 外圆背景
-            RoundedRectangle(cornerRadius: baseSize / 2)
+            Circle()
                 .fill(outerBackgroundColor)
                 .frame(width: baseSize, height: baseSize)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovered)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: baseSize)
 
             // 外圆
-            RoundedRectangle(cornerRadius: baseSize / 2)
+            Circle()
                 .strokeBorder(borderGrey, lineWidth: 1)
                 .frame(width: baseSize, height: baseSize)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: baseSize)

@@ -10,11 +10,14 @@ struct StatusView: View {
 
     var body: some View {
         // 状态指示器
-        StatusIndicator(
-            recordState: recording.state,
-            volume: recording.volume,
-            mode: recording.mode
-        ).onTapGesture {
+        VStack {
+            StatusIndicator(
+                recordState: recording.state,
+                volume: recording.volume,
+                mode: recording.mode
+            )
+        }
+        .onTapGesture {
             overlay.hideAllOverlays()
             MenuBuilder.shared.showMenu(in: StatusPanelManager.shared.getPanel().contentView!)
         }
