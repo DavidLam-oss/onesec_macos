@@ -274,7 +274,6 @@ private extension OverlayController {
         let rect = NSRect(origin: origin, size: NSSize(width: size.width, height: size.height + extraHeight))
 
         if panelType == .editable {
-            log.info("create editable panel")
             return EditablePanel(
                 contentRect: rect,
                 styleMask: [.borderless, .nonactivatingPanel],

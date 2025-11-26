@@ -51,6 +51,7 @@ class StatusPanel: NSPanel {
     private func setupScreenChangeListener() {
         ConnectionCenter.shared.$currentMouseScreen
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] screen in
                 self?.handleScreenChanged(screen: screen)
             }
