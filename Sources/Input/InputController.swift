@@ -88,6 +88,7 @@ class InputController {
     {
         guard type != .tapDisabledByTimeout else {
             log.warning("CGEventType tapDisabledByTimeout")
+            CGEvent.tapEnable(tap: eventTap!, enable: true)
             return Unmanaged.passUnretained(event)
         }
 
