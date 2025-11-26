@@ -49,7 +49,7 @@ struct ContentCard<CustomContent: View>: View {
 
     var body: some View {
         VStack {
-            Spacer()
+            Spacer(minLength: 0)
             cardContent
         }
         .frame(width: cardWidth)
