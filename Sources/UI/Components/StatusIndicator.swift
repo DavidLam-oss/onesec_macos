@@ -29,14 +29,16 @@ struct StatusIndicator: View {
     }
 
     // 基准大小
-    private var baseSize: CGFloat {
+    private let baseSize: CGFloat = 20
+
+    private var outerScale: CGFloat {
         switch recordState {
         case .idle:
-            20
+            1.0
         case .recording, .processing:
-            25
+            1.25
         default:
-            20
+            1.0
         }
     }
 
@@ -85,14 +87,12 @@ struct StatusIndicator: View {
             Circle()
                 .fill(outerBackgroundColor)
                 .frame(width: baseSize, height: baseSize)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovered)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: baseSize)
+                .animation(.quickSpringAnimation, value: isHovered)
 
             // 外圆
             Circle()
                 .strokeBorder(borderGrey, lineWidth: 1)
                 .frame(width: baseSize, height: baseSize)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: baseSize)
 
             // 内圆
             Group {
@@ -113,19 +113,20 @@ struct StatusIndicator: View {
                 } else if recordState == .processing {
                     Spinner(
                         color: modeColor,
-                        size: baseSize / 2,
+                        size: baseSize / 2 + 1,
                     )
                 }
             }
             .animation(.quickSpringAnimation, value: innerSize)
         }
         .frame(width: baseSize, height: baseSize)
+        .scaleEffect(outerScale, anchor: .bottom)
         .scaleEffect(isHovered ? 1.5 : 1.0, anchor: .bottom)
         .offset(y: recordState == .idle ? 0 : -4)
         .shadow(color: .overlaySecondaryBackground.opacity(0.2), radius: 6, x: 0, y: 0)
+        .animation(.quickSpringAnimation, value: outerScale)
         .animation(.quickSpringAnimation, value: isHovered)
         .animation(.quickSpringAnimation, value: recordState)
-        .animation(.quickSpringAnimation, value: baseSize)
         .onHover { hovering in
             guard ConnectionCenter.shared.audioRecorderState == .idle else { return }
             StatusPanelManager.shared.ignoresMouseEvents(ignore: !hovering)

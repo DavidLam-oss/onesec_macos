@@ -73,11 +73,11 @@ struct ConvertHandleView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .animation(.cardAnimation, value: [isUploadCompleted, isProcessingCompleted, isDownloadCompleted, isContentCollapsed])
-        .onChange(of: isDownloadCompleted) { newValue in
-            if newValue, let start = startTime {
-                totalDuration = Date().timeIntervalSince(start)
-            }
-        }
+        // .onChange(of: isDownloadCompleted) { newValue in
+        //     if newValue, let start = startTime {
+        //         totalDuration = Date().timeIntervalSince(start)
+        //     }
+        // }
     }
 
     private var headerView: some View {
@@ -246,7 +246,7 @@ struct ProgressCardView: View {
                         if showControls && !isCompletedState {
                             HStack(spacing: 8) {
                                 Button(action: { isPaused.toggle() }) {
-                                    Image(systemName: isPaused ? "play" : "pause")
+                                    Image.systemSymbol(isPaused ? "play" : "pause")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(isPauseHovered ? .overlayText : .overlaySecondaryText)
                                         .frame(width: 15, height: 15)
@@ -309,22 +309,22 @@ struct ProgressCardView: View {
                 startProgress()
             }
         }
-        .onChange(of: progress) { newValue in
-            if newValue >= 1.0 {
-                withAnimation(.morphAnimation) {
-                    vStackOffset = 0
-                    morphProgress = 1.0
-                    isCompletedState = true
-                }
-                isCompleted = true
-            }
-        }
-        .onChange(of: isPaused) { newValue in
-            withAnimation(.cardAnimation) {
-                curveYPosition = newValue ? ProgressConstants.pausedCurveY : ProgressConstants.normalCurveY
-                lineColor = newValue ? .overlayBorder : .overlayPrimary
-            }
-        }
+        // .onChange(of: progress) { newValue in
+        //     if newValue >= 1.0 {
+        //         withAnimation(.morphAnimation) {
+        //             vStackOffset = 0
+        //             morphProgress = 1.0
+        //             isCompletedState = true
+        //         }
+        //         isCompleted = true
+        //     }
+        // }
+        // .onChange(of: isPaused) { newValue in
+        //     withAnimation(.cardAnimation) {
+        //         curveYPosition = newValue ? ProgressConstants.pausedCurveY : ProgressConstants.normalCurveY
+        //         lineColor = newValue ? .overlayBorder : .overlayPrimary
+        //     }
+        // }
         .onDisappear {
             timer?.invalidate()
         }
