@@ -113,7 +113,7 @@ struct StatusIndicator: View {
                 } else if recordState == .processing {
                     Spinner(
                         color: modeColor,
-                        size: baseSize / 2 + 1,
+                        size: baseSize / 2,
                     )
                 }
             }

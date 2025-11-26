@@ -64,7 +64,10 @@ extension StatusView {
             }
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
-            recording.state = .idle
+
+            if notificationType != .recordingTimeoutWarning {
+                recording.state = .idle
+            }
 
             var autoHide = true
             if notificationType == .authTokenFailed {

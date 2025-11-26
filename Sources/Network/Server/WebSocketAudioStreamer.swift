@@ -23,7 +23,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     // Server 超时配置
     private var responseTimeoutTask: Task<Void, Never>?
-    private let responseTimeoutDuration: TimeInterval = 20.0
+    private let responseTimeoutDuration: TimeInterval = 32.0
     private var recordingStartedTimeoutTask: Task<Void, Never>?
     private let recordingStartedTimeoutDuration: TimeInterval = 3
 
@@ -134,7 +134,7 @@ extension WebSocketAudioStreamer {
 
                 case let .audioDataReceived(data): sendAudioData(data)
 
-                case .userAuthUpdated: scheduleManualReconnect()
+                case .userDataUpdated(.auth): scheduleManualReconnect()
 
                 default:
                     break
@@ -259,6 +259,11 @@ extension WebSocketAudioStreamer {
         switch messageType {
         case .recordingStarted:
             cancelRecordingStartedTimeoutTimer()
+
+        case .error:
+            cancelRecordingStartedTimeoutTimer()
+            guard let message = json["message"] as? String else { return }
+            EventBus.shared.publish(.notificationReceived(.error(title: "错误", content: message)))
 
         case .resourceRequested:
             guard let data = json["data"] as? [String: Any],

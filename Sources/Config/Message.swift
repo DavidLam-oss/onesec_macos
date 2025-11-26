@@ -19,6 +19,7 @@ enum MessageType: String, CaseIterable {
     case contextUpdated = "context_update"
     case resourceRequested = "resource_requested"
     case terminalLinuxChoice = "terminal_linux_choice"
+    case error
 }
 
 struct WebSocketMessage {
@@ -67,10 +68,12 @@ extension WebSocketMessage {
 enum NotificationMessageType: Equatable {
     case serverTimeout
     case recordingTimeout
+    case recordingTimeoutWarning
     case authTokenFailed
     case serverUnavailable
     case networkUnavailable
     case custom(title: String, content: String)
+    case error(title: String, content: String)
 
     var title: String {
         switch self {
@@ -78,6 +81,8 @@ enum NotificationMessageType: Equatable {
             "服务超时"
         case .recordingTimeout:
             "录音超时"
+        case .recordingTimeoutWarning:
+            "录音即将超时"
         case .authTokenFailed:
             JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "鉴权失败" : "未登录"
         case .serverUnavailable:
@@ -85,6 +90,8 @@ enum NotificationMessageType: Equatable {
         case .networkUnavailable:
             "网络不可用"
         case let .custom(title, _):
+            title
+        case let .error(title, _):
             title
         }
     }
@@ -95,6 +102,8 @@ enum NotificationMessageType: Equatable {
             "服务器响应超时，请稍后重试"
         case .recordingTimeout:
             "服务器录音响应超时"
+        case .recordingTimeoutWarning:
+            "录音将在15秒后自动停止"
         case .authTokenFailed:
             JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "用户鉴权失败，请返回客户端重新登陆" : "用户未登录，请登陆后使用"
         case .serverUnavailable:
@@ -102,6 +111,8 @@ enum NotificationMessageType: Equatable {
         case .networkUnavailable:
             "网络不可用，请检查网络连接"
         case let .custom(_, content):
+            content
+        case let .error(_, content):
             content
         }
     }

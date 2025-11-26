@@ -46,6 +46,11 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
     private var totalRawBytesSent = 0 // 原始 PCM 数据
     private var recordingStartTime: Date?
 
+    // 录音时长限制
+    private let maxRecordingDuration: TimeInterval = 180 // 3分钟
+    private let warningBeforeTimeout: TimeInterval = 15 // 提前15秒警告
+    private var recordingLimitTimer: Timer?
+
     // 目标音频格式
     private let targetFormat: AVAudioFormat = .init(
         commonFormat: .pcmFormatInt16,
@@ -75,7 +80,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         )
 
         guard opusEncoder != nil else {
-            log.error("unexpectedOpusEncoderInit")
+            log.error("Unexpected OpusEncoder Init")
             return
         }
     }
@@ -230,6 +235,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
             log.error("🙅 AudioEngine error: \(error.localizedDescription)")
         }
 
+        startRecordingTimers()
         log.info("🎙️ Start Recording")
     }
 
@@ -291,6 +297,9 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
         // 重置 Opus 打包器
         opusEncoder.reset()
         oggPacketizer.reset()
+
+        // 停止录音时长限制定时器
+        stopRecordingTimers()
     }
 
     /// 计算音频缓冲区的音量 限制在 0-1 范围内
@@ -347,7 +356,8 @@ extension AudioSinkNodeRecorder {
                         self?.resetState()
                     }
                 case .notificationReceived(.serverTimeout),
-                     .notificationReceived(.recordingTimeout):
+                     .notificationReceived(.recordingTimeout),
+                     .notificationReceived(.error):
                     self?.recordState = .recordingTimeout
                     self?.resetState()
                 case .notificationReceived(.serverUnavailable):
@@ -418,6 +428,31 @@ extension AudioSinkNodeRecorder {
             stopRecording(stopState: queueStartTime == nil ? .idle : .processing)
             EventBus.shared.publish(.notificationReceived(.recordingTimeout))
         }
+    }
+}
+
+extension AudioSinkNodeRecorder {
+    private func startRecordingTimers() {
+        let warningTime = maxRecordingDuration - warningBeforeTimeout
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            recordingLimitTimer = Timer.scheduledTimer(withTimeInterval: warningTime, repeats: false) { [weak self] _ in
+                guard let self, recordState == .recording else { return }
+                EventBus.shared.publish(.notificationReceived(.recordingTimeoutWarning))
+                // 调度超时定时器
+                recordingLimitTimer = Timer.scheduledTimer(withTimeInterval: warningBeforeTimeout, repeats: false) { [weak self] _ in
+                    guard let self, recordState == .recording else { return }
+                    log.warning("Recording timeout: exceeded \(maxRecordingDuration) seconds")
+                    stopRecording()
+                }
+            }
+        }
+    }
+
+    private func stopRecordingTimers() {
+        recordingLimitTimer?.invalidate()
+        recordingLimitTimer = nil
     }
 }
 

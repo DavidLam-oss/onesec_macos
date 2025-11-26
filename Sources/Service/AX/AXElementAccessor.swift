@@ -12,7 +12,7 @@ class AXElementAccessor {
         kAXTextFieldRole,
         kAXTextAreaRole,
         kAXComboBoxRole,
-        kAXWindowRole,
+        // kAXWindowRole,
     ]
 
     /// 获取 AX 元素属性值
@@ -86,6 +86,7 @@ class AXElementAccessor {
         if let roleString = role as? String,
            editableRoles.contains(roleString)
         {
+            log.info("Find editable role: \(roleString)")
             return true
         }
 
