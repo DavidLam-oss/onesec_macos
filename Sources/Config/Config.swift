@@ -25,8 +25,12 @@ class Config: ObservableObject {
         }
     }
 
+    private init() {
+        applyTheme()
+    }
+
     private func applyTheme() {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             switch self.USER_CONFIG.theme {
             case "dark":
                 NSApp.appearance = NSAppearance(named: .darkAqua)

@@ -180,19 +180,22 @@ extension StatusView {
     private func showNotificationMessage(
         title: String, content: String, autoHide: Bool = true, onTap: (() -> Void)? = nil,
     ) {
-        notificationPanelId = overlay.showOverlay { panelId in
-            NotificationCard(
-                title: title,
-                content: content,
-                panelId: panelId,
-                modeColor: recording.modeColor,
-                autoHide: autoHide,
-                onTap: onTap,
-                onClose: {
-                    notificationPanelId = nil
-                }
-            )
-        }
+        notificationPanelId = overlay.showOverlay(
+            content: { panelId in
+                NotificationCard(
+                    title: title,
+                    content: content,
+                    panelId: panelId,
+                    modeColor: recording.modeColor,
+                    autoHide: autoHide,
+                    onTap: onTap,
+                    onClose: {
+                        notificationPanelId = nil
+                    }
+                )
+            },
+            panelType: .notificationSystem
+        )
     }
 
     private func handlePermissionChange(_ permissionsState: [PermissionType: PermissionStatus]) {

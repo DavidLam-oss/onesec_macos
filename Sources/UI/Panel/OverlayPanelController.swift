@@ -7,6 +7,7 @@ enum PanelType {
     case translate
     case command
     case notification
+    case notificationSystem
 }
 
 enum ExpandDirection {
