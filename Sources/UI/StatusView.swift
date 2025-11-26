@@ -152,12 +152,14 @@ extension StatusView {
 
         if canPaste {
             if processMode == .translate {
+                guard Config.shared.USER_CONFIG.translation.showComparison else { return }
                 ContentCard<EmptyView>.show(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate, canMove: true)
             } else if processMode == .terminal, text.newlineCount >= 1 {
                 LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: text, displayName: "")])
             }
         } else {
             if processMode == .translate {
+                guard Config.shared.USER_CONFIG.translation.showComparison else { return }
                 MultiContentCard.show(title: "识别结果", items: [
                     ContentItem(title: "原文", content: polishedText),
                     ContentItem(title: "译文", content: text),

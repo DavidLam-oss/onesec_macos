@@ -180,36 +180,30 @@ extension UDSClient {
         switch type {
         case .configUpdated:
             handleConfigUpdatedMessage(json: json, timestamp: timestamp)
+        case .authTokenFailed:
+            handleAuthTokenFailed()
         default:
             break
         }
     }
 
-    private func handleConfigUpdatedMessage(json: [String: Any], timestamp _: Int64) {
-        guard
-            let data = json["data"] as? [String: Any],
-            let authToken = data["auth_token"] as? String,
-            let hotkeyConfigs = data["hotkey_configs"] as? [[String: Any]]
-        else {
+    private func handleConfigUpdatedMessage(json _: [String: Any], timestamp _: Int64) {
+        let token = Config.shared.USER_CONFIG.authToken
+        Config.shared.USER_CONFIG = UserConfigService.shared.loadUserConfig()
+
+        if token != Config.shared.USER_CONFIG.authToken {
+            ConnectionCenter.shared.isAuthed = JWTValidator.isValid(Config.shared.USER_CONFIG.authToken)
+            log.info("ConnectionCenter.shared.isAuthed \(ConnectionCenter.shared.isAuthed)")
+            EventBus.shared.publish(.userAuthUpdated)
             return
         }
 
-        Config.shared.USER_CONFIG.authToken = authToken
-        ConnectionCenter.shared.isAuthed = JWTValidator.isValid(Config.shared.USER_CONFIG.authToken)
-        log.info("ConnectionCenter.shared.isAuthed \(ConnectionCenter.shared.isAuthed)")
+        EventBus.shared.publish(.userConfigUpdated)
+    }
 
-        for config in hotkeyConfigs {
-            guard let mode = config["mode"] as? String,
-                  let hotkeyCombination = config["hotkey_combination"] as? [String]
-            else {
-                continue
-            }
-
-            Config.shared.saveHotkeySetting(
-                mode: mode == "normal" ? .normal : .command, hotkeyCombination: hotkeyCombination
-            )
-        }
-        EventBus.shared.publish(.userConfigUpdated(authToken: authToken, hotkeyConfigs: hotkeyConfigs))
+    func handleAuthTokenFailed() {
+        // ConnectionCenter.shared.cleanInputService()
+        ConnectionCenter.shared.isAuthed = false
     }
 
     func sendAuthTokenFailed(reason: String = "UnAuth", statusCode: Int? = nil) {

@@ -61,6 +61,11 @@ class HTTPClient {
             throw HTTPError.invalidJSON
         }
 
+        let errorCode = json["error_code"] as? String
+        if code == 401 || errorCode == "TOKEN_MISMATCH" {
+            EventBus.shared.publish(.notificationReceived(.authTokenFailed))
+        }
+
         let dataDict = json["data"] as? [String: Any]
 
         return HTTPResponse(

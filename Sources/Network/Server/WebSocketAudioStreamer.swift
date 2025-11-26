@@ -134,7 +134,7 @@ extension WebSocketAudioStreamer {
 
                 case let .audioDataReceived(data): sendAudioData(data)
 
-                case .userConfigUpdated: scheduleManualReconnect()
+                case .userAuthUpdated: scheduleManualReconnect()
 
                 default:
                     break

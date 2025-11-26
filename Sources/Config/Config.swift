@@ -5,6 +5,7 @@
 //  Created by 王晓雨 on 2025/10/14.
 //
 
+import AppKit
 import Combine
 import Foundation
 
@@ -15,7 +16,27 @@ class Config: ObservableObject {
     @Published var SERVER: String = ""
 
     @Published var TEXT_PROCESS_MODE: TextProcessMode = .auto
-    @Published var USER_CONFIG = UserConfigService.shared.loadUserConfig()
+    @Published var USER_CONFIG = UserConfigService.shared.loadUserConfig() {
+        didSet {
+            log.info("Theme changed: \(oldValue.theme) -> \(USER_CONFIG.theme)")
+            if oldValue.theme != USER_CONFIG.theme {
+                applyTheme()
+            }
+        }
+    }
+
+    private func applyTheme() {
+        DispatchQueue.main.async {
+            switch self.USER_CONFIG.theme {
+            case "dark":
+                NSApp.appearance = NSAppearance(named: .darkAqua)
+            case "light":
+                NSApp.appearance = NSAppearance(named: .aqua)
+            default:
+                NSApp.appearance = nil // 跟随系统
+            }
+        }
+    }
 
     func saveHotkeySetting(mode: RecordMode, hotkeyCombination: [String]) {
         let modeString = mode == .normal ? "normal" : "command"
@@ -67,7 +88,7 @@ enum TextProcessMode: String, CaseIterable {
 }
 
 struct UserConfig: Codable {
-    let theme: String
+    var theme: String
     let environment: Environment
     var lastSyncFocusJudgmentSheetTime: Double
     let translation: Translation

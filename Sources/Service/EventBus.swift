@@ -19,7 +19,8 @@ enum AppEvent {
     case modeUpgraded(from: RecordMode, to: RecordMode)
     case notificationReceived(NotificationMessageType)
     //
-    case userConfigUpdated(authToken: String, hotkeyConfigs: [[String: Any]])
+    case userConfigUpdated
+    case userAuthUpdated
     //
     case hotkeySettingStarted(mode: RecordMode)
     case hotkeySettingEnded(mode: RecordMode, hotkeyCombination: [String])

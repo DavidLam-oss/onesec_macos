@@ -86,7 +86,7 @@ extension ConnectionCenter {
                     .last!
                     .replacingOccurrences(of: ">", with: "")
 
-                if stateName == "mouseContextState" {
+                if stateName == "mouseContextState" || stateName.contains("screen") {
                     return
                 }
                 log.debug("\("[\(stateName)]".green) → \("\(newValue)".green)")
@@ -151,5 +151,9 @@ extension ConnectionCenter {
             log.warning("Permission Revoked, Cleaning InputService")
             inputSerive = nil
         }
+    }
+
+    func cleanInputService() {
+        inputSerive = nil
     }
 }
