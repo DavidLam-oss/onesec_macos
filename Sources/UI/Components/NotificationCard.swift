@@ -89,7 +89,7 @@ struct NotificationCard: View {
         .onAppear {
             if autoHide {
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    try? await sleep(3000)
                     guard !Task.isCancelled else { return }
                     OverlayController.shared.hideOverlay(uuid: panelId)
                 }

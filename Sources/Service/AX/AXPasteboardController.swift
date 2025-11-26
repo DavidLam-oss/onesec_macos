@@ -17,6 +17,20 @@ struct PasteContext {
     var lastModifiedText: String
 }
 
+class PasteboardDataProvider: NSObject, NSPasteboardItemDataProvider {
+    let text: String
+    var wasRequested = false
+
+    init(text: String) {
+        self.text = text
+    }
+
+    func pasteboard(_: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+        wasRequested = true
+        item.setString(text, forType: type)
+    }
+}
+
 class AXPasteboardController {
     private static var checkModificationTask: Task<Void, Never>?
     private static var currentCancellable: AnyCancellable?
@@ -119,7 +133,7 @@ class AXPasteboardController {
         simulateCopy()
 
         // 等待复制功能完成
-        try? await Task.sleep(nanoseconds: 150_000_000)
+        try? await sleep(150)
         let copiedText = pasteboard.string(forType: .string)
 
         // 恢复原剪贴板内容
@@ -148,7 +162,7 @@ class AXPasteboardController {
         simulateShiftLeft()
         simulateCopy()
 
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        try? await sleep(100)
 
         // 当为选中文本时,  changeCount 依旧会改变
         // 所以这里判断当前复制的新内容是否为零宽字符
@@ -166,21 +180,32 @@ class AXPasteboardController {
         let pasteboard = NSPasteboard.general
         let oldContents = pasteboard.string(forType: .string)
 
+        let provider = PasteboardDataProvider(text: text)
+        let item = NSPasteboardItem()
+        item.setDataProvider(provider, forTypes: [.string])
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        pasteboard.writeObjects([item])
 
         simulatePaste()
 
-        Task {
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            restorePasteboard(oldContents)
+        // 等待数据被请求或超时
+        let startTime = CFAbsoluteTimeGetCurrent()
+        for _ in 0 ..< 20 {
+            if provider.wasRequested {
+                let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+                log.info("Paste Text Use: \(String(format: "%.1f", elapsed))ms")
+                break
+            }
+            try? await sleep(50) // 50ms
         }
+
+        restorePasteboard(oldContents)
     }
 
     static func restorePasteboard(_ oldContents: String?, _ oldChangeCount: Int = 0) {
         let pasteboard = NSPasteboard.general
         if let oldContents,
-           pasteboard.changeCount - oldChangeCount <= 2
+           pasteboard.changeCount - oldChangeCount <= 2 || oldChangeCount == 0
         {
             pasteboard.clearContents()
             pasteboard.setString(oldContents, forType: .string)

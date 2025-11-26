@@ -244,7 +244,7 @@ class OverlayController {
         }
 
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            try? await sleep(UInt64(delay * 1000))
             guard !Task.isCancelled else { return }
             hideOverlay(uuid: uuid)
         }

@@ -284,7 +284,7 @@ struct ShortcutSettingsCard: View {
             }
 
             Task {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                try? await sleep(3000)
                 if mode == .normal {
                     normalConflictError = nil
                 } else {

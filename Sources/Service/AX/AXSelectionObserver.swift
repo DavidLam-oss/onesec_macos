@@ -60,7 +60,7 @@ class AXSelectionObserver {
 
         // 系统更新焦点元素需要时间
         Task {
-            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+            try? await sleep(200)
             self.tryActivateAppAccessibility(app: app, attribute: "AXManualAccessibility", retryCount: 5)
             self.tryActivateAppAccessibility(app: app, attribute: "AXEnhancedUserInterface", retryCount: 5)
             self.tryAddNotificationsForFocusedElement(app: app, retryCount: 5)
@@ -99,7 +99,7 @@ extension AXSelectionObserver {
             addAllNotifications(to: focusedElement)
         } else if retryCount > 0 {
             Task {
-                try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+                try? await sleep(200)
                 self.tryAddNotificationsForFocusedElement(app: app, retryCount: retryCount - 1)
             }
         }
@@ -114,7 +114,7 @@ extension AXSelectionObserver {
             log.info("\(attribute) success for app \(app.localizedName ?? "Unknown")")
         } else if retryCount > 0 {
             Task {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                try? await sleep(100)
                 tryActivateAppAccessibility(app: app, attribute: attribute, retryCount: retryCount - 1)
             }
         }

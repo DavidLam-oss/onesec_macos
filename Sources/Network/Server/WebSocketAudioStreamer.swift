@@ -100,7 +100,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
 
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            try? await sleep(UInt64(delay * 1000))
             self?.connect()
         }
     }
@@ -323,14 +323,10 @@ extension WebSocketAudioStreamer {
 
         responseTimeoutTask = Task { [weak self] in
             guard let self else { return }
-
-            do {
-                try await Task.sleep(nanoseconds: UInt64(responseTimeoutDuration * 1_000_000_000))
-                log.warning("Recording response timed out after \(responseTimeoutDuration) seconds")
-                EventBus.shared.publish(.notificationReceived(.serverTimeout))
-            } catch {
-                // Task Canceled
-            }
+            try? await sleep(UInt64(responseTimeoutDuration * 1000))
+            guard !Task.isCancelled else { return }
+            log.warning("Recording response timed out after \(responseTimeoutDuration) seconds")
+            EventBus.shared.publish(.notificationReceived(.serverTimeout))
         }
         log.debug("Started response timeout timer (\(responseTimeoutDuration)s)")
     }
@@ -345,14 +341,10 @@ extension WebSocketAudioStreamer {
 
         recordingStartedTimeoutTask = Task { [weak self] in
             guard let self else { return }
-
-            do {
-                try await Task.sleep(nanoseconds: UInt64(recordingStartedTimeoutDuration * 1_000_000_000))
-                log.warning("Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
-                EventBus.shared.publish(.notificationReceived(.recordingTimeout))
-            } catch {
-                // Task Canceled
-            }
+            try? await sleep(UInt64(recordingStartedTimeoutDuration * 1000))
+            guard !Task.isCancelled else { return }
+            log.warning("Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
+            EventBus.shared.publish(.notificationReceived(.recordingTimeout))
         }
         log.debug("Started recording started timeout timer (\(recordingStartedTimeoutDuration)s)")
     }
@@ -368,15 +360,11 @@ extension WebSocketAudioStreamer {
 
         connectingCheckTask = Task { [weak self] in
             guard let self else { return }
-
-            do {
-                try await Task.sleep(nanoseconds: 10_000_000_000) // 10秒
-                if connectionState == .connecting {
-                    log.warning("Still connecting after 10s, reconnect")
-                    scheduleManualReconnect()
-                }
-            } catch {
-                // Task Canceled
+            try? await sleep(10000) // 10秒
+            guard !Task.isCancelled else { return }
+            if connectionState == .connecting {
+                log.warning("Still connecting after 10s, reconnect")
+                scheduleManualReconnect()
             }
         }
     }
@@ -388,7 +376,7 @@ extension WebSocketAudioStreamer {
             guard let self else { return }
 
             do {
-                try await Task.sleep(nanoseconds: UInt64(idleTimeoutDuration * 1_000_000_000))
+                try await sleep(UInt64(idleTimeoutDuration * 1000))
                 log.warning("No recording activity for \(idleTimeoutDuration / 60) minutes, disconnecting")
                 connectionState = .manualDisconnected
                 ws?.disconnect()

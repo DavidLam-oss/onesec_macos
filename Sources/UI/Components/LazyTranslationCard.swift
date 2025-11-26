@@ -266,7 +266,7 @@ struct LazyTranslationCard: View {
         }
 
         Task {
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await sleep(3000)
             withAnimation {
                 isContentCopied = false
             }
@@ -287,7 +287,7 @@ struct LazyTranslationCard: View {
                 }
                 currentSeconds -= 1
 
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await sleep(1000)
             }
         }
     }
@@ -347,7 +347,7 @@ struct LazyTranslationCard: View {
         }
 
         Task {
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await sleep(3000)
             withAnimation {
                 isContentCopied = false
             }
