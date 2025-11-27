@@ -226,7 +226,7 @@ class OverlayController {
         panels.keys.forEach { hideOverlay(uuid: $0) }
     }
 
-    private func hideOverlaysByPanelType(_ panelType: PanelType) {
+    func hideOverlaysByPanelType(_ panelType: PanelType) {
         let uuidsToHide = panels.compactMap { uuid, panel in
             panel.panelType == panelType ? uuid : nil
         }

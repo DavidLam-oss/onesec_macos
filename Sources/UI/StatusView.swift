@@ -4,19 +4,15 @@ import SwiftUI
 
 struct StatusView: View {
     @State var recording = RecordingState()
-    @State var notificationPanelId: UUID?
-
     private var overlay: OverlayController { OverlayController.shared }
 
     var body: some View {
         // 状态指示器
-        VStack {
-            StatusIndicator(
-                recordState: recording.state,
-                volume: recording.volume,
-                mode: recording.mode
-            )
-        }
+        StatusIndicator(
+            recordState: recording.state,
+            volume: recording.volume,
+            mode: recording.mode
+        )
         .onTapGesture {
             overlay.hideAllOverlays()
             MenuBuilder.shared.showMenu(in: StatusPanelManager.shared.getPanel().contentView!)
@@ -56,11 +52,9 @@ extension StatusView {
             }
         case .userDataUpdated:
             if ConnectionCenter.shared.isAuthed,
-               notificationPanelId != nil,
                ConnectionCenter.shared.hasPermissions()
             {
-                overlay.hideOverlay(uuid: notificationPanelId!)
-                notificationPanelId = nil
+                overlay.hideOverlaysByPanelType(.notificationSystem)
             }
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
@@ -189,7 +183,7 @@ extension StatusView {
         autoHide: Bool = true, onTap: (() -> Void)? = nil,
         showTimerTip: Bool = false, autoCloseDuration: Int = 3,
     ) {
-        notificationPanelId = overlay.showOverlay(
+        overlay.showOverlay(
             content: { panelId in
                 NotificationCard(
                     title: title,
@@ -198,10 +192,7 @@ extension StatusView {
                     autoHide: autoHide,
                     showTimerTip: showTimerTip,
                     autoCloseDuration: autoCloseDuration,
-                    onTap: onTap,
-                    onClose: {
-                        notificationPanelId = nil
-                    }
+                    onTap: onTap
                 )
             },
             panelType: .notificationSystem
@@ -212,20 +203,10 @@ extension StatusView {
         guard !permissionsState.isEmpty else { return }
 
         if !ConnectionCenter.shared.hasPermissions() {
-            // 如果没有通知面板，显示权限警告
-            if notificationPanelId == nil {
-                showPermissionAlert()
-                SoundService.shared.playSound(.notification)
-            } else {
-                // 如果已有通知面板，更新内容
-                if let panelId = notificationPanelId {
-                    overlay.hideOverlay(uuid: panelId)
-                }
-                showPermissionAlert()
-            }
-        } else if let panelId = notificationPanelId {
-            overlay.hideOverlay(uuid: panelId)
-            notificationPanelId = nil
+            showPermissionAlert()
+            SoundService.shared.playSound(.notification)
+        } else {
+            overlay.hideOverlaysByPanelType(.notificationSystem)
         }
     }
 
