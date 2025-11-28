@@ -10,6 +10,11 @@ class OverlayController {
     private let shadowPadding: CGFloat = 25
     private let statusBarHeight: CGFloat = 36
     private var lastDraggedPosition: NSPoint?
+    private var cancellables = Set<AnyCancellable>()
+
+    private init() {
+        setupScreenChangeListener()
+    }
 
     @discardableResult
     func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX _: CGFloat = 0, spacingY _: CGFloat = 0, extraHeight: CGFloat = 0, panelType: PanelType? = nil, canMove: Bool = false) -> UUID {
@@ -297,6 +302,7 @@ private extension OverlayController {
         panel.alphaValue = 0.0
         panel.animations = ["alphaValue": CASpringAnimation.createSpringFadeInAnimation(keyPath: "alphaValue")]
         panel.animator().alphaValue = 1.0
+        panel.animations["alphaValue"] = nil
     }
 
     func clampToScreen(origin: NSPoint, contentSize: NSSize, screenFrame: NSRect) -> NSPoint {
@@ -465,5 +471,65 @@ private extension OverlayController {
         newOrigin.y = panel.initialOrigin?.y ?? newOrigin.y
         let newFrame = NSRect(origin: newOrigin, size: contentView.fittingSize)
         panel.setFrame(newFrame, display: true, animate: false)
+    }
+}
+
+private extension OverlayController {
+    func setupScreenChangeListener() {
+        ConnectionCenter.shared.$currentMouseScreen
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] screen in
+                self?.handleScreenChanged(screen: screen)
+            }
+            .store(in: &cancellables)
+    }
+
+    func handleScreenChanged(screen: NSScreen?) {
+        guard let screen else { return }
+        for (_, panel) in panels {
+            guard panel.isVisible,
+                  let panelType = panel.panelType,
+                  panelType != .command
+            else { continue }
+            updatePanelPositionForScreen(panel, screen: screen)
+        }
+    }
+
+    func updatePanelPositionForScreen(_ panel: NSPanel, screen: NSScreen) {
+        let statusPanel = StatusPanelManager.shared.getPanel()
+        let statusSize = statusPanel.frame.size
+
+        // 计算 StatusPanel 在新屏幕上位置
+        let newStatusFrame = NSRect(
+            x: screen.visibleFrame.origin.x + (screen.visibleFrame.width - statusSize.width) / 2,
+            y: screen.visibleFrame.origin.y,
+            width: statusSize.width,
+            height: statusSize.height
+        )
+        let currentSize = panel.frame.size
+        let newOrigin = calculateOverlayOrigin(
+            statusFrame: newStatusFrame,
+            contentSize: currentSize,
+            spacing: 4,
+            screenFrame: screen.frame
+        )
+        let newFrame = NSRect(origin: newOrigin, size: currentSize)
+
+        NSAnimationContext.runAnimationGroup(
+            { context in
+                context.duration = 0.15
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                panel.animator().alphaValue = 0
+            },
+            completionHandler: {
+                panel.setFrame(newFrame, display: true, animate: false)
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.15
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    panel.animator().alphaValue = 1.0
+                }
+            }
+        )
     }
 }
