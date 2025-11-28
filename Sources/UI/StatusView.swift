@@ -111,10 +111,8 @@ extension StatusView {
                 if processMode == .terminal && text.newlineCount >= 1 {
                     return
                 }
-                if canPaste {
-                    await AXPasteboardController.pasteTextToActiveApp(text)
-                    return
-                }
+
+                await AXPasteboardController.pasteTextToActiveApp(text)
             }
         case let .terminalLinuxChoice(_, _, _, commands):
             recording.state = .idle

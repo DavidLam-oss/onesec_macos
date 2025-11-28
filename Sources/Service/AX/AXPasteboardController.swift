@@ -187,17 +187,7 @@ class AXPasteboardController {
         pasteboard.writeObjects([item])
 
         simulatePaste()
-
-        // 等待数据被请求或超时
-        let startTime = CFAbsoluteTimeGetCurrent()
-        for _ in 0 ..< 20 {
-            if provider.wasRequested {
-                let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-                log.info("Paste Text Use: \(String(format: "%.1f", elapsed))ms")
-                break
-            }
-            try? await sleep(50) // 50ms
-        }
+        await waitForPasteboardReadRequest(provider)
 
         restorePasteboard(oldContents)
     }
@@ -209,6 +199,22 @@ class AXPasteboardController {
         {
             pasteboard.clearContents()
             pasteboard.setString(oldContents, forType: .string)
+        }
+    }
+
+    static func waitForPasteboardReadRequest(_ provider: PasteboardDataProvider) async {
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        for i in 0 ..< 20 {
+            if provider.wasRequested {
+                let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+                log.info("Paste Text Use: \(String(format: "%.1f", elapsed))ms")
+                break
+            }
+
+            // 5, 10, 20, 40, 50, 50...
+            let sleepMs = min(5.0 * pow(2.0, Double(i)), 50.0)
+            try? await sleep(UInt64(sleepMs))
         }
     }
 }
