@@ -31,20 +31,19 @@ struct StatusIndicator: View {
     // 基准大小
     private let baseSize: CGFloat = 20
 
-    private var outerScale: CGFloat {
+    private var outerSize: CGFloat {
         switch recordState {
         case .idle:
-            1.0
+            baseSize
         case .recording, .processing:
-            1.25
+            baseSize * 1.25
         default:
-            1.0
+            baseSize
         }
     }
 
-    private var innerSize: CGFloat {
-        let ratio = minInnerRatio + (maxInnerRatio - minInnerRatio) * min(volume * 2.0, 1.0)
-        return baseSize * ratio
+    private var innerScale: CGFloat {
+        minInnerRatio + (maxInnerRatio - minInnerRatio) * min(volume * 2.0, 1.0)
     }
 
     // 外圆背景颜色
@@ -81,18 +80,18 @@ struct StatusIndicator: View {
             // 点击响应层
             Circle()
                 .fill(Color.white.opacity(0.001))
-                .frame(width: baseSize, height: baseSize)
+                .frame(width: outerSize, height: outerSize)
 
             // 外圆背景
             Circle()
                 .fill(outerBackgroundColor)
-                .frame(width: baseSize, height: baseSize)
+                .frame(width: outerSize, height: outerSize)
                 .animation(.quickSpringAnimation, value: isHovered)
 
             // 外圆
             Circle()
                 .strokeBorder(borderGrey, lineWidth: 1)
-                .frame(width: baseSize, height: baseSize)
+                .frame(width: outerSize, height: outerSize)
 
             // 内圆
             Group {
@@ -104,27 +103,29 @@ struct StatusIndicator: View {
                     } else {
                         Circle()
                             .fill(borderGrey)
-                            .frame(width: innerSize, height: innerSize)
+                            .frame(width: outerSize, height: outerSize)
+                            .scaleEffect(innerScale)
                     }
                 } else if recordState == .recording {
+                    // 录音圆
                     Circle()
                         .fill(modeColor)
-                        .frame(width: innerSize, height: innerSize)
+                        .frame(width: outerSize, height: outerSize)
+                        .scaleEffect(innerScale)
                 } else if recordState == .processing {
                     Spinner(
                         color: modeColor,
-                        size: baseSize / 2,
+                        size: outerSize / 2
                     )
                 }
             }
-            .animation(.quickSpringAnimation, value: innerSize)
+            .animation(.quickSpringAnimation, value: innerScale)
         }
-        .frame(width: baseSize, height: baseSize)
-        .scaleEffect(outerScale, anchor: .bottom)
+        .frame(width: outerSize, height: outerSize)
         .scaleEffect(isHovered ? 1.5 : 1.0, anchor: .bottom)
-        .offset(y: recordState == .idle ? 0 : -4)
+        .offset(y: recordState == .idle ? 0 : -4 - (outerSize - baseSize) / 2)
         .shadow(color: .overlaySecondaryBackground.opacity(0.2), radius: 6, x: 0, y: 0)
-        .animation(.quickSpringAnimation, value: outerScale)
+        .animation(.quickSpringAnimation, value: outerSize)
         .animation(.quickSpringAnimation, value: isHovered)
         .animation(.quickSpringAnimation, value: recordState)
         .onHover { hovering in

@@ -293,7 +293,9 @@ private extension OverlayController {
         panel.ignoresMouseEvents = false
         panel.contentView = hosting
 
-        if panel.panelType == .editable {
+        if panel.panelType == .editable ||
+            ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
+        {
             panel.makeKeyAndOrderFront(nil)
         } else {
             panel.orderFront(nil)
