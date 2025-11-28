@@ -209,6 +209,7 @@ class AXPasteboardController {
             if provider.wasRequested {
                 let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
                 log.info("Paste Text Use: \(String(format: "%.1f", elapsed))ms")
+                try? await sleep(50)
                 break
             }
 
