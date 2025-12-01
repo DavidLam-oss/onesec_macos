@@ -70,10 +70,9 @@ struct ContentCard<CustomContent: View>: View {
                     Button(action: closeCard) {
                         Image.systemSymbol("xmark")
                             .font(.system(size: 12, weight: .semibold))
+                            .symbolAppearEffect(isActive: isHovering)
                     }
                     .buttonStyle(HoverIconButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
-                    .opacity(isHovering ? 1.0 : 0.0)
-                    .animation(.easeInOut(duration: 0.2), value: isHovering)
                 }
 
                 Rectangle()
@@ -111,16 +110,18 @@ struct ContentCard<CustomContent: View>: View {
                             HStack(spacing: 4) {
                                 Image.systemSymbol(isContentCopied ? "checkmark" : "doc.on.doc")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .scaleEffect(isContentCopied ? 1.1 : 1.0)
-                                    .animation(.quickSpringAnimation, value: isContentCopied).frame(height: 12)
+                                    .symbolReplaceEffect(value: isContentCopied)
+                                    .frame(height: 12)
+                                    .symbolAppearEffect(isActive: isHovering)
 
                                 Text("复制").font(.system(size: 12, weight: .semibold))
+                                    .opacity(isHovering ? 1.0 : 0.0)
+                                    .animation(.easeInOut(duration: 0.2), value: isHovering)
                             }
                         }
                         .buttonStyle(HoverIconButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
                         .disabled(isContentCopied)
-                        .opacity(isHovering ? (isContentCopied ? 0.5 : 1.0) : 0.0)
-                        .animation(.easeInOut(duration: 0.2), value: isHovering)
+                        .opacity(isContentCopied ? 0.5 : 1.0)
                     }
                 }
             }

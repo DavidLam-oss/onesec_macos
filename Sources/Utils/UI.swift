@@ -190,12 +190,56 @@ extension String {
     var green: String { colored(.green) }
 }
 
+struct SymbolImage: View {
+    let name: String
+
+    private var nsImage: NSImage? {
+        guard let url = Bundle.resourceBundle.url(forResource: name, withExtension: "svg"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.isTemplate = true
+        return image
+    }
+
+    var body: some View {
+        if let nsImage = nsImage {
+            Image(nsImage: nsImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 12, height: 12)
+        }
+    }
+
+    func font(_: Font) -> some View { self }
+}
+
 extension Image {
-    static func systemSymbol(_ name: String) -> Image {
+    @ViewBuilder
+    static func systemSymbol(_ name: String) -> some View {
         if #available(macOS 11.0, *) {
             Image(systemName: name)
         } else {
-            Image(nsImage: NSImage(named: NSImage.Name(name)) ?? NSImage())
+            SymbolImage(name: name)
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func symbolReplaceEffect<V: Equatable>(value: V) -> some View {
+        if #available(macOS 14.0, *) {
+            self.contentTransition(.symbolEffect(.replace))
+        } else {
+            animation(.easeInOut(duration: 0.2), value: value)
+        }
+    }
+
+    @ViewBuilder
+    func symbolAppearEffect(isActive: Bool) -> some View {
+        if #available(macOS 14.0, *) {
+            self.symbolEffect(.appear.byLayer.wholeSymbol, options: .nonRepeating, isActive: !isActive)
+        } else {
+            self.opacity(isActive ? 1.0 : 0.0)
+                .animation(.easeInOut(duration: 0.2), value: isActive)
         }
     }
 }
