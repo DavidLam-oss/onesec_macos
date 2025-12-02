@@ -112,6 +112,12 @@ class InputController {
             return
         }
 
+        // 过滤非物理按键事件 (程序合成按键)
+        let sourceStateID = event.getIntegerValueField(.eventSourceStateID)
+        if sourceStateID != 1 { // 1 = kCGEventSourceStateHIDSystemState
+            return
+        }
+
         // 拦截快捷键的设置
         if keyEventProcessor.isHotkeySetting {
             keyEventProcessor.handleHotkeySettingEvent(type: type, event: event)
