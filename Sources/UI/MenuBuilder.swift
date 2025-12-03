@@ -15,12 +15,7 @@ final class MenuBuilder {
     }
 
     @objc private func handleAudioDeviceChange(_ sender: NSMenuItem) {
-        let deviceID = AudioDeviceID(sender.tag)
-        if deviceID == 0 {
-            AudioDeviceManager.shared.selectedDeviceID = nil
-        } else {
-            AudioDeviceManager.shared.selectedDeviceID = deviceID
-        }
+        AudioDeviceManager.shared.selectedDeviceID = AudioDeviceID(sender.tag)
     }
 
     func showMenu(in view: NSView) {
@@ -32,22 +27,12 @@ final class MenuBuilder {
 
         AudioDeviceManager.shared.refreshDevices()
         let devices = AudioDeviceManager.shared.inputDevices
-        let selectedID = AudioDeviceManager.shared.selectedDeviceID
-
-        // 系统默认选项
-        let defaultItem = NSMenuItem(title: "系统默认", action: #selector(handleAudioDeviceChange(_:)), keyEquivalent: "")
-        defaultItem.target = self
-        defaultItem.tag = 0
-        defaultItem.state = selectedID == nil ? .on : .off
-        audioSubmenu.addItem(defaultItem)
-        audioSubmenu.addItem(NSMenuItem.separator())
 
         for device in devices {
-            let title = device.isDefault ? "\(device.name) (默认)" : device.name
-            let item = NSMenuItem(title: title, action: #selector(handleAudioDeviceChange(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: device.name, action: #selector(handleAudioDeviceChange(_:)), keyEquivalent: "")
             item.target = self
             item.tag = Int(device.id)
-            item.state = selectedID == device.id ? .on : .off
+            item.state = device.isDefault ? .on : .off
             audioSubmenu.addItem(item)
         }
 
