@@ -36,7 +36,7 @@ struct NotificationCard: View {
         type: NotificationType = .warning,
         autoHide: Bool = true,
         showTimerTip: Bool = false,
-        autoCloseDuration: Int = 4,
+        autoCloseDuration: Int = 5,
         onTap: (() -> Void)? = nil,
         onClose: (() -> Void)? = nil
     ) {
@@ -103,14 +103,6 @@ struct NotificationCard: View {
             .onTapGesture {
                 onTap?()
             }
-            .onHover { hovering in
-                isCardHovered = hovering
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
 
             Button(action: {
                 stopAutoCloseTimer()
@@ -126,8 +118,15 @@ struct NotificationCard: View {
             .animation(.easeInOut(duration: 0.2), value: isCardHovered)
             .contentShape(Rectangle())
         }
-        .scaleEffect(isCardHovered ? 1.02 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isCardHovered)
+        .onHover { hovering in
+            isCardHovered = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
         .onAppear {
             if autoHide {
                 if showTimerTip {

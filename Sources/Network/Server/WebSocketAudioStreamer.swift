@@ -349,7 +349,7 @@ extension WebSocketAudioStreamer {
             try? await sleep(UInt64(recordingStartedTimeoutDuration * 1000))
             guard !Task.isCancelled else { return }
             log.warning("Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
-            EventBus.shared.publish(.notificationReceived(.recordingTimeout))
+            EventBus.shared.publish(.notificationReceived(.serverUnavailable(duringRecording: true)))
         }
         log.debug("Started recording started timeout timer (\(recordingStartedTimeoutDuration)s)")
     }

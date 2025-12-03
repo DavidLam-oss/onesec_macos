@@ -75,10 +75,9 @@ extension WebSocketMessage {
 
 enum NotificationMessageType: Equatable {
     case serverTimeout
-    case recordingTimeout
     case recordingTimeoutWarning
     case authTokenFailed
-    case serverUnavailable
+    case serverUnavailable(duringRecording: Bool)
     case networkUnavailable
     case custom(title: String, content: String)
     case error(title: String, content: String)
@@ -86,13 +85,11 @@ enum NotificationMessageType: Equatable {
     var title: String {
         switch self {
         case .serverTimeout:
-            "服务超时"
-        case .recordingTimeout:
-            "录音超时"
+            "请求超时"
         case .recordingTimeoutWarning:
-            "录音即将超时"
+            "录音即将自动结束"
         case .authTokenFailed:
-            JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "验证失败" : "未登录"
+            JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "身份验证失败" : "未登录"
         case .serverUnavailable:
             "服务不可用"
         case .networkUnavailable:
@@ -108,16 +105,14 @@ enum NotificationMessageType: Equatable {
         switch self {
         case .serverTimeout:
             "服务器响应超时，请稍后重试"
-        case .recordingTimeout:
-            "服务器录音响应超时"
         case .recordingTimeoutWarning:
             "录音将在15秒后自动停止"
         case .authTokenFailed:
-            JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "请返回客户端重新登陆" : "用户未登录，请登陆后使用"
+            JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "登录状态已失效，请重新登录" : "当前未登录，请登录后使用"
         case .serverUnavailable:
             "服务不可用，请检查网络连接"
         case .networkUnavailable:
-            "网络不可用，请检查网络连接"
+            "当前网络不可用，请检查网络连接"
         case let .custom(_, content):
             content
         case let .error(_, content):
@@ -127,12 +122,35 @@ enum NotificationMessageType: Equatable {
 
     var type: NotificationType {
         switch self {
-        case .error, .authTokenFailed, .serverUnavailable, .networkUnavailable:
+        case .error,
+             .authTokenFailed, .serverUnavailable,
+             .networkUnavailable, .serverTimeout:
             return .error
-        case .serverTimeout:
+        case .recordingTimeoutWarning:
             return .warning
         default:
             return .normal
+        }
+    }
+
+    var shouldAutoHide: Bool {
+        switch self {
+        case .error,
+             .authTokenFailed, .serverUnavailable:
+            return false
+        case .networkUnavailable, .serverTimeout, .recordingTimeoutWarning:
+            return true
+        default:
+            return true
+        }
+    }
+
+    var shouldPlaySound: Bool {
+        switch self {
+        case let .serverUnavailable(duringRecording):
+            return duringRecording
+        default:
+            return true
         }
     }
 }

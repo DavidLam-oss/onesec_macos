@@ -137,7 +137,7 @@ extension ConnectionCenter {
                 else {
                     return
                 }
-                EventBus.shared.publish(.notificationReceived(.serverUnavailable))
+                EventBus.shared.publish(.notificationReceived(.serverUnavailable(duringRecording: false)))
             }
             .store(in: &cancellables)
     }

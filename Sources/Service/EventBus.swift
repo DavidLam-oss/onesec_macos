@@ -64,7 +64,6 @@ extension EventBus {
                 switch event {
                 case .serverResultReceived,
                      .notificationReceived(.serverTimeout),
-                     .notificationReceived(.recordingTimeout),
                      .terminalLinuxChoice:
                     return ()
                 default:

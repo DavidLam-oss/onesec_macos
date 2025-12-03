@@ -59,9 +59,8 @@ extension StatusView {
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
 
-            var autoHide = true
             var showTimerTip = false
-            var autoCloseDuration = 3
+            var autoCloseDuration = 5
             if notificationType != .recordingTimeoutWarning {
                 log.info("Reset recording state to idle")
                 recording.state = .idle
@@ -70,19 +69,15 @@ extension StatusView {
                 showTimerTip = true
                 autoCloseDuration = 15
             }
-            // 服务不可用不显示通知, 延迟至下一次使用时再显示
-            if notificationType == .serverUnavailable {
-                return
-            }
 
-            if notificationType == .authTokenFailed {
-                autoHide = false
+            if case .serverUnavailable(duringRecording: false) = notificationType {
+                return
             }
 
             showNotificationMessage(
                 title: notificationType.title, content: notificationType.content,
                 type: notificationType.type,
-                autoHide: autoHide,
+                autoHide: notificationType.shouldAutoHide,
                 showTimerTip: showTimerTip,
                 autoCloseDuration: autoCloseDuration,
             )
@@ -187,7 +182,7 @@ extension StatusView {
         title: String, content: String,
         type: NotificationType = .warning,
         autoHide: Bool = true, onTap: (() -> Void)? = nil,
-        showTimerTip: Bool = false, autoCloseDuration: Int = 3,
+        showTimerTip: Bool = false, autoCloseDuration: Int = 5,
     ) {
         overlay.showOverlay(
             content: { panelId in

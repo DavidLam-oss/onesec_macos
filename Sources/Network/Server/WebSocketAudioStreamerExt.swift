@@ -25,7 +25,7 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
 
         case let .text(string):
             log.debug("WebSocket receive text: \(string)")
-            
+
             guard let data = string.data(using: .utf8) else {
                 return
             }
@@ -101,7 +101,11 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
             curRetryCount = 0
             let reason = status == 401 ? "auth invalid" : "permission denied"
             log.warning("WebSocket auth failed (\(status)), \(reason) stop auto-reconnect")
-            EventBus.shared.publish(.notificationReceived(.authTokenFailed))
+
+            if JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) {
+                EventBus.shared.publish(.notificationReceived(.authTokenFailed))
+            }
+
             return
         }
 

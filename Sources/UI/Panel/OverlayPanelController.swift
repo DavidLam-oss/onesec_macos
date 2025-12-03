@@ -7,7 +7,7 @@ class OverlayController {
     static let shared = OverlayController()
 
     private var panels: [UUID: NSPanel] = [:]
-    private let shadowPadding: CGFloat = 25
+    private let shadowPadding: CGFloat = 30
     private let statusBarHeight: CGFloat = 36
     private var lastDraggedPosition: NSPoint?
     private var cancellables = Set<AnyCancellable>()

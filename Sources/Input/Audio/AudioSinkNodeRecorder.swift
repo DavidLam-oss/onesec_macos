@@ -370,12 +370,12 @@ extension AudioSinkNodeRecorder {
                         }
                     }
                 case .notificationReceived(.serverTimeout),
-                     .notificationReceived(.recordingTimeout),
+                     .notificationReceived(.networkUnavailable),
                      .notificationReceived(.error):
                     Task { @MainActor in
                         self?.resetState()
                     }
-                case .notificationReceived(.serverUnavailable):
+                case .notificationReceived(.serverUnavailable(duringRecording: true)):
                     log.error("Server unavailable, stop recording")
                     Task { @MainActor in
                         self?.stopRecording(stopState: .idle)
@@ -449,7 +449,7 @@ extension AudioSinkNodeRecorder {
             Task { @MainActor in
                 self.stopRecording(stopState: queueStartTime == nil ? .idle : .processing)
             }
-            EventBus.shared.publish(.notificationReceived(.recordingTimeout))
+            EventBus.shared.publish(.notificationReceived(.serverUnavailable(duringRecording: true)))
         }
     }
 }
