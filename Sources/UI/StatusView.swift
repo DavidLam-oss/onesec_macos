@@ -70,7 +70,7 @@ extension StatusView {
                 showTimerTip = true
                 autoCloseDuration = 15
             }
-
+            // 服务不可用不显示通知, 延迟至下一次使用时再显示
             if notificationType == .serverUnavailable {
                 return
             }
@@ -81,7 +81,7 @@ extension StatusView {
 
             showNotificationMessage(
                 title: notificationType.title, content: notificationType.content,
-                type: (notificationType == .authTokenFailed || notificationType.isError) ? .error : .warning,
+                type: notificationType.type,
                 autoHide: autoHide,
                 showTimerTip: showTimerTip,
                 autoCloseDuration: autoCloseDuration,

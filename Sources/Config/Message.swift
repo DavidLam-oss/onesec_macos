@@ -125,9 +125,15 @@ enum NotificationMessageType: Equatable {
         }
     }
 
-    var isError: Bool {
-        if case .error = self { return true }
-        return false
+    var type: NotificationType {
+        switch self {
+        case .error, .authTokenFailed, .serverUnavailable, .networkUnavailable:
+            return .error
+        case .serverTimeout:
+            return .warning
+        default:
+            return .normal
+        }
     }
 }
 

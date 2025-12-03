@@ -170,7 +170,7 @@ class AXPasteboardController {
         pasteboard.setString(text, forType: .string)
 
         simulatePaste()
-        try? await sleep(200)
+        try? await sleep(300)
 
         restorePasteboard(oldContents)
     }
