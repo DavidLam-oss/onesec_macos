@@ -75,6 +75,7 @@ struct CodeEditor: NSViewRepresentable {
     @Binding var text: String
     var theme: EditorTheme
     var padding: CGFloat = 10
+    var onHeightChange: ((CGFloat) -> Void)?
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -87,12 +88,20 @@ struct CodeEditor: NSViewRepresentable {
         textView.insertionPointColor = Color.overlaySecondaryPrimary.nsColor
         textView.string = text
         textView.delegate = context.coordinator
+        
+        textView.isVerticallyResizable = true
+        textView.textContainer?.widthTracksTextView = true
 
         scrollView.contentInsets = .init(top: padding, left: padding, bottom: padding, right: padding)
         scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.hasVerticalScroller = false
         
         context.coordinator.textView = textView
         applySyntaxStyling(to: textView)
+        
+        DispatchQueue.main.async {
+            updateHeight(textView: textView)
+        }
         
         return scrollView
     }
@@ -108,6 +117,20 @@ struct CodeEditor: NSViewRepresentable {
         }
         
         applySyntaxStyling(to: textView)
+        
+        DispatchQueue.main.async {
+            updateHeight(textView: textView)
+        }
+    }
+    
+    private func updateHeight(textView: NSTextView) {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+        
+        layoutManager.ensureLayout(for: textContainer)
+        let usedRect = layoutManager.usedRect(for: textContainer)
+        let contentHeight = usedRect.height + padding * 2
+        onHeightChange?(contentHeight)
     }
 
     func applySyntaxStyling(to textView: NSTextView) {

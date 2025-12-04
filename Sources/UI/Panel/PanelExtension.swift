@@ -23,6 +23,17 @@ enum PanelType: Equatable {
     var canMove: Bool {
         return self != .notificationSystem
     }
+
+    var canFollowScreenChange: Bool {
+        if case .translate = self {
+            return false
+        }
+
+        if case .editable = self {
+            return false
+        }
+        return true
+    }
 }
 
 enum ExpandDirection {
@@ -35,6 +46,9 @@ extension NSPanel {
     private static var expandDirectionKey: UInt8 = 1
     private static var initialOriginKey: UInt8 = 2
     private static var initializedKey: UInt8 = 3
+    private static var wasDraggedKey: UInt8 = 4
+    private static var moveObserverKey: UInt8 = 5
+    private static var isUpdatingPositionKey: UInt8 = 6
 
     var panelType: PanelType? {
         get {
@@ -69,6 +83,40 @@ extension NSPanel {
         }
         set {
             objc_setAssociatedObject(self, &Self.initializedKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    var wasDragged: Bool {
+        get {
+            return objc_getAssociatedObject(self, &Self.wasDraggedKey) as? Bool ?? false
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.wasDraggedKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    var moveObserver: NSObjectProtocol? {
+        get {
+            return objc_getAssociatedObject(self, &Self.moveObserverKey) as? NSObjectProtocol
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.moveObserverKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    var isUpdatingPosition: Bool {
+        get {
+            return objc_getAssociatedObject(self, &Self.isUpdatingPositionKey) as? Bool ?? false
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.isUpdatingPositionKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    func removeMoveObserver() {
+        if let observer = moveObserver {
+            NotificationCenter.default.removeObserver(observer)
+            moveObserver = nil
         }
     }
 }

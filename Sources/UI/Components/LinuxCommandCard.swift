@@ -15,7 +15,7 @@ struct LinuxCommandCard: View {
             ContentCard(
                 panelID: panelID,
                 title: isChoiceMode ? "选择命令" : "命令处理",
-                cardWidth: 400,
+                cardWidth: 500,
                 showActionBar: false
             ) {
                 VStack(spacing: 13) {
@@ -52,24 +52,9 @@ struct CommandItem: View {
     }
 
     @State private var text: String =
-        """
-        struct Member {
-            let id = UUID().uuidString
-            var name: String
-            var team: Team
-        }
-
-        enum Team {
-            case home, away
-
-            var color: Color {
-                switch self {
-                case .home: return .red
-                case .away: return .blue
-                }
-            }
-        }
-        """
+        ""
+    @State private var editorHeight: CGFloat = 100
+    @State private var heightLocked = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -84,9 +69,13 @@ struct CommandItem: View {
 
             VStack(alignment: .trailing, spacing: 10) {
                 if shouldShowEditor {
-                    CodeEditor(text: $editableCommand, theme: .default)
-                        .frame(minHeight: 100)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    CodeEditor(text: $text, theme: .default) { height in
+                        guard !heightLocked else { return }
+                        editorHeight = min(height, 400)
+                        heightLocked = true
+                    }
+                    .frame(height: editorHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 } else {
                     Text(command.command)
                         .font(.system(size: 14, weight: .regular))

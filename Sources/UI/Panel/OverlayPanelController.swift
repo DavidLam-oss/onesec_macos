@@ -9,7 +9,6 @@ class OverlayController {
     private var panels: [UUID: NSPanel] = [:]
     private let shadowPadding: CGFloat = 30
     private let statusBarHeight: CGFloat = 36
-    private var lastDraggedPosition: NSPoint?
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
@@ -23,19 +22,11 @@ class OverlayController {
         let uuid = UUID()
         let (hosting, contentSize) = createHostingViewAndGetSize(content: { content(uuid) })
 
-        var origin: NSPoint
-        if panelType == .translate(.above),
-           let savedPosition = lastDraggedPosition
-        {
-            log.info("use saved position: \(savedPosition)")
-            origin = savedPosition
-        } else {
-            origin = calculateOverlayOrigin(
-                statusFrame: statusFrame,
-                contentSize: contentSize,
-                spacing: 4
-            )
-        }
+        var origin = calculateOverlayOrigin(
+            statusFrame: statusFrame,
+            contentSize: contentSize,
+            spacing: 4
+        )
 
         if let panelType = panelType,
            let existingUUID = findPanelByType(panelType),
@@ -217,9 +208,7 @@ class OverlayController {
 
     func hideOverlay(uuid: UUID) {
         guard let panel = panels[uuid] else { return }
-        if panel.isMovableByWindowBackground, panel.panelType == .translate(.above) {
-            lastDraggedPosition = panel.frame.origin
-        }
+        panel.removeMoveObserver()
         panel.close()
         panels.removeValue(forKey: uuid)
     }
@@ -235,9 +224,9 @@ class OverlayController {
         uuidsToHide.forEach { hideOverlay(uuid: $0) }
     }
 
-    func hideOverlaysExcept(_ panelType: PanelType) {
+    func hideOverlaysExcept(_ panelTypes: [PanelType]) {
         let uuidsToHide = panels.compactMap { uuid, panel in
-            panel.panelType != panelType ? uuid : nil
+            panelTypes.contains(where: { $0 == panel.panelType }) ? nil : uuid
         }
         uuidsToHide.forEach { hideOverlay(uuid: $0) }
     }
@@ -271,7 +260,7 @@ private extension OverlayController {
         let rect = NSRect(origin: origin, size: NSSize(width: size.width, height: size.height + extraHeight))
 
         if panelType != .translate(.collapse) {
-            hideOverlaysExcept(.notificationSystem)
+            hideOverlaysExcept([.notificationSystem])
         }
         if panelType == .editable {
             return EditablePanel(
@@ -300,6 +289,17 @@ private extension OverlayController {
 
         if let panelType = panel.panelType, panelType.canMove {
             panel.isMovableByWindowBackground = true
+        }
+
+        panel.moveObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: panel,
+            queue: .main
+        ) { [weak panel] _ in
+            guard let panel = panel, !panel.isUpdatingPosition else {
+                return
+            }
+            panel.wasDragged = true
         }
 
         if panel.panelType == .editable,
@@ -502,9 +502,8 @@ private extension OverlayController {
         guard let screen else { return }
         for (_, panel) in panels {
             guard panel.isVisible,
-                  let panelType = panel.panelType,
-                  panelType != .command,
-                  panelType.isTranslate == false
+                  panel.panelType?.canFollowScreenChange == true,
+                  panel.wasDragged == false
             else { continue }
             updatePanelPositionForScreen(panel, screen: screen)
         }
@@ -530,6 +529,7 @@ private extension OverlayController {
         )
         let newFrame = NSRect(origin: newOrigin, size: currentSize)
 
+        panel.isUpdatingPosition = true
         NSAnimationContext.runAnimationGroup(
             { context in
                 context.duration = 0.15
@@ -538,6 +538,7 @@ private extension OverlayController {
             },
             completionHandler: {
                 panel.setFrame(newFrame, display: true, animate: false)
+                panel.isUpdatingPosition = false
                 NSAnimationContext.runAnimationGroup { context in
                     context.duration = 0.15
                     context.timingFunction = CAMediaTimingFunction(name: .easeOut)

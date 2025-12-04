@@ -135,10 +135,10 @@ enum NotificationMessageType: Equatable {
 
     var shouldAutoHide: Bool {
         switch self {
-        case .error,
-             .authTokenFailed, .serverUnavailable:
+        case .error, .authTokenFailed:
             return false
-        case .networkUnavailable, .serverTimeout, .recordingTimeoutWarning:
+        case .networkUnavailable, .serverTimeout,
+             .recordingTimeoutWarning, .serverUnavailable:
             return true
         default:
             return true
