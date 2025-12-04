@@ -75,7 +75,7 @@ class AXTranslationAccessor {
         translationPanelID = OverlayController.shared.showOverlayAbovePoint(point: mousePoint, content: { panelID in
             LazyTranslationCard(
                 panelID: panelID,
-                title: "识别结果",
+                title: "执行结果",
                 content: text,
                 isCompactMode: true,
                 expandDirection: direction
