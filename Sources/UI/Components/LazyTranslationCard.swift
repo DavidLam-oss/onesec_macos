@@ -83,6 +83,8 @@ struct LazyTranslationCard: View {
             withAnimation(.springAnimation) {
                 isExpanded = true
             }
+            OverlayController.shared.hideOverlays(.translate(.selection))
+            OverlayController.shared.getPanel(uuid: panelID)?.panelType = .translate(.selection)
             fetchTranslation()
             onTap?()
         }) {

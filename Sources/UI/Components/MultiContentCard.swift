@@ -99,9 +99,9 @@ private struct ContentItemView: View {
 }
 
 extension MultiContentCard {
-    static func show(title: String, items: [ContentItem], cardWidth: CGFloat = 260, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil, canMove: Bool = false) {
+    static func show(title: String, items: [ContentItem], cardWidth: CGFloat = 260, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
         OverlayController.shared.showOverlay(content: { panelID in
             MultiContentCard(panelID: panelID, title: title, items: items, cardWidth: cardWidth)
-        }, spacingX: spacingX, spacingY: spacingY, panelType: panelType, canMove: canMove)
+        }, spacingX: spacingX, spacingY: spacingY, panelType: panelType)
     }
 }

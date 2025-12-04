@@ -17,15 +17,14 @@ class OverlayController {
     }
 
     @discardableResult
-    func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX _: CGFloat = 0, spacingY _: CGFloat = 0, extraHeight: CGFloat = 0, panelType: PanelType? = nil, canMove: Bool = false) -> UUID {
+    func showOverlay(@ViewBuilder content: (_ panelId: UUID) -> some View, spacingX _: CGFloat = 0, spacingY _: CGFloat = 0, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> UUID {
         let statusFrame = StatusPanelManager.shared.getPanel().frame
 
         let uuid = UUID()
         let (hosting, contentSize) = createHostingViewAndGetSize(content: { content(uuid) })
 
         var origin: NSPoint
-        if canMove,
-           panelType == .translate,
+        if panelType == .translate(.above),
            let savedPosition = lastDraggedPosition
         {
             log.info("use saved position: \(savedPosition)")
@@ -38,11 +37,12 @@ class OverlayController {
             )
         }
 
-        // 如果指定了 panelType，尝试找到现有的同类型 panel
-        if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
-            if panels[existingUUID]!.panelType == .translate {
-                origin = panels[existingUUID]!.frame.origin
-            }
+        if let panelType = panelType,
+           let existingUUID = findPanelByType(panelType),
+           let existingPanel = panels[existingUUID],
+           existingPanel.panelType == .translate(.above)
+        {
+            origin = existingPanel.frame.origin
 
             moveAndUpdateExistingPanel(
                 uuid: existingUUID,
@@ -57,7 +57,6 @@ class OverlayController {
 
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight, panelType: panelType)
         panel.panelType = panelType
-        panel.isMovableByWindowBackground = canMove
 
         setupPanel(panel, hosting: hosting)
         animateFadeIn(panel)
@@ -89,17 +88,17 @@ class OverlayController {
             contentSize: contentSize
         )
 
-        if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
-            moveAndUpdateExistingPanel(
-                uuid: existingUUID,
-                content: content,
-                origin: origin,
-                contentSize: contentSize,
-                extraHeight: extraHeight
-            )
+        // if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
+        //     moveAndUpdateExistingPanel(
+        //         uuid: existingUUID,
+        //         content: content,
+        //         origin: origin,
+        //         contentSize: contentSize,
+        //         extraHeight: extraHeight
+        //     )
 
-            return existingUUID
-        }
+        //     return existingUUID
+        // }
 
         hosting.onSizeChanged = { [weak self] in
             self?.handlePanelSizeChange(uuid: uuid)
@@ -112,7 +111,6 @@ class OverlayController {
         animateFadeIn(panel)
 
         panel.expandDirection = expandDirection
-        panel.isMovableByWindowBackground = true
         panel.initialOrigin = origin
         panels[uuid] = panel
         return uuid
@@ -121,7 +119,7 @@ class OverlayController {
     @discardableResult
     func showOverlayAbovePoint(point: NSPoint, @ViewBuilder content: (_ panelId: UUID) -> some View, extraHeight: CGFloat = 0, panelType: PanelType? = nil, expandDirection: ExpandDirection? = nil) -> UUID? {
         if let panelType = panelType {
-            hideOverlaysByPanelType(panelType)
+            hideOverlays(panelType)
         }
 
         guard let screen = MouseContextService.shared.getMouseScreen() ?? NSScreen.main else {
@@ -169,20 +167,19 @@ class OverlayController {
             screenFrame: screen.frame
         )
 
-        if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
-            moveAndUpdateExistingPanel(
-                uuid: existingUUID,
-                content: content,
-                origin: origin,
-                contentSize: contentSize,
-                extraHeight: extraHeight
-            )
-            return existingUUID
-        }
+        // if let panelType = panelType, let existingUUID = findPanelByType(panelType) {
+        //     moveAndUpdateExistingPanel(
+        //         uuid: existingUUID,
+        //         content: content,
+        //         origin: origin,
+        //         contentSize: contentSize,
+        //         extraHeight: extraHeight
+        //     )
+        //     return existingUUID
+        // }
 
         let panel = createPanel(origin: origin, size: contentSize, extraHeight: extraHeight, panelType: panelType)
         panel.panelType = panelType
-        panel.isMovableByWindowBackground = true
 
         setupPanel(panel, hosting: hosting)
         animateFadeIn(panel)
@@ -220,7 +217,7 @@ class OverlayController {
 
     func hideOverlay(uuid: UUID) {
         guard let panel = panels[uuid] else { return }
-        if panel.isMovableByWindowBackground, panel.panelType == .translate {
+        if panel.isMovableByWindowBackground, panel.panelType == .translate(.above) {
             lastDraggedPosition = panel.frame.origin
         }
         panel.close()
@@ -231,9 +228,16 @@ class OverlayController {
         panels.keys.forEach { hideOverlay(uuid: $0) }
     }
 
-    func hideOverlaysByPanelType(_ panelType: PanelType) {
+    func hideOverlays(_ panelType: PanelType) {
         let uuidsToHide = panels.compactMap { uuid, panel in
             panel.panelType == panelType ? uuid : nil
+        }
+        uuidsToHide.forEach { hideOverlay(uuid: $0) }
+    }
+
+    func hideOverlaysExcept(_ panelType: PanelType) {
+        let uuidsToHide = panels.compactMap { uuid, panel in
+            panel.panelType != panelType ? uuid : nil
         }
         uuidsToHide.forEach { hideOverlay(uuid: $0) }
     }
@@ -266,6 +270,9 @@ private extension OverlayController {
     func createPanel(origin: NSPoint, size: NSSize, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> NSPanel {
         let rect = NSRect(origin: origin, size: NSSize(width: size.width, height: size.height + extraHeight))
 
+        if panelType != .translate(.collapse) {
+            hideOverlaysExcept(.notificationSystem)
+        }
         if panelType == .editable {
             return EditablePanel(
                 contentRect: rect,
@@ -291,8 +298,12 @@ private extension OverlayController {
         panel.hasShadow = false
         panel.contentView = hosting
 
-        if panel.panelType == .editable ||
-            ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
+        if let panelType = panel.panelType, panelType.canMove {
+            panel.isMovableByWindowBackground = true
+        }
+
+        if panel.panelType == .editable,
+           ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
         {
             panel.makeKeyAndOrderFront(nil)
         } else {
@@ -492,7 +503,8 @@ private extension OverlayController {
         for (_, panel) in panels {
             guard panel.isVisible,
                   let panelType = panel.panelType,
-                  panelType != .command
+                  panelType != .command,
+                  panelType.isTranslate == false
             else { continue }
             updatePanelPositionForScreen(panel, screen: screen)
         }

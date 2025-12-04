@@ -250,6 +250,15 @@ extension View {
                 .animation(.easeInOut(duration: 0.2), value: isActive)
         }
     }
+
+    @ViewBuilder
+    func symbolWiggleEffect(isActive: Bool) -> some View {
+        if #available(macOS 15.0, *) {
+            self.symbolEffect(.wiggle.wholeSymbol, options: .nonRepeating, isActive: isActive)
+        } else {
+            self
+        }
+    }
 }
 
 // Font

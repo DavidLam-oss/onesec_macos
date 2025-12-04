@@ -21,10 +21,10 @@ class AXTranslationAccessor {
                 }
             }
     }
-    
+
     private static func startMonitoring() {
         guard mouseDownMonitor == nil else { return }
-        
+
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { _ in
             Task { @MainActor in
                 mouseDownPoint = NSEvent.mouseLocation
@@ -42,7 +42,7 @@ class AXTranslationAccessor {
 
                 // 25 约为两个中文字符宽度
                 guard distance > 25 else {
-                    reset()
+                    OverlayController.shared.hideOverlays(.translate(.collapse))
                     return
                 }
 
@@ -50,7 +50,7 @@ class AXTranslationAccessor {
             }
         }
     }
-    
+
     private static func stopMonitoring() {
         if let monitor = mouseDownMonitor {
             NSEvent.removeMonitor(monitor)
@@ -69,11 +69,9 @@ class AXTranslationAccessor {
               text != pasteboardText
         else {
             log.info("No text to translate")
-            reset()
             return
         }
 
-        OverlayController.shared.hideAllOverlays()
         translationPanelID = OverlayController.shared.showOverlayAbovePoint(point: mousePoint, content: { panelID in
             LazyTranslationCard(
                 panelID: panelID,
@@ -82,11 +80,6 @@ class AXTranslationAccessor {
                 isCompactMode: true,
                 expandDirection: direction
             )
-        }, expandDirection: direction)
-    }
-
-    private static func reset() {
-        translationPanelID.map { OverlayController.shared.hideOverlay(uuid: $0) }
-        translationPanelID = nil
+        }, panelType: .translate(.collapse), expandDirection: direction)
     }
 }

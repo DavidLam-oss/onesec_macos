@@ -1,12 +1,28 @@
 import ObjectiveC
 import SwiftUI
 
-enum PanelType {
+enum TranslatePosition: Equatable {
+    case collapse
+    case selection
+    case bottom
+    case above
+}
+
+enum PanelType: Equatable {
     case editable
-    case translate
+    case translate(TranslatePosition)
     case command
     case notification
     case notificationSystem
+
+    var isTranslate: Bool {
+        if case .translate = self { return true }
+        return false
+    }
+
+    var canMove: Bool {
+        return self != .notificationSystem
+    }
 }
 
 enum ExpandDirection {

@@ -54,7 +54,7 @@ extension StatusView {
             if ConnectionCenter.shared.isAuthed,
                ConnectionCenter.shared.hasPermissions()
             {
-                overlay.hideOverlaysByPanelType(.notificationSystem)
+                overlay.hideOverlays(.notificationSystem)
             }
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
@@ -157,7 +157,7 @@ extension StatusView {
         if canPaste {
             if processMode == .translate {
                 guard Config.shared.USER_CONFIG.translation.showComparison else { return }
-                ContentCard<EmptyView>.show(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate, canMove: true)
+                ContentCard<EmptyView>.show(title: "输入原文", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate(.above))
             } else if processMode == .terminal, text.newlineCount >= 1 {
                 LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: text, displayName: "")])
             }
@@ -167,11 +167,15 @@ extension StatusView {
                 MultiContentCard.show(title: "识别结果", items: [
                     ContentItem(title: "原文", content: polishedText),
                     ContentItem(title: "译文", content: text),
-                ], cardWidth: cardWidth, panelType: .translate)
+                ], cardWidth: cardWidth, panelType: .translate(.bottom))
                 return
             }
             if recording.mode == .command {
-                ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: text, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
+                if ConnectionCenter.shared.currentRecordingAppContext.focusContext.selectedText.isEmpty {
+                    ContentCard<EmptyView>.show(title: "处理结果", content: text, cardWidth: cardWidth, panelType: .command)
+                } else {
+                    ContentCard<EmptyView>.showAboveSelection(title: "处理结果", content: text, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
+                }
             } else {
                 ContentCard<EmptyView>.show(title: "识别结果", content: text, cardWidth: cardWidth, panelType: .notification)
             }
@@ -208,7 +212,7 @@ extension StatusView {
             showPermissionAlert()
             SoundService.shared.playSound(.notification)
         } else {
-            overlay.hideOverlaysByPanelType(.notificationSystem)
+            overlay.hideOverlays(.notificationSystem)
         }
     }
 

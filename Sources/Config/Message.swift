@@ -112,7 +112,7 @@ enum NotificationMessageType: Equatable {
         case .serverUnavailable:
             "服务不可用，请检查网络连接"
         case .networkUnavailable:
-            "当前网络不可用，请检查网络连接"
+            "网络不可用，请检查网络连接"
         case let .custom(_, content):
             content
         case let .error(_, content):
