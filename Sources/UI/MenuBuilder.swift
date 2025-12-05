@@ -22,7 +22,7 @@ final class MenuBuilder {
         let menu = NSMenu()
 
         // 音频设备选择
-        let audioItem = NSMenuItem(title: "音频输入", action: nil, keyEquivalent: "")
+        let audioItem = NSMenuItem(title: "麦克风", action: nil, keyEquivalent: "")
         let audioSubmenu = NSMenu()
 
         AudioDeviceManager.shared.refreshDevices()

@@ -118,7 +118,6 @@ struct NotificationCard: View {
             .animation(.easeInOut(duration: 0.2), value: isCardHovered)
             .contentShape(Rectangle())
         }
-        .animation(.easeInOut(duration: 0.15), value: isCardHovered)
         .onHover { hovering in
             isCardHovered = hovering
             if hovering {

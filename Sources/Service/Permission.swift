@@ -29,16 +29,30 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
 
     @Published var microphonePermissionStatus: PermissionStatus = .notDetermined
     @Published var accessibilityPermissionStatus: PermissionStatus = .notDetermined
-    // @Published var screenRecordingPermissionStatus: PermissionStatus = .notDetermined
     @Published var permissionsState: [PermissionType: PermissionStatus] = [:]
 
     private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
 
     private init() {
-        checkAllPermissions { [weak self] _ in
+        checkAllPermissions { [weak self] in
             self?.startMonitoring()
         }
+    }
+
+    func checkAllPermissions(completion: @escaping @Sendable () -> Void) {
+        flushPermissionStatus()
+
+        if microphonePermissionStatus == .notDetermined {
+            log.info("Microphone permission not determined, requesting...")
+            requestMicrophone { _ in }
+        }
+        if accessibilityPermissionStatus == .denied {
+            log.info("Accessibility permission denied, requesting...")
+            requestAccessibility { _ in }
+        }
+
+        completion()
     }
 
     func checkStatus(_ type: PermissionType) -> PermissionStatus {
@@ -47,8 +61,6 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
             AXIsProcessTrusted() ? .granted : .denied
         case .microphone:
             microphoneStatus()
-            // case .screenRecording:
-            //     screenRecordingStatus()
         }
     }
 
@@ -58,33 +70,6 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
             requestAccessibility(completion: completion)
         case .microphone:
             requestMicrophone(completion: completion)
-            // case .screenRecording:
-            //     requestScreenRecording(completion: completion)
-        }
-    }
-
-    func checkAllPermissions(completion: @escaping @Sendable ([PermissionType: PermissionStatus]) -> Void) {
-        updateAllPermissionStatus()
-
-        let micStatus = checkStatus(.microphone)
-        let accessStatus = checkStatus(.accessibility)
-        // let screenStatus = checkStatus(.screenRecording)
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-
-            microphonePermissionStatus = micStatus
-            accessibilityPermissionStatus = accessStatus
-            // screenRecordingPermissionStatus = screenStatus
-
-            let results: [PermissionType: PermissionStatus] = [
-                .microphone: micStatus,
-                .accessibility: accessStatus,
-                // .screenRecording: screenStatus
-            ]
-
-            permissionsState = results
-            completion(results)
         }
     }
 
@@ -99,7 +84,7 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
         }
 
         if !trusted {
-            openSystemPreferences(for: .accessibility)
+            showAccessibilityPermissionAlert()
         }
 
         completion(trusted)
@@ -149,27 +134,21 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // private func screenRecordingStatus() -> PermissionStatus {
-    //     CGPreflightScreenCaptureAccess() ? .granted : .denied
-    // }
+    func showAccessibilityPermissionAlert() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "需要辅助功能权限"
+            alert.informativeText = "秒言需要辅助功能权限来获取输入上下文。请在系统偏好设置中允许辅助功能权限。"
+            alert.addButton(withTitle: "打开系统偏好设置")
+            alert.addButton(withTitle: "取消")
 
-    // private func requestScreenRecording(completion: @escaping @Sendable (Bool) -> Void) {
-    //     if CGPreflightScreenCaptureAccess() {
-    //         completion(true)
-    //         return
-    //     }
-    //
-    //     DispatchQueue.global(qos: .userInitiated).async {
-    //         let granted = CGRequestScreenCaptureAccess()
-    //         DispatchQueue.main.async { [weak self] in
-    //             guard let self else { return }
-    //             if !granted {
-    //                 self.openSystemPreferences(for: .screenRecording)
-    //             }
-    //             completion(granted)
-    //         }
-    //     }
-    // }
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                self.openSystemPreferences(for: .accessibility)
+            }
+        }
+    }
 
     private func openSystemPreferences(for type: PermissionType) {
         let urlString = switch type {
@@ -177,8 +156,6 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         case .microphone:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-            // case .screenRecording:
-            //     "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
         }
 
         if let url = URL(string: urlString) {
@@ -206,34 +183,30 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
     func updateAllPermissionStatus() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            let newMicStatus = checkStatus(.microphone)
-            let newAccessStatus = checkStatus(.accessibility)
-            // let newScreenStatus = checkStatus(.screenRecording)
+            self.flushPermissionStatus()
+        }
+    }
 
-            var hasChanges = false
+    func flushPermissionStatus() {
+        let newMicStatus = checkStatus(.microphone)
+        let newAccessStatus = checkStatus(.accessibility)
+        var hasChanges = false
 
-            if microphonePermissionStatus != newMicStatus {
-                microphonePermissionStatus = newMicStatus
-                hasChanges = true
-            }
+        if microphonePermissionStatus != newMicStatus {
+            microphonePermissionStatus = newMicStatus
+            hasChanges = true
+        }
 
-            if accessibilityPermissionStatus != newAccessStatus {
-                accessibilityPermissionStatus = newAccessStatus
-                hasChanges = true
-            }
+        if accessibilityPermissionStatus != newAccessStatus {
+            accessibilityPermissionStatus = newAccessStatus
+            hasChanges = true
+        }
 
-            // if screenRecordingPermissionStatus != newScreenStatus {
-            //     screenRecordingPermissionStatus = newScreenStatus
-            //     hasChanges = true
-            // }
-
-            if hasChanges {
-                permissionsState = [
-                    .microphone: newMicStatus,
-                    .accessibility: newAccessStatus,
-                    // .screenRecording: newScreenStatus
-                ]
-            }
+        if hasChanges {
+            permissionsState = [
+                .microphone: newMicStatus,
+                .accessibility: newAccessStatus,
+            ]
         }
     }
 

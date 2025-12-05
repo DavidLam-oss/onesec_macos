@@ -15,6 +15,7 @@ struct ContentCard<CustomContent: View>: View {
     let actionButtons: [ActionButton]?
     let customContent: (() -> CustomContent)?
     let cardWidth: CGFloat
+    let panelType: PanelType?
 
     private let autoCloseDuration = 9
     private let maxContentHeight: CGFloat = 200
@@ -35,6 +36,7 @@ struct ContentCard<CustomContent: View>: View {
         actionButtons: [ActionButton]? = nil,
         cardWidth: CGFloat = 300,
         showActionBar: Bool = true,
+        panelType: PanelType? = nil,
         @ViewBuilder customContent: @escaping () -> CustomContent
     ) {
         self.panelID = panelID
@@ -44,6 +46,7 @@ struct ContentCard<CustomContent: View>: View {
         self.actionButtons = actionButtons
         self.cardWidth = cardWidth
         self.showActionBar = showActionBar
+        self.panelType = panelType
         self.customContent = customContent
     }
 
@@ -60,10 +63,15 @@ struct ContentCard<CustomContent: View>: View {
             VStack(alignment: .leading, spacing: 9) {
                 // Title Bar
                 HStack(spacing: 8) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.overlayText)
-                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Image.systemSymbol(panelType?.titleIcon ?? "mic")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.overlayText)
+                        Text(title)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.overlayText)
+                            .lineLimit(1)
+                    }
 
                     Spacer()
 
@@ -216,7 +224,8 @@ extension ContentCard where CustomContent == EmptyView {
         content: String,
         onTap: (() -> Void)? = nil,
         actionButtons: [ActionButton]? = nil,
-        cardWidth: CGFloat = 250
+        cardWidth: CGFloat = 250,
+        panelType: PanelType? = nil
     ) {
         self.panelID = panelID
         self.title = title
@@ -224,6 +233,7 @@ extension ContentCard where CustomContent == EmptyView {
         self.onTap = onTap
         self.actionButtons = actionButtons
         self.cardWidth = cardWidth
+        self.panelType = panelType
         customContent = nil
     }
 }
@@ -231,13 +241,13 @@ extension ContentCard where CustomContent == EmptyView {
 extension ContentCard {
     static func show(title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil, cardWidth: CGFloat = 250, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
         OverlayController.shared.showOverlay(content: { panelID in
-            ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons, cardWidth: cardWidth)
+            ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons, cardWidth: cardWidth, panelType: panelType)
         }, spacingX: spacingX, spacingY: spacingY, panelType: panelType)
     }
 
     static func showAboveSelection(title: String, content: String, onTap: (() -> Void)? = nil, actionButtons: [ActionButton]? = nil, cardWidth: CGFloat = 250, spacingX: CGFloat = 0, spacingY: CGFloat = 0, panelType: PanelType? = nil) {
         OverlayController.shared.showOverlayAboveSelection(content: { panelID in
-            ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons, cardWidth: cardWidth)
+            ContentCard<EmptyView>(panelID: panelID, title: title, content: content, onTap: onTap, actionButtons: actionButtons, cardWidth: cardWidth, panelType: panelType)
         }, spacingX: spacingX, spacingY: spacingY, panelType: panelType)
     }
 }

@@ -236,9 +236,14 @@ private extension OverlayController {
     func createPanel(origin: NSPoint, size: NSSize, extraHeight: CGFloat = 0, panelType: PanelType? = nil) -> NSPanel {
         let rect = NSRect(origin: origin, size: NSSize(width: size.width, height: size.height + extraHeight))
 
+        if panelType == .notificationSystem {
+            hideOverlays(.notificationSystem)
+        }
+
         if panelType != .translate(.collapse) {
             hideOverlaysExcept([.notificationSystem])
         }
+
         if panelType == .editable {
             return EditablePanel(
                 contentRect: rect,
@@ -279,8 +284,8 @@ private extension OverlayController {
             panel.wasDragged = true
         }
 
-        if panel.panelType == .editable,
-           ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
+        if panel.panelType == .editable ||
+            ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
         {
             panel.makeKeyAndOrderFront(nil)
         } else {

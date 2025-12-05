@@ -5,6 +5,7 @@
 //  Created by 王晓雨 on 2025/11/20.
 //
 
+import Combine
 import Foundation
 
 /**
@@ -16,8 +17,18 @@ class SyncScheduler {
 
     private var scheduler: NSBackgroundActivityScheduler?
     private let syncInterval: TimeInterval = 24 * 60 * 60 // 24 小时
+    private var cancellables = Set<AnyCancellable>()
 
-    private init() {}
+    private init() {
+        EventBus.shared.events
+            .sink { [weak self] event in
+                if case .userDataUpdated(.auth) = event {
+                    self?.performSync()
+                    self?.scheduleNextSync()
+                }
+            }
+            .store(in: &cancellables)
+    }
 
     func start() {
         guard let lastSyncTime: Date = Config.shared.USER_CONFIG.lastSyncTime else {
@@ -65,9 +76,10 @@ class SyncScheduler {
     }
 
     private func performSync() {
-        log.info("Start sync Focus Judgment Sheet")
-
         Task {
+            guard JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) else {
+                return
+            }
             await syncAppLists()
         }
     }

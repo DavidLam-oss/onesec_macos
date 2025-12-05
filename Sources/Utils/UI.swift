@@ -202,6 +202,8 @@ struct SymbolImage: View {
         "checkmark": "✓",
         "doc.on.doc": "⧉",
         "bell.fill": "🔔",
+        "sparkles": "✨",
+        "microphone": "🎤",
     ]
 
     private var nsImage: NSImage? {
@@ -274,7 +276,7 @@ func getTextCardWidth(text: String) -> CGFloat {
     let textWidth = getTextWidth(text: text)
     return {
         switch textWidth {
-        case ..<100: return 200
+        case ..<100: return 230
         case ..<200: return 260
         case ..<500: return 300
         case ..<1000: return 330

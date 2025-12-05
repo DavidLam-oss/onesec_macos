@@ -157,7 +157,7 @@ extension StatusView {
         if canPaste {
             if processMode == .translate {
                 guard Config.shared.USER_CONFIG.translation.showComparison else { return }
-                ContentCard<EmptyView>.show(title: "语音内容", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate(.above))
+                ContentCard<EmptyView>.show(title: "识别内容", content: polishedText, onTap: nil, actionButtons: nil, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .translate(.above))
             } else if processMode == .terminal, text.newlineCount >= 1 {
                 LinuxCommandCard.show(commands: [LinuxCommand(distro: "", command: text, displayName: "")])
             }
@@ -177,7 +177,7 @@ extension StatusView {
                     ContentCard<EmptyView>.showAboveSelection(title: "执行结果", content: text, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
                 }
             } else {
-                ContentCard<EmptyView>.show(title: "语音内容", content: text, cardWidth: cardWidth, panelType: .notification)
+                ContentCard<EmptyView>.show(title: "识别内容", content: text, cardWidth: cardWidth, panelType: .notification)
             }
         }
     }

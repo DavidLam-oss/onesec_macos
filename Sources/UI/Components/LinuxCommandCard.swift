@@ -16,7 +16,8 @@ struct LinuxCommandCard: View {
                 panelID: panelID,
                 title: isChoiceMode ? "选择命令" : "命令处理",
                 cardWidth: 500,
-                showActionBar: false
+                showActionBar: false,
+                panelType: .editable,
             ) {
                 VStack(spacing: 13) {
                     ForEach(commands.indices, id: \.self) { index in

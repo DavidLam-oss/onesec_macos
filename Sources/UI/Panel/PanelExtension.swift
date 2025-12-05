@@ -20,6 +20,17 @@ enum PanelType: Equatable {
         return false
     }
 
+    var titleIcon: String {
+        switch self {
+        case .translate, .command, .editable:
+            return "sparkles"
+        case .notification:
+            return "mic"
+        default:
+            return "mic"
+        }
+    }
+
     var canMove: Bool {
         return self != .notificationSystem
     }

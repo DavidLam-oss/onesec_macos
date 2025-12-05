@@ -21,6 +21,7 @@ struct MultiContentCard: View {
                 title: title,
                 cardWidth: cardWidth,
                 showActionBar: false,
+                panelType: .translate(.bottom),
             ) {
                 VStack(spacing: 0) {
                     ForEach(items) { item in

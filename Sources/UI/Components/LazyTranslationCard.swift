@@ -115,10 +115,15 @@ struct LazyTranslationCard: View {
             VStack(alignment: .leading, spacing: 9) {
                 // Title Bar
                 HStack(spacing: 8) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.overlayText)
-                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Image.systemSymbol("sparkles")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.overlayText)
+                        Text(title)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.overlayText)
+                            .lineLimit(1)
+                    }
 
                     Spacer()
                     Button(action: closeCard) {
