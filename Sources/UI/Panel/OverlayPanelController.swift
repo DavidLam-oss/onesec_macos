@@ -286,20 +286,15 @@ private extension OverlayController {
 
         let shouldSuitMacos10_15 = ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
 
-        if shouldSuitMacos10_15 {
-            panel.acceptsMouseMovedEvents = true
-        }
+        // if shouldSuitMacos10_15 {
+        //     panel.ignoresMouseEvents = false
+        //     panel.acceptsMouseMovedEvents = true
+        // }
 
         if panel.panelType == .editable || shouldSuitMacos10_15 {
             panel.makeKeyAndOrderFront(nil)
         } else {
             panel.orderFront(nil)
-        }
-
-        if shouldSuitMacos10_15 {
-            Task { @MainActor in
-                hosting.updateTrackingAreasRecursively()
-            }
         }
     }
 

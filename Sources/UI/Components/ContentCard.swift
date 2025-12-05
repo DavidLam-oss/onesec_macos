@@ -159,7 +159,7 @@ struct ContentCard<CustomContent: View>: View {
         )
         .shadow(color: .overlayBackground.opacity(0.2), radius: 6, x: 0, y: 0)
         .onTapGesture { onTap?() }
-        .onHover { hovering in
+        .compatibleHover { hovering in
             isHovering = hovering
             if hovering && !hasBeenHovered {
                 hasBeenHovered = true

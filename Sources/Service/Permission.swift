@@ -119,7 +119,7 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
     }
 
     private func showMicrophonePermissionAlert() {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = "需要麦克风权限"
@@ -135,7 +135,7 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
     }
 
     func showAccessibilityPermissionAlert() {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = "需要辅助功能权限"
@@ -181,13 +181,12 @@ final class PermissionService: ObservableObject, @unchecked Sendable {
     }
 
     func updateAllPermissionStatus() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.flushPermissionStatus()
+        Task { @MainActor in
+            flushPermissionStatus()
         }
     }
 
-    func flushPermissionStatus() {
+    private func flushPermissionStatus() {
         let newMicStatus = checkStatus(.microphone)
         let newAccessStatus = checkStatus(.accessibility)
         var hasChanges = false

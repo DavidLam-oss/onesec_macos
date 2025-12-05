@@ -165,10 +165,77 @@ class EditablePanel: NSPanel {
 }
 
 extension NSView {
-    func updateTrackingAreasRecursively() {
-        updateTrackingAreas()
-        for subview in subviews {
-            subview.updateTrackingAreasRecursively()
+    func updateTrackingAreasRecursively(repeatCount: Int = 5) {
+        func update() {
+            updateTrackingAreas()
+            for subview in subviews {
+                subview.updateTrackingAreas()
+                subview.subviews.forEach { $0.updateTrackingAreas() }
+            }
+        }
+
+        for i in 0 ..< repeatCount {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.2) {
+                update()
+            }
+        }
+    }
+}
+
+// MARK: - macOS 10.15 兼容的 Hover 实现
+
+class HoverTrackingView: NSView {
+    var onHover: ((Bool) -> Void)?
+    private var trackingArea: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let existing = trackingArea {
+            removeTrackingArea(existing)
+        }
+
+        let options: NSTrackingArea.Options = [
+            .mouseEnteredAndExited,
+            .activeAlways,
+            .inVisibleRect,
+        ]
+        trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        addTrackingArea(trackingArea!)
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        onHover?(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        onHover?(false)
+    }
+}
+
+struct HoverView: NSViewRepresentable {
+    let onHover: (Bool) -> Void
+
+    func makeNSView(context: Context) -> HoverTrackingView {
+        let view = HoverTrackingView()
+        view.onHover = onHover
+        return view
+    }
+
+    func updateNSView(_ nsView: HoverTrackingView, context: Context) {
+        nsView.onHover = onHover
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func compatibleHover(onHover: @escaping (Bool) -> Void) -> some View {
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11 {
+            self.background(HoverView(onHover: onHover))
+        } else {
+            self.onHover(perform: onHover)
         }
     }
 }

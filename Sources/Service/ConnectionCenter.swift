@@ -152,8 +152,4 @@ extension ConnectionCenter {
             inputSerive = nil
         }
     }
-
-    func cleanInputService() {
-        inputSerive = nil
-    }
 }
