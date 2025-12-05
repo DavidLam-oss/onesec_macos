@@ -118,7 +118,7 @@ struct NotificationCard: View {
             .animation(.easeInOut(duration: 0.2), value: isCardHovered)
             .contentShape(Rectangle())
         }
-        .onHover { hovering in
+        .compatibleHover { hovering in
             isCardHovered = hovering
             if hovering {
                 NSCursor.pointingHand.push()

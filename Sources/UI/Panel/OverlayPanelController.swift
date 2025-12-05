@@ -284,14 +284,7 @@ private extension OverlayController {
             panel.wasDragged = true
         }
 
-        let shouldSuitMacos10_15 = ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11
-
-        // if shouldSuitMacos10_15 {
-        //     panel.ignoresMouseEvents = false
-        //     panel.acceptsMouseMovedEvents = true
-        // }
-
-        if panel.panelType == .editable || shouldSuitMacos10_15 {
+        if panel.panelType == .editable {
             panel.makeKeyAndOrderFront(nil)
         } else {
             panel.orderFront(nil)

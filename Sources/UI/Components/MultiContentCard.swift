@@ -80,7 +80,7 @@ private struct ContentItemView: View {
                 }
             }
         }
-        .onHover { hovering in
+        .compatibleHover { hovering in
             isHovering = hovering
         }
     }

@@ -12,17 +12,17 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .executable(
             name: "OnesecCore",
-            targets: ["OnesecCore"]
+            targets: ["OnesecCore"],
         ),
     ],
     dependencies: [
         .package(url: "https://github.com/daltoniam/Starscream.git", from: "4.0.0"),
         .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver.git", .upToNextMajor(from: "2.0.0")),
-        .package(url: "GitHub - apple/swift-argument-parser: Straightforward, type-safe argument parsing for Swift", from: "1.3.0"),
-        .package(url: "GitHub - alta/swift-opus: Opus audio codec for Swift Package Manager", from: "0.0.2"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
+        .package(url: "https://github.com/alta/swift-opus", from: "0.0.2"),
         .package(
-            url: "GitHub - apple/swift-collections: Commonly used data structures for Swift",
-            .upToNextMinor(from: "1.3.0") // or `.upToNextMajor
+            url: "https://github.com/apple/swift-collections.git",
+            .upToNextMinor(from: "1.3.0"), // or `.upToNextMajor
         ),
 
     ],
@@ -44,11 +44,11 @@ let package = Package(
             ],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
-            ]
+            ],
         ),
         .testTarget(
             name: "OnesecCoreTests",
-            dependencies: ["OnesecCore"]
+            dependencies: ["OnesecCore"],
         ),
-    ]
+    ],
 )

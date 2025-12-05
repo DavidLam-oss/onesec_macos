@@ -164,25 +164,7 @@ class EditablePanel: NSPanel {
     }
 }
 
-extension NSView {
-    func updateTrackingAreasRecursively(repeatCount: Int = 5) {
-        func update() {
-            updateTrackingAreas()
-            for subview in subviews {
-                subview.updateTrackingAreas()
-                subview.subviews.forEach { $0.updateTrackingAreas() }
-            }
-        }
-
-        for i in 0 ..< repeatCount {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.2) {
-                update()
-            }
-        }
-    }
-}
-
-// MARK: - macOS 10.15 兼容的 Hover 实现
+// MARK: - macOS 10.15 compatible hover implementation
 
 class HoverTrackingView: NSView {
     var onHover: ((Bool) -> Void)?
@@ -218,13 +200,13 @@ class HoverTrackingView: NSView {
 struct HoverView: NSViewRepresentable {
     let onHover: (Bool) -> Void
 
-    func makeNSView(context: Context) -> HoverTrackingView {
+    func makeNSView(context _: Context) -> HoverTrackingView {
         let view = HoverTrackingView()
         view.onHover = onHover
         return view
     }
 
-    func updateNSView(_ nsView: HoverTrackingView, context: Context) {
+    func updateNSView(_ nsView: HoverTrackingView, context _: Context) {
         nsView.onHover = onHover
     }
 }
@@ -233,7 +215,7 @@ extension View {
     @ViewBuilder
     func compatibleHover(onHover: @escaping (Bool) -> Void) -> some View {
         if ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11 {
-            self.background(HoverView(onHover: onHover))
+            background(HoverView(onHover: onHover))
         } else {
             self.onHover(perform: onHover)
         }
