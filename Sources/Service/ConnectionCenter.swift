@@ -70,6 +70,12 @@ class ConnectionCenter: @unchecked Sendable {
     func connectWss() {
         wssClient.connect()
     }
+
+    func resetInputService() {
+        inputSerive = nil
+        inputSerive = InputController()
+        bind(inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState)
+    }
 }
 
 extension ConnectionCenter {
@@ -180,10 +186,7 @@ extension ConnectionCenter {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 log.info("Screen Did Wake".yellow)
-                guard let self = self else { return }
-                self.inputSerive = InputController()
-                self.bind(self.inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState)
-                self.wssClient.connect()
+                self?.resetInputService()
             }
             .store(in: &cancellables)
     }

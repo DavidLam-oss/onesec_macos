@@ -5,6 +5,7 @@ import CoreAudio
 final class MenuBuilder {
     static let shared = MenuBuilder()
     private var overlay: OverlayController { OverlayController.shared }
+    private var audioDeviceManager: AudioDeviceManager = .shared
 
     @objc private func handleTranslateModeToggle() {
         if Config.shared.TEXT_PROCESS_MODE == .translate {
@@ -15,7 +16,7 @@ final class MenuBuilder {
     }
 
     @objc private func handleAudioDeviceChange(_ sender: NSMenuItem) {
-        AudioDeviceManager.shared.selectedDeviceID = AudioDeviceID(sender.tag)
+        audioDeviceManager.selectedDeviceID = AudioDeviceID(sender.tag)
     }
 
     func showMenu(in view: NSView) {
@@ -25,8 +26,8 @@ final class MenuBuilder {
         let audioItem = NSMenuItem(title: "麦克风", action: nil, keyEquivalent: "")
         let audioSubmenu = NSMenu()
 
-        AudioDeviceManager.shared.refreshDevices()
-        let devices = AudioDeviceManager.shared.inputDevices
+        audioDeviceManager.refreshDevices()
+        let devices = audioDeviceManager.inputDevices
 
         for device in devices {
             let item = NSMenuItem(title: device.name, action: #selector(handleAudioDeviceChange(_:)), keyEquivalent: "")

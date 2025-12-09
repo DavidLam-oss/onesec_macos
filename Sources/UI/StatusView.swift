@@ -5,6 +5,7 @@ import SwiftUI
 struct StatusView: View {
     @State var recording = RecordingState()
     private var overlay: OverlayController { OverlayController.shared }
+    private var menuBuilder: MenuBuilder = .shared
 
     var body: some View {
         // 状态指示器
@@ -15,7 +16,7 @@ struct StatusView: View {
         )
         .onTapGesture {
             overlay.hideAllOverlays()
-            MenuBuilder.shared.showMenu(in: StatusPanelManager.shared.getPanel().contentView!)
+            menuBuilder.showMenu(in: StatusPanelManager.shared.getPanel().contentView!)
         }
         .padding(.bottom, 4)
         .frame(width: 200, height: 80, alignment: .bottom)
