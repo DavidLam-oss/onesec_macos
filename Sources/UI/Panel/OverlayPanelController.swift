@@ -31,9 +31,12 @@ class OverlayController {
         if let panelType = panelType,
            let existingUUID = findPanelByType(panelType),
            let existingPanel = panels[existingUUID],
-           existingPanel.panelType == .translate(.above)
+           existingPanel.panelType == .translate(.above) || existingPanel.panelType == .notificationSystem
+
         {
-            origin = existingPanel.frame.origin
+            if existingPanel.panelType == .translate(.above) {
+                origin = existingPanel.frame.origin
+            }
 
             moveAndUpdateExistingPanel(
                 uuid: existingUUID,

@@ -73,4 +73,13 @@ class UserConfigService {
             log.info("Saved \(filename)")
         }
     }
+
+    var audiosDirectory: URL? {
+        guard let dir = configDirectory else { return nil }
+        let audiosDir = dir.appendingPathComponent("audios")
+        if !fileManager.fileExists(atPath: audiosDir.path) {
+            try? fileManager.createDirectory(at: audiosDir, withIntermediateDirectories: true)
+        }
+        return audiosDir
+    }
 }

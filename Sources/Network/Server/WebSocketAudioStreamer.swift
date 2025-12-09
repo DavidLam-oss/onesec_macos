@@ -139,6 +139,8 @@ extension WebSocketAudioStreamer {
 
                 case .userDataUpdated(.auth): scheduleManualReconnect()
 
+                case .notificationReceived(.serverUnavailable): handleServerUnavailable()
+
                 default:
                     break
                 }
@@ -246,6 +248,11 @@ extension WebSocketAudioStreamer {
         }
 
         sendWebSocketMessage(type: .resourceRequested, data: data)
+    }
+
+    func handleServerUnavailable() {
+        cancelRecordingStartedTimeoutTimer()
+        cancelResponseTimeoutTimer()
     }
 
     private func sendWebSocketMessage(type: MessageType, data: [String: Any]? = nil) {
