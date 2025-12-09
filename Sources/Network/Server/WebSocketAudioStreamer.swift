@@ -113,7 +113,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         connect()
     }
 
-    private func disconnect() {
+    func disconnect() {
         connectionState = .manualDisconnected
         ws?.disconnect()
         ws = nil
@@ -393,9 +393,7 @@ extension WebSocketAudioStreamer {
             do {
                 try await sleep(UInt64(idleTimeoutDuration * 1000))
                 log.warning("No recording activity for \(idleTimeoutDuration / 60) minutes, disconnecting")
-                connectionState = .manualDisconnected
-                ws?.disconnect()
-                ws = nil
+                disconnect()
             } catch {
                 // Task Canceled
             }

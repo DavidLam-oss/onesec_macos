@@ -36,6 +36,7 @@ class ConnectionCenter: @unchecked Sendable {
         bind()
         initScreen()
         initEventListener()
+        initLidStateListener()
     }
 
     func initialize() {
@@ -162,5 +163,28 @@ extension ConnectionCenter {
             log.warning("Permission Revoked, Cleaning InputService")
             inputSerive = nil
         }
+    }
+
+    private func initLidStateListener() {
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidSleepNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                log.info("Screen Did Sleep".yellow)
+                guard let self = self else { return }
+                self.inputSerive = nil
+                self.wssClient.disconnect()
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                log.info("Screen Did Wake".yellow)
+                guard let self = self else { return }
+                self.inputSerive = InputController()
+                self.bind(self.inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState)
+                self.wssClient.connect()
+            }
+            .store(in: &cancellables)
     }
 }

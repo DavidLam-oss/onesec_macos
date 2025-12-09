@@ -185,6 +185,7 @@ extension String {
     enum ANSIColor: String {
         case reset = "\u{001B}[0m"
         case green = "\u{001B}[38;5;35m" // SwiftyBeaver debug color
+        case yellow = "\u{001B}[38;5;178m" // SwiftyBeaver warning color
     }
 
     func colored(_ color: ANSIColor) -> String {
@@ -192,6 +193,7 @@ extension String {
     }
 
     var green: String { colored(.green) }
+    var yellow: String { colored(.yellow) }
 }
 
 struct SymbolImage: View {
