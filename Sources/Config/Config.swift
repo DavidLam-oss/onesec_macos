@@ -58,6 +58,10 @@ class Config: ObservableObject {
         USER_CONFIG.lastSyncFocusJudgmentSheetTime = date.timeIntervalSince1970
         UserConfigService.shared.saveUserConfig(USER_CONFIG)
     }
+
+    func isReleaseMode() -> Bool {
+        return SERVER.contains { $0.isLetter }
+    }
 }
 
 enum TextProcessMode: String, CaseIterable {

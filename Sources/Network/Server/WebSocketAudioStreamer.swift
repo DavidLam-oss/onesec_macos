@@ -265,7 +265,9 @@ extension WebSocketAudioStreamer {
             return
         }
 
-        log.debug("Send to server: \(jsonStr)")
+        if !Config.shared.isReleaseMode() {
+            log.debug("Send to server: \(jsonStr)")
+        }
         sendMessage(jsonStr)
     }
 
