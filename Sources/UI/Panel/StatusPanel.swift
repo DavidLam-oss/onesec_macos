@@ -34,7 +34,7 @@ class StatusPanel: NSPanel {
         hasShadow = false
         isMovableByWindowBackground = false
         acceptsMouseMovedEvents = true
-        ignoresMouseEvents = true
+        // ignoresMouseEvents = true
 
         // 设置内容视图
         let hostingView = AutoResizingHostingView(rootView: StatusView())
