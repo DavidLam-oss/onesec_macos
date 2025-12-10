@@ -67,6 +67,8 @@ class AudioDeviceManager {
         if oldDefault != defaultInputDeviceID {
             log.info("🎧 Input Device Changed: \(getDeviceName(defaultInputDeviceID) ?? "Unknown")".yellow)
             Task { @MainActor in
+
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5秒防抖
                 EventBus.shared.publish(.audioDeviceChanged)
             }
         }

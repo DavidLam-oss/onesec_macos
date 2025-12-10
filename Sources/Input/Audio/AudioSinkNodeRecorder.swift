@@ -24,6 +24,7 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
     private var audioEngine = AVAudioEngine()
     private var sinkNode: AVAudioSinkNode!
+    private var silentSourceNode: AVAudioSourceNode!
     private var converter: AVAudioConverter!
     private var opusEncoder: OpusEncoder!
     private var oggPacketizer: OpusOggStreamPacketizer!
@@ -101,24 +102,51 @@ class AudioSinkNodeRecorder: @unchecked Sendable {
 
         // SinkNode Handle
         sinkNode = AVAudioSinkNode { [weak self] timestamp, frameCount, audioBufferList in
+        log.debug("SinkNode Handle: \(timestamp) \(frameCount) \(audioBufferList)")
             guard let self, recordState == .recording else { return OSStatus(noErr) }
 
             processSinkNodeBuffer(audioBufferList, frameCount: frameCount, timestamp: timestamp)
             return OSStatus(noErr)
         }
 
-        // 连接音频图
+        // 连接输入音频图
         audioEngine.attach(sinkNode)
         audioEngine.connect(inputNode, to: sinkNode, format: inputFormat)
+        
+        // 创建虚拟静音输出节点，隔离输出设备变化
+        let outputFormat = audioEngine.outputNode.outputFormat(forBus: 0)
+        silentSourceNode = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList in
+            guard let self else { return OSStatus(noErr) }
+            // 输出静音数据，保持 Engine 时钟源稳定
+            let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            for buffer in bufferList {
+                memset(buffer.mData, 0, Int(buffer.mDataByteSize))
+            }
+            return OSStatus(noErr)
+        }
+        
+        audioEngine.attach(silentSourceNode)
+        audioEngine.connect(silentSourceNode, to: audioEngine.mainMixerNode, format: outputFormat)
         audioEngine.prepare()
 
-        log.info("✅ SinkNode 音频引擎设置完成")
+        log.info("✅ SinkNode 音频引擎设置完成（输出已隔离）")
     }
 
     @MainActor
     private func reconfigureAudioEngine() {
         log.info("🔄 Reconfigure Audio Engine \(audioEngine.isRunning)".yellow)
         audioEngine.stop()
+        
+        // 清理旧节点
+        if let sinkNode = sinkNode {
+            audioEngine.disconnectNodeOutput(sinkNode)
+            audioEngine.detach(sinkNode)
+        }
+        if let silentSourceNode = silentSourceNode {
+            audioEngine.disconnectNodeOutput(silentSourceNode)
+            audioEngine.detach(silentSourceNode)
+        }
+        
         audioEngine = AVAudioEngine()
         setupAudioEngine()
         log.info("🔄 Audio engine reconfigured")
