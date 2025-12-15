@@ -1,7 +1,7 @@
 import ObjectiveC
 import SwiftUI
 
-enum TranslatePosition: Equatable {
+enum PanelPosition: Equatable {
     case collapse
     case selection
     case bottom
@@ -10,8 +10,8 @@ enum TranslatePosition: Equatable {
 
 enum PanelType: Equatable {
     case editable
-    case translate(TranslatePosition)
-    case command
+    case translate(PanelPosition)
+    case command(PanelPosition)
     case notification
     case notificationSystem
 
@@ -26,6 +26,15 @@ enum PanelType: Equatable {
             return "sparkles"
         default:
             return "mic"
+        }
+    }
+
+    var canShowStatusPanel: Bool {
+        switch self {
+        case .translate(.bottom), .command(.bottom), .notification, .notificationSystem:
+            return true
+        default:
+            return false
         }
     }
 

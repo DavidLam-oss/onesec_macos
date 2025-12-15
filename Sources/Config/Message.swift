@@ -25,6 +25,7 @@ enum MessageType: String, CaseIterable {
     case hotkeySettingEnd = "hotkey_setting_end"
     case hotkeySettingUpdate = "hotkey_setting_update"
     case hotkeySettingStart = "hotkey_setting_start"
+    case userAudioSaved = "user_audio_saved"
 }
 
 struct WebSocketMessage {
@@ -255,12 +256,14 @@ struct FocusElementInfo {
 // MARK: - 记录当前录音的应用上下文
 
 struct AppContext {
+    let sessionID: String
     let appInfo: AppInfo
     let hostInfo: HostInfo
     let focusContext: FocusContext
     let focusElementInfo: FocusElementInfo
 
     static let empty = AppContext(
+        sessionID: "",
         appInfo: AppInfo.empty,
         hostInfo: HostInfo.empty,
         focusContext: FocusContext.empty,
@@ -269,6 +272,7 @@ struct AppContext {
 
     func toJSON() -> [String: Any] {
         [
+            "session_id": sessionID,
             "app_info": appInfo.toJSON(),
             "host_info": hostInfo.toJSON(),
             "focus_context": focusContext.toJSON(),

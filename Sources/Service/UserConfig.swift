@@ -82,4 +82,10 @@ class UserConfigService {
         }
         return audiosDir
     }
+
+    var databaseDirectory: URL? {
+        guard let dir = configDirectory else { return nil }
+        let dbDir = dir.appendingPathComponent("db.sqlite3")
+        return dbDir
+    }
 }

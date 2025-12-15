@@ -52,6 +52,8 @@ final class UDSClient: @unchecked Sendable {
                     if !isConflict {
                         self?.sendHotkeySettingResult(mode: mode, hotkeyCombination: hotkeyCombination)
                     }
+                case let .userAudioSaved(sessionID, filename):
+                    self?.sendUserAudioSaved(sessionID: sessionID, filename: filename)
                 default:
                     break
                 }
@@ -195,12 +197,24 @@ extension UDSClient {
 
     private func handleConfigUpdatedMessage(json _: [String: Any], timestamp _: Int64) {
         let token = Config.shared.USER_CONFIG.authToken
+        let hideStatusPanel = Config.shared.USER_CONFIG.setting.hideStatusPanel
         Config.shared.USER_CONFIG = UserConfigService.shared.loadUserConfig()
-        
+
         if token != Config.shared.USER_CONFIG.authToken {
             ConnectionCenter.shared.isAuthed = JWTValidator.isValid(Config.shared.USER_CONFIG.authToken)
             log.info("ConnectionCenter.shared.isAuthed \(ConnectionCenter.shared.isAuthed)")
             EventBus.shared.publish(.userDataUpdated(.auth))
+            return
+        }
+
+        if hideStatusPanel != Config.shared.USER_CONFIG.setting.hideStatusPanel {
+            Task { @MainActor in
+                if hideStatusPanel {
+                    StatusPanelManager.shared.showPanel()
+                } else {
+                    StatusPanelManager.shared.hidePanel()
+                }
+            }
             return
         }
 
@@ -294,6 +308,18 @@ extension UDSClient {
         ]
 
         sendJSONMessage(WebSocketMessage.create(type: .hotkeySettingResult, data: data).toJSON())
+    }
+
+    func sendUserAudioSaved(sessionID: String, filename: String) {
+        guard connectionState == .connected else { return }
+
+        let data: [String: Any] = [
+            "session_id": sessionID,
+            "filename": filename,
+        ]
+
+        sendJSONMessage(WebSocketMessage.create(type: .userAudioSaved, data: data).toJSON())
+        log.info("Client send user audio saved: sessionID=\(sessionID), filename=\(filename)")
     }
 
     func sendJSONMessage(_ message: [String: Any]) {

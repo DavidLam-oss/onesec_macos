@@ -218,6 +218,7 @@ extension WebSocketAudioStreamer {
             let focusElementInfo = ContextService.getFocusElementInfo()
 
             let appContext = AppContext(
+                sessionID: recordingID,
                 appInfo: appInfo,
                 hostInfo: hostInfo,
                 focusContext: focusContext,

@@ -384,6 +384,7 @@ class AudioUnitRecorder: @unchecked Sendable {
         }
 
         guard let pcmData = pcmBufferToData(outputBuffer), !pcmData.isEmpty else { return }
+        recordedAudioData.append(pcmData)
 
         let volume = calculateVolume(from: pcmData)
         EventBus.shared.publish(.volumeChanged(volume: volume))
@@ -437,6 +438,15 @@ class AudioUnitRecorder: @unchecked Sendable {
 
         let rms = sqrt(sum / Float(samples.count))
         return min(1.0, rms * 10.0)
+    }
+
+    private func hasValidAudioData() -> Bool {
+        guard !recordedAudioData.isEmpty, recordedAudioData.count >= 2 else { return false }
+
+        let volume = calculateVolume(from: recordedAudioData)
+        // 音量阈值：低于 0.1 认为是静音/无效数据
+        log.debug("Audio Data Volume: \(volume)")
+        return volume >= 0.1
     }
 
     // MARK: - 录音控制
@@ -535,6 +545,7 @@ class AudioUnitRecorder: @unchecked Sendable {
     // 新增: 重置录音状态但保留 Audio Unit
     private func resetRecordingState() {
         audioQueue.removeAll()
+        recordedAudioData.removeAll()
         totalPacketsSent = 0
         totalBytesSent = 0
         totalRawBytesSent = 0
@@ -603,7 +614,6 @@ class AudioUnitRecorder: @unchecked Sendable {
     private func sendAudioData(_ audioData: Data) {
         totalPacketsSent += 1
         totalBytesSent += audioData.count
-        recordedAudioData.append(audioData)
         EventBus.shared.publish(.audioDataReceived(data: audioData))
     }
 
@@ -615,24 +625,25 @@ class AudioUnitRecorder: @unchecked Sendable {
         }
     }
 
-    private func saveRecordingToLocalFile() {
-        guard !recordedAudioData.isEmpty else { return }
-        guard let dir = UserConfigService.shared.audiosDirectory else {
-            recordedAudioData.removeAll()
+    private func saveAudioToDatabase(content: String = "", error: String = "") {
+        guard hasValidAudioData() || !content.isEmpty,
+              let dir = UserConfigService.shared.audiosDirectory
+        else {
             return
         }
 
-        let filename = "recording-unit-\(Int(Date().timeIntervalSince1970)).ogg"
+        let sessionID = ConnectionCenter.shared.currentRecordingAppContext.sessionID
+        let filename = "\(sessionID).wav"
         let fileURL = dir.appendingPathComponent(filename)
 
         do {
-            try recordedAudioData.write(to: fileURL)
-            log.info("💾 Saved recording to \(fileURL.lastPathComponent)")
+            let wavData = toWavData(fromPCM: recordedAudioData, targetFormat: targetFormat)
+            try wavData.write(to: fileURL)
+            try DatabaseService.shared.saveAudios(sessionID: sessionID, filename: filename, content: content, error: error)
+            EventBus.shared.publish(.userAudioSaved(sessionID: sessionID, filename: filename))
         } catch {
             log.error("Failed to save recording: \(error)")
         }
-
-        recordedAudioData.removeAll()
     }
 
     private func pcmBufferToData(_ buffer: AVAudioPCMBuffer) -> Data? {
@@ -660,27 +671,47 @@ extension AudioUnitRecorder {
         EventBus.shared.events
             .sink { [weak self] event in
                 switch event {
-                case .serverResultReceived,
-                     .terminalLinuxChoice:
+                case let .serverResultReceived(summary, _, _, _):
                     Task { @MainActor in
                         if self?.recordState == .processing {
+                            self?.saveAudioToDatabase(content: summary)
                             self?.resetState()
                         }
                     }
-                case .notificationReceived(.serverTimeout),
-                     .notificationReceived(.networkUnavailable),
-                     .notificationReceived(.error):
-                    Task { @MainActor in
-                        self?.resetState()
-                    }
-                case .notificationReceived(.serverUnavailable(duringRecording: true)):
-                    log.error("Server unavailable, stop recording")
+                case let .terminalLinuxChoice(_, _, _, commands):
                     Task { @MainActor in
                         if self?.recordState == .processing {
+                            self?.saveAudioToDatabase(content: commands.map { $0.displayName }.joined(separator: "\n"))
                             self?.resetState()
-                        } else {
-                            self?.stopRecording(stopState: .idle, shouldSetResponseTimer: false)
                         }
+                    }
+                case let .notificationReceived(messageType):
+                    switch messageType {
+                    case .serverTimeout, .networkUnavailable:
+                        Task { @MainActor in
+                            self?.saveAudioToDatabase(error: messageType.title)
+                            self?.resetState()
+                        }
+
+                    case .error:
+                        Task { @MainActor in
+                            self?.saveAudioToDatabase(error: messageType.content)
+                            self?.resetState()
+                        }
+
+                    case .serverUnavailable(duringRecording: true):
+                        log.error("Server unavailable, stop recording")
+                        Task { @MainActor in
+                            if self?.recordState == .processing {
+                                self?.saveAudioToDatabase(error: messageType.title)
+                                self?.resetState()
+                            } else {
+                                self?.stopRecording(stopState: .idle, shouldSetResponseTimer: false)
+                            }
+                        }
+
+                    default:
+                        break
                     }
                 case .audioDeviceChanged:
                     Task { @MainActor in

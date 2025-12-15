@@ -161,7 +161,7 @@ class StatusPanelManager {
     func orderFront() {
         panel.orderFrontRegardless()
 
-        if Config.shared.USER_CONFIG.setting.hideFloatingPanel {
+        if Config.shared.USER_CONFIG.setting.hideStatusPanel {
             return
         }
 

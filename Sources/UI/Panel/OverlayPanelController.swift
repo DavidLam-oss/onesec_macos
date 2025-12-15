@@ -6,13 +6,14 @@ import SwiftUI
 class OverlayController {
     static let shared = OverlayController()
 
-    private var panels: [UUID: NSPanel] = [:]
+    @Published private var panels: [UUID: NSPanel] = [:]
     private let shadowPadding: CGFloat = 30
     private let statusBarHeight: CGFloat = 36
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
         setupScreenChangeListener()
+        setupPanelsChangeListener()
     }
 
     @discardableResult
@@ -479,6 +480,34 @@ private extension OverlayController {
                 self?.handleScreenChanged(screen: screen)
             }
             .store(in: &cancellables)
+    }
+
+    func setupPanelsChangeListener() {
+        $panels
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handlePanelsChanged()
+            }
+            .store(in: &cancellables)
+    }
+
+    func handlePanelsChanged() {
+        // 检查是否存在 canShowStatusPanel 为 true 的 panel
+        let hasStatusPanelTrigger = panels.values.contains { panel in
+            panel.panelType?.canShowStatusPanel == true
+        }
+
+
+        log.info("hasStatusPanelTrigger: \(hasStatusPanelTrigger)")
+        // 根据配置和检查结果决定是否显示/隐藏 statusPanel
+        if hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel {
+            // 如果有触发面板且配置为隐藏，则显示 statusPanel
+            StatusPanelManager.shared.showPanel()
+        } else if !hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel {
+            // 如果没有触发面板且配置为隐藏，则隐藏 statusPanel
+            StatusPanelManager.shared.hidePanel()
+        }
     }
 
     func handleScreenChanged(screen: NSScreen?) {

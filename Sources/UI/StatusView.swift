@@ -51,7 +51,7 @@ extension StatusView {
         case let .recordingStarted(mode):
             recording.mode = mode
             recording.state = .recording
-            if Config.shared.USER_CONFIG.setting.hideFloatingPanel {
+            if Config.shared.USER_CONFIG.setting.hideStatusPanel {
                 StatusPanelManager.shared.showPanel()
             }
         case let .recordingStopped(shouldSetResponseTimer, wssState):
@@ -66,9 +66,9 @@ extension StatusView {
                     autoHide: notificationType.shouldAutoHide,
                 )
             }
-            // if Config.shared.USER_CONFIG.setting.hideFloatingPanel && (!shouldSetResponseTimer || wssState != .connected) {
-            //     StatusPanelManager.shared.hidePanel()
-            // }
+        // if Config.shared.USER_CONFIG.setting.hideStatusPanel && (!shouldSetResponseTimer || wssState != .connected) {
+        //     StatusPanelManager.shared.hidePanel()
+        // }
         case let .modeUpgraded(from, to):
             log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
@@ -124,9 +124,6 @@ extension StatusView {
             ])
         case let .serverResultReceived(text, _, processMode, polishedText):
             recording.state = .idle
-            if Config.shared.USER_CONFIG.setting.hideFloatingPanel {
-                StatusPanelManager.shared.hidePanel()
-            }
             if text.isEmpty {
                 return
             }
@@ -135,6 +132,10 @@ extension StatusView {
                 let canPaste = await canPasteNow()
                 defer {
                     handleAlert(canPaste: canPaste, processMode: processMode, text: text, polishedText: polishedText)
+                }
+
+                if Config.shared.USER_CONFIG.setting.hideStatusPanel && canPaste {
+                    StatusPanelManager.shared.hidePanel()
                 }
 
                 if processMode == .terminal && text.newlineCount >= 1 {
@@ -199,9 +200,9 @@ extension StatusView {
             }
             if recording.mode == .command {
                 if ConnectionCenter.shared.currentRecordingAppContext.focusContext.selectedText.isEmpty {
-                    ContentCard<EmptyView>.show(title: "执行结果", content: text, cardWidth: cardWidth, panelType: .command)
+                    ContentCard<EmptyView>.show(title: "执行结果", content: text, cardWidth: cardWidth, panelType: .command(.bottom))
                 } else {
-                    ContentCard<EmptyView>.showAboveSelection(title: "执行结果", content: text, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command)
+                    ContentCard<EmptyView>.showAboveSelection(title: "执行结果", content: text, cardWidth: cardWidth, spacingX: 8, spacingY: 14, panelType: .command(.above))
                 }
             } else {
                 ContentCard<EmptyView>.show(title: "识别内容", content: text, cardWidth: cardWidth, panelType: .notification)

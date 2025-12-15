@@ -184,22 +184,22 @@ struct UserConfig: Codable {
 
     struct Setting: Codable {
         let showComparison: Bool
-        let hideFloatingPanel: Bool
+        let hideStatusPanel: Bool
 
         init() {
             showComparison = false
-            hideFloatingPanel = false
+            hideStatusPanel = false
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             showComparison = try container.decodeIfPresent(Bool.self, forKey: .showComparison) ?? false
-            hideFloatingPanel = try container.decodeIfPresent(Bool.self, forKey: .hideFloatingPanel) ?? false
+            hideStatusPanel = try container.decodeIfPresent(Bool.self, forKey: .hideStatusPanel) ?? false
         }
 
         enum CodingKeys: String, CodingKey {
             case showComparison = "show_comparison"
-            case hideFloatingPanel = "hide_floating_panel"
+            case hideStatusPanel = "hide_status_panel"
         }
     }
 
