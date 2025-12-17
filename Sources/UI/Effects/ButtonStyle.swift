@@ -41,26 +41,46 @@ struct HoverIconButtonStyle: ButtonStyle {
     }
 }
 
-struct UnderlineButtonStyle: ButtonStyle {
+struct UnderlineTextButtonStyle: ButtonStyle {
+    let normalColor: Color
+    let hoverColor: Color
     @State private var isHovered = false
 
     func makeBody(configuration: Configuration) -> some View {
         if #available(macOS 13.0, *) {
             configuration.label
-                .underline(isHovered)
-                .animation(.easeInOut, value: isHovered)
-                .onHover { isHovered = $0 }
+                .font(.system(size: 12, weight: isHovered ? .semibold : .regular))
+                .foregroundColor(isHovered ? hoverColor : normalColor)
+                .underline(true, color: isHovered ? hoverColor : normalColor)
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+                .onHover { hovering in
+                    isHovered = hovering
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
         } else {
             configuration.label
+                .font(.system(size: 12, weight: isHovered ? .semibold : .regular))
+                .foregroundColor(isHovered ? hoverColor : normalColor)
                 .overlay(
                     Rectangle()
-                        .frame(height: 0.5)
-                        .offset(y: 6)
-                        .opacity(isHovered ? 1 : 0)
-                        .animation(.quickSpringAnimation, value: isHovered),
+                        .fill(isHovered ? hoverColor : normalColor)
+                        .frame(height: isHovered ? 1.5 : 1)
+                        .offset(y: 7),
                     alignment: .bottom
                 )
-                .onHover { isHovered = $0 }
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+                .onHover { hovering in
+                    isHovered = hovering
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
         }
     }
 }

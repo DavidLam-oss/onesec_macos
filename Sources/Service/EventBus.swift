@@ -12,10 +12,11 @@ import Foundation
 enum AppEvent {
     case volumeChanged(volume: Float)
     case recordingStarted(mode: RecordMode)
-    case recordingStopped(shouldSetResponseTimer: Bool = true, wssState: ConnState = .connected)
+    case recordingStopped(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true)
     //
     case recordingCacheStarted(mode: RecordMode)
     case recordingCacheTimeout
+    case recordingInterrupted
     //
     case audioDataReceived(data: Data)
     case serverResultReceived(summary: String, interactionID: String, processMode: TextProcessMode, polishedText: String)

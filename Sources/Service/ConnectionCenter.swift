@@ -45,19 +45,23 @@ class ConnectionCenter: @unchecked Sendable {
     }
 
     private func bind() {
-        bind(wssClient.$connectionState, to: \.wssState)
-        bind(udsClient.$connectionState, to: \.udsState)
-        bind(permissionService.$permissionsState, to: \.permissionsState)
-        bind(networkService.$networkStatus, to: \.networkState)
-        bind(mouseContextService.$mouseContextState, to: \.mouseContextState)
+        bind(wssClient.$connectionState, to: \.wssState, name: "wss")
+        bind(udsClient.$connectionState, to: \.udsState, name: "uds")
+        bind(permissionService.$permissionsState, to: \.permissionsState, name: "permissions")
+        bind(networkService.$networkStatus, to: \.networkState, name: "network")
+        bind(mouseContextService.$mouseContextState, to: \.mouseContextState, name: "mouseContext")
     }
 
     func canRecord() -> Bool {
-        isWssServerConnected() && hasPermissions()
+        isWssServerConnected() && hasPermissions() && isNetworkAvailable()
     }
 
     func isWssServerConnected() -> Bool {
         wssClient.connectionState == .connected
+    }
+
+    func isNetworkAvailable() -> Bool {
+        networkState == .available
     }
 
     func hasPermissions() -> Bool {
@@ -65,6 +69,10 @@ class ConnectionCenter: @unchecked Sendable {
 
         let required: [PermissionType] = [.accessibility, .microphone]
         return required.allSatisfy { permissionsState[$0] == .granted }
+    }
+
+    func hasRecordingNetworkError() -> Bool {
+        wssClient.hasRecordingNetworkError
     }
 
     func connectWss() {
@@ -76,21 +84,17 @@ extension ConnectionCenter {
     private func bind<T>(
         _ publisher: Published<T>.Publisher,
         to keyPath: ReferenceWritableKeyPath<ConnectionCenter, T>,
+        name: String
     ) {
         publisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newValue in
                 self?[keyPath: keyPath] = newValue
 
-                let stateName = String(describing: keyPath)
-                    .components(separatedBy: ".")
-                    .last!
-                    .replacingOccurrences(of: ">", with: "")
-
-                if stateName == "mouseContextState" || stateName.contains("screen") {
+                if name == "mouseContext" || name.contains("screen") {
                     return
                 }
-                log.debug("\("[\(stateName)]".green) → \("\(newValue)".green)")
+                log.debug("[\(name)] → \(newValue)".green)
             }
             .store(in: &cancellables)
     }
@@ -134,10 +138,17 @@ extension ConnectionCenter {
             .sink { state in
                 guard state.previous == .connected,
                       let current = state.current,
-                      current == .disconnected || current == .cancelled || current == .failed
+                      current == .disconnected || current == .cancelled || current == .failed,
+                      self.networkState == .available
                 else {
                     return
                 }
+
+                if self.wssClient.isRecordingStartConfirmed {
+                    self.wssClient.hasRecordingNetworkError = true
+                    return
+                }
+
                 EventBus.shared.publish(.notificationReceived(.serverUnavailable(duringRecording: self.audioRecorderState != .idle)))
             }
             .store(in: &cancellables)
@@ -149,7 +160,8 @@ extension ConnectionCenter {
             .receive(on: DispatchQueue.main)
             .sink { state in
                 guard state.previous == .available, state.current == .unavailable else { return }
-                EventBus.shared.publish(.notificationReceived(.networkUnavailable))
+                EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: true)))
+                self.wssClient.hasRecordingNetworkError = true
             }
             .store(in: &cancellables)
     }
@@ -158,7 +170,7 @@ extension ConnectionCenter {
         let hasPermissions = hasPermissions()
         if hasPermissions, inputSerive == nil {
             inputSerive = InputController()
-            bind(inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState)
+            bind(inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState, name: "audioRecorder")
         } else if !hasPermissions, inputSerive != nil {
             log.warning("Permission Revoked, Cleaning InputService")
             inputSerive = nil
@@ -183,7 +195,7 @@ extension ConnectionCenter {
                 guard let self = self else { return }
                 inputSerive = nil
                 self.inputSerive = InputController()
-                self.bind(self.inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState)
+                self.bind(self.inputSerive!.audioRecorder.$recordState, to: \.audioRecorderState, name: "audioRecorder")
             }
             .store(in: &cancellables)
     }

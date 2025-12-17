@@ -167,7 +167,7 @@ class InputController {
         }
 
         guard ConnectionCenter.shared.networkState == .available else {
-            EventBus.shared.publish(.notificationReceived(.networkUnavailable))
+            EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: false)))
             return
         }
 
@@ -175,7 +175,7 @@ class InputController {
             ConnectionCenter.shared.wssState == .connected
             || ConnectionCenter.shared.wssState == .manualDisconnected
         else {
-            EventBus.shared.publish(.notificationReceived(.networkUnavailable))
+            EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: false)))
             return
         }
 

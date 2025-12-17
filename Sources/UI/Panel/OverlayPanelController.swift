@@ -32,7 +32,7 @@ class OverlayController {
         if let panelType = panelType,
            let existingUUID = findPanelByType(panelType),
            let existingPanel = panels[existingUUID],
-           existingPanel.panelType == .translate(.above) || existingPanel.panelType == .notificationSystem
+           existingPanel.panelType == .translate(.above) || existingPanel.panelType?.canShowStatusPanel == true
 
         {
             if existingPanel.panelType == .translate(.above) {
@@ -493,19 +493,13 @@ private extension OverlayController {
     }
 
     func handlePanelsChanged() {
-        // 检查是否存在 canShowStatusPanel 为 true 的 panel
         let hasStatusPanelTrigger = panels.values.contains { panel in
             panel.panelType?.canShowStatusPanel == true
         }
 
-
-        log.info("hasStatusPanelTrigger: \(hasStatusPanelTrigger)")
-        // 根据配置和检查结果决定是否显示/隐藏 statusPanel
         if hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel {
-            // 如果有触发面板且配置为隐藏，则显示 statusPanel
             StatusPanelManager.shared.showPanel()
         } else if !hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel {
-            // 如果没有触发面板且配置为隐藏，则隐藏 statusPanel
             StatusPanelManager.shared.hidePanel()
         }
     }

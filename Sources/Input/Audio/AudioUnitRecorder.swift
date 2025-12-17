@@ -73,6 +73,7 @@ class AudioUnitRecorder: @unchecked Sendable {
     private var totalBytesSent = 0
     private var totalRawBytesSent = 0
     private var recordingStartTime: Date?
+    private var recordingStopTime: Date?
 
     // 录音时长限制
 
@@ -440,15 +441,6 @@ class AudioUnitRecorder: @unchecked Sendable {
         return min(1.0, rms * 10.0)
     }
 
-    private func hasValidAudioData() -> Bool {
-        guard !recordedAudioData.isEmpty, recordedAudioData.count >= 2 else { return false }
-
-        let volume = calculateVolume(from: recordedAudioData)
-        // 音量阈值：低于 0.1 认为是静音/无效数据
-        log.debug("Audio Data Volume: \(volume)")
-        return volume >= 0.1
-    }
-
     // MARK: - 录音控制
 
     @MainActor
@@ -505,6 +497,7 @@ class AudioUnitRecorder: @unchecked Sendable {
         }
 
         recordState = .stopping
+        recordingStopTime = Date()
 
         // 只停止 Audio Unit,不销毁
         if let unit = audioUnit {
@@ -524,13 +517,23 @@ class AudioUnitRecorder: @unchecked Sendable {
             sendAudioData(audioData)
         }
 
-        recordState = isRecordingStarted ? stopState : .idle
+        // 处理响应
+        let hasRecordingNetworkError = ConnectionCenter.shared.hasRecordingNetworkError()
+        let canRecord = ConnectionCenter.shared.canRecord()
+
+        if !canRecord || hasRecordingNetworkError {
+            saveAudioToDatabase(error: "转录未完成，你可在此处重新转录")
+        }
+
+        let shouldStopNormally = canRecord && !hasRecordingNetworkError && isRecordingStarted
+
+        recordState = shouldStopNormally ? stopState : .idle
         printRecordingStatistics()
 
         EventBus.shared.publish(
             .recordingStopped(
-                shouldSetResponseTimer: isRecordingStarted ? shouldSetResponseTimer : false,
-                wssState: ConnectionCenter.shared.wssState
+                isRecordingStarted: isRecordingStarted,
+                shouldSetResponseTimer: shouldStopNormally && shouldSetResponseTimer
             )
         )
         log.info("✅ 录音停止")
@@ -546,10 +549,15 @@ class AudioUnitRecorder: @unchecked Sendable {
     private func resetRecordingState() {
         audioQueue.removeAll()
         recordedAudioData.removeAll()
+        if let unit = audioUnit {
+            AudioOutputUnitStop(unit)
+        }
+
         totalPacketsSent = 0
         totalBytesSent = 0
         totalRawBytesSent = 0
         recordingStartTime = Date()
+        recordingStopTime = nil
         isRecordingStarted = false
         queueStartTime = nil
 
@@ -602,8 +610,6 @@ class AudioUnitRecorder: @unchecked Sendable {
         log.info("✅ Audio Unit 已重新配置".yellow)
     }
 
-    // MARK: - 辅助方法
-
     private func flushPendingOggPackets(final: Bool) {
         guard let packetizer = oggPacketizer else { return }
         for packet in packetizer.flush(final: final) {
@@ -626,10 +632,18 @@ class AudioUnitRecorder: @unchecked Sendable {
     }
 
     private func saveAudioToDatabase(content: String = "", error: String = "") {
-        guard hasValidAudioData() || !content.isEmpty,
-              let dir = UserConfigService.shared.audiosDirectory
+        guard let dir = UserConfigService.shared.audiosDirectory,
+              Config.shared.USER_CONFIG.setting.historyRetention != "never"
         else {
             return
+        }
+
+        if let startTime = recordingStartTime, let stopTime = recordingStopTime {
+            let duration = stopTime.timeIntervalSince(startTime)
+            if duration < 0.5 {
+                log.info("录音时长小于 500 毫秒 (\(Int(duration * 1000))ms), 不保存")
+                return
+            }
         }
 
         let sessionID = ConnectionCenter.shared.currentRecordingAppContext.sessionID
@@ -640,6 +654,7 @@ class AudioUnitRecorder: @unchecked Sendable {
             let wavData = toWavData(fromPCM: recordedAudioData, targetFormat: targetFormat)
             try wavData.write(to: fileURL)
             try DatabaseService.shared.saveAudios(sessionID: sessionID, filename: filename, content: content, error: error)
+            log.info("Audio saved to file: \(filename)")
             EventBus.shared.publish(.userAudioSaved(sessionID: sessionID, filename: filename))
         } catch {
             log.error("Failed to save recording: \(error)")
@@ -687,15 +702,24 @@ extension AudioUnitRecorder {
                     }
                 case let .notificationReceived(messageType):
                     switch messageType {
-                    case .serverTimeout, .networkUnavailable:
+                    case .serverTimeout:
                         Task { @MainActor in
                             self?.saveAudioToDatabase(error: messageType.title)
                             self?.resetState()
                         }
 
+                    case let .networkUnavailable(duringRecording):
+                        Task { @MainActor in
+                            // 在录音过程中断网
+                            // 需要继续保存录音
+                            if duringRecording {
+                            } else {
+                                self?.resetState()
+                            }
+                        }
+
                     case .error:
                         Task { @MainActor in
-                            self?.saveAudioToDatabase(error: messageType.content)
                             self?.resetState()
                         }
 
@@ -773,7 +797,7 @@ extension AudioUnitRecorder {
             Task { @MainActor in
                 self.stopRecording()
                 EventBus.shared.publish(.recordingCacheTimeout)
-                EventBus.shared.publish(.notificationReceived(.networkUnavailable))
+                EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: false)))
             }
         }
     }
@@ -812,9 +836,11 @@ extension AudioUnitRecorder {
 
 extension AudioUnitRecorder {
     private func printRecordingStatistics() {
-        guard let startTime = recordingStartTime, isRecordingStarted else { return }
+        guard let startTime = recordingStartTime,
+              let stopTime = recordingStopTime,
+              isRecordingStarted else { return }
 
-        let duration = Date().timeIntervalSince(startTime)
+        let duration = stopTime.timeIntervalSince(startTime)
         guard duration > 0 else { return }
 
         let avgPacketSize = totalPacketsSent > 0 ? Double(totalBytesSent) / Double(totalPacketsSent) : 0

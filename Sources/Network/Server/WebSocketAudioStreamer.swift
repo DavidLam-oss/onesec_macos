@@ -15,7 +15,22 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     private var cancellables = Set<AnyCancellable>()
 
-    @Published var connectionState: ConnState = .manualDisconnected
+    @Published var connectionState: ConnState = .manualDisconnected {
+        didSet {
+            if oldValue != .connected, connectionState == .connected {
+                startPingPongTimer()
+            } else if oldValue == .connected, connectionState != .connected {
+                stopPingPongTimer()
+            }
+        }
+    }
+
+    // 心跳检测
+    private var pingTimer: Timer?
+    private var pongCheckTask: Task<Void, Never>?
+    private var lastPongTime: Date?
+    private let pingInterval: TimeInterval = 15.0
+    private let pongTimeout: TimeInterval = 5.0
 
     // Reconnect 配置
     var curRetryCount = 0
@@ -41,7 +56,11 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     private var contextTask: Task<Void, Never>?
 
     // 当前录音会话 ID
-    private var recordingID: String = ""
+    var recordingID: String = ""
+    // 当前录音会话是否正式开始
+    var isRecordingStartConfirmed: Bool = false
+    // 当前录音会话开始后是否发生过网络错误
+    var hasRecordingNetworkError: Bool = false
 
     init() {
         initializeMessageListener()
@@ -78,7 +97,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
         scheduleConnectingCheck()
 
-        log.info("WebSocket start connect with token \(Config.shared.USER_CONFIG.authToken) \(serverURL)")
+        log.info("WebSocket start connect to \(serverURL)")
     }
 
     func scheduleReconnect(reason: String) {
@@ -131,7 +150,7 @@ extension WebSocketAudioStreamer {
                 switch event {
                 case let .recordingStarted(mode): sendRecordingContext(); sendStartRecording(mode: mode)
 
-                case let .recordingStopped(shouldSetResponseTimer, _): sendStopRecording(shouldSetResponseTimer: shouldSetResponseTimer)
+                case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer): sendStopRecording(isRecordingStarted: isRecordingStarted, shouldSetResponseTimer: shouldSetResponseTimer)
 
                 case let .modeUpgraded(from, to): sendModeUpgrade(fromMode: from, toMode: to)
 
@@ -156,8 +175,9 @@ extension WebSocketAudioStreamer {
         ws.write(data: audioData)
     }
 
-    func sendMessage(_ text: String) {
+    func sendMessage(_ text: String, completion _: (() -> Void)? = nil) {
         guard connectionState == .connected, let ws else {
+            log.warning("Cannot send message: not connected")
             return
         }
 
@@ -174,22 +194,22 @@ extension WebSocketAudioStreamer {
             "mode": Config.shared.TEXT_PROCESS_MODE.rawValue,
         ]
 
+        isRecordingStartConfirmed = false
+        hasRecordingNetworkError = false
         sendWebSocketMessage(type: .startRecording, data: data)
         scheduleRecordingStartedTimeoutTimer()
         scheduleIdleTimer()
     }
 
-    func sendStopRecording(shouldSetResponseTimer: Bool = true) {
-        guard connectionState == .connected else {
+    func sendStopRecording(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true) {
+        guard connectionState == .connected, isRecordingStarted, shouldSetResponseTimer else {
             return
         }
 
         Task { [weak self] in
             await self?.contextTask?.value
             self?.sendWebSocketMessage(type: .stopRecording)
-            if shouldSetResponseTimer {
-                self?.startResponseTimeoutTimer()
-            }
+            self?.startResponseTimeoutTimer()
         }
     }
 
@@ -279,11 +299,31 @@ extension WebSocketAudioStreamer {
 
         switch messageType {
         case .recordingStarted:
+            isRecordingStartConfirmed = true
             cancelRecordingStartedTimeoutTimer()
 
         case .error:
             cancelRecordingStartedTimeoutTimer()
             cancelResponseTimeoutTimer()
+
+            guard let id = json["id"] as? String, id == recordingID else {
+                log.warning("Received error for another recording session")
+                return
+            }
+
+            guard let data = json["data"] as? [String: Any],
+                  let errorCode = data["error_code"] as? String
+            else { return }
+
+            if isRecordingStartConfirmed {
+                hasRecordingNetworkError = true
+                return
+            }
+
+            if hasRecordingNetworkError, errorCode != "ASR_LIMIT_EXCEEDED" {
+                return
+            }
+
             guard let message = json["message"] as? String else { return }
             EventBus.shared.publish(.notificationReceived(.error(title: "错误", content: message)))
 
@@ -366,6 +406,7 @@ extension WebSocketAudioStreamer {
             guard let self else { return }
             try? await sleep(UInt64(recordingStartedTimeoutDuration * 1000))
             guard !Task.isCancelled else { return }
+
             log.warning("Recording started response timed out after \(recordingStartedTimeoutDuration) seconds")
             EventBus.shared.publish(.notificationReceived(.serverUnavailable(duringRecording: true)))
             cancelResponseTimeoutTimer()
@@ -407,5 +448,70 @@ extension WebSocketAudioStreamer {
                 // Task Canceled
             }
         }
+    }
+}
+
+// MARK: - Ping/Pong 心跳检测
+
+extension WebSocketAudioStreamer {
+    func ping() {
+        guard connectionState == .connected, let ws else {
+            return
+        }
+        ws.write(ping: Data())
+    }
+
+    private func startPingPongTimer() {
+        stopPingPongTimer()
+        lastPongTime = Date()
+
+        pingTimer = Timer.scheduledTimer(withTimeInterval: pingInterval, repeats: true) { [weak self] _ in
+            self?.sendPing()
+        }
+
+        log.debug("开启 wss 心跳检测 (间隔: \(pingInterval)s, 超时: \(pongTimeout)s)")
+    }
+
+    private func stopPingPongTimer() {
+        pingTimer?.invalidate()
+        pingTimer = nil
+        pongCheckTask?.cancel()
+        pongCheckTask = nil
+        lastPongTime = nil
+
+        log.debug("停止 wss 心跳检测")
+    }
+
+    private func sendPing() {
+        ping()
+
+        // 启动 pong 超时检测
+        pongCheckTask?.cancel()
+        pongCheckTask = Task { [weak self] in
+            guard let self else { return }
+            try? await sleep(UInt64(pongTimeout * 1000))
+            guard !Task.isCancelled else { return }
+
+            if let lastPong = self.lastPongTime {
+                let timeSinceLastPong = Date().timeIntervalSince(lastPong)
+                if timeSinceLastPong >= self.pongTimeout {
+                    log.warning("wss 心跳检测超时 (\(timeSinceLastPong)s), 重新连接")
+                    self.scheduleManualReconnect()
+                }
+            } else {
+                log.warning("未收到 pong 响应, 重新连接")
+                self.scheduleManualReconnect()
+            }
+
+            if isRecordingStartConfirmed {
+                hasRecordingNetworkError = true
+            }
+        }
+    }
+
+    func updateLastPongTime() {
+        lastPongTime = Date()
+        pongCheckTask?.cancel()
+        pongCheckTask = nil
     }
 }

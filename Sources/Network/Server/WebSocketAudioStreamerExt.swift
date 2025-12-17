@@ -40,17 +40,23 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
             log.debug("WebSocket receive binary: \(data.count) 字节")
 
         case .ping:
-            log.debug("WebSocket receive ping")
+            ping()
 
         case .pong:
             log.debug("WebSocket receive pong")
+            updateLastPongTime()
 
         case let .viabilityChanged(isViable):
             log.debug("WebSocket viabilityChanged: \(isViable)")
+            if !isViable {
+                disconnect()
+                scheduleReconnect(reason: "ViabilityChanged to false")
+            }
 
         case let .reconnectSuggested(shouldReconnect):
             log.warning("Websocket recommand reconnect: \(shouldReconnect)")
             if shouldReconnect {
+                disconnect()
                 scheduleReconnect(reason: "Server suggested reconnect")
             }
 

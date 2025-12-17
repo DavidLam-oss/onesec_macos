@@ -22,6 +22,7 @@ struct NotificationCard: View {
     let autoCloseDuration: Int
     let onTap: (() -> Void)?
     let onClose: (() -> Void)?
+    let actionButtons: [ActionButton]?
 
     private let cardWidth: CGFloat = 250
 
@@ -38,7 +39,8 @@ struct NotificationCard: View {
         showTimerTip: Bool = false,
         autoCloseDuration: Int = 5,
         onTap: (() -> Void)? = nil,
-        onClose: (() -> Void)? = nil
+        onClose: (() -> Void)? = nil,
+        actionButtons: [ActionButton]? = nil
     ) {
         self.title = title
         self.content = content
@@ -49,6 +51,7 @@ struct NotificationCard: View {
         self.autoCloseDuration = autoCloseDuration
         self.onTap = onTap
         self.onClose = onClose
+        self.actionButtons = actionButtons
     }
 
     var body: some View {
@@ -61,7 +64,7 @@ struct NotificationCard: View {
                             .foregroundColor(type.iconColor)
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(title)
                             .font(.system(size: 13))
                             .foregroundColor(.overlayText)
@@ -71,6 +74,23 @@ struct NotificationCard: View {
                             .font(.system(size: 12.5))
                             .foregroundColor(.overlaySecondaryText)
                             .fixedSize(horizontal: false, vertical: true)
+
+                        if let actionButtons = actionButtons, !actionButtons.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(Array(actionButtons.enumerated()), id: \.offset) { _, button in
+                                    Button(action: {
+                                        button.action()
+                                        if button.clickToClose {
+                                            stopAutoCloseTimer()
+                                            OverlayController.shared.hideOverlay(uuid: panelId)
+                                        }
+                                    }) {
+                                        Text(button.title)
+                                    }
+                                    .buttonStyle(UnderlineTextButtonStyle(normalColor: .overlaySecondaryText, hoverColor: .overlayText))
+                                }
+                            }.padding(.top, 2)
+                        }
                     }
 
                     Spacer()

@@ -54,6 +54,8 @@ final class UDSClient: @unchecked Sendable {
                     }
                 case let .userAudioSaved(sessionID, filename):
                     self?.sendUserAudioSaved(sessionID: sessionID, filename: filename)
+                case .recordingInterrupted:
+                    self?.sendRecordingInterrupted()
                 default:
                     break
                 }
@@ -319,7 +321,12 @@ extension UDSClient {
         ]
 
         sendJSONMessage(WebSocketMessage.create(type: .userAudioSaved, data: data).toJSON())
-        log.info("Client send user audio saved: sessionID=\(sessionID), filename=\(filename)")
+        log.info("Client send user audio saved: filename=\(filename)")
+    }
+
+    func sendRecordingInterrupted() {
+        guard connectionState == .connected else { return }
+        sendJSONMessage(WebSocketMessage.create(type: .recordingInterrupted, data: nil).toJSON())
     }
 
     func sendJSONMessage(_ message: [String: Any]) {

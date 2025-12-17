@@ -29,14 +29,12 @@ final class DatabaseService {
     // Columns
     private let id = Expression<String>("id")
     private let sessionID = Expression<String>("session_id")
+    private let userID = Expression<Int>("user_id")
     private let createdAt = Expression<Int64>("created_at")
     private let filename = Expression<String>("filename")
     private let error = Expression<String?>("error")
     private let content = Expression<String?>("content")
-
-    private init() {}
-
-    // MARK: - Initialization
+    private let version = Expression<String?>("version")
 
     func initialize() throws {
         guard let dbURL = UserConfigService.shared.databaseDirectory else {
@@ -46,7 +44,7 @@ final class DatabaseService {
         try queue.sync {
             db = try Connection(dbURL.path)
             try createTables()
-            log.info("Database initialized at: \(dbURL.path)")
+            log.info("Database initialized")
         }
     }
 
@@ -58,21 +56,22 @@ final class DatabaseService {
         try db.run(audios.create(ifNotExists: true) { t in
             t.column(id, primaryKey: true)
             t.column(sessionID)
+            t.column(userID)
             t.column(createdAt)
             t.column(filename)
             t.column(content)
             t.column(error)
+            t.column(version)
         })
 
         try db.run(audios.createIndex(createdAt, ifNotExists: true))
         try db.run(audios.createIndex(sessionID, ifNotExists: true))
-
-        log.info("Database tables created successfully")
+        try db.run(audios.createIndex(userID, ifNotExists: true))
     }
 
     // MARK: - Recording Operations
 
-    func saveAudios(sessionID: String, filename: String, content: String? = nil, error: String? = nil) throws {
+    func saveAudios(sessionID: String, filename: String, content: String? = nil, error: String? = nil, version: String? = nil) throws {
         guard let db = db else {
             throw DatabaseError.notInitialized
         }
@@ -81,13 +80,14 @@ final class DatabaseService {
             let insert = audios.insert(
                 self.id <- UUID().uuidString,
                 self.sessionID <- sessionID,
+                self.userID <- Config.shared.USER_CONFIG.user.userId,
                 createdAt <- Int64(Date().timeIntervalSince1970),
                 self.filename <- filename,
                 self.content <- content,
-                self.error <- error
+                self.error <- error,
+                self.version <- version
             )
             try db.run(insert)
-            log.info("Audio saved to file: \(filename)")
         }
     }
 
@@ -105,10 +105,12 @@ final class DatabaseService {
             return Audios(
                 id: row[self.id],
                 sessionID: row[self.sessionID],
+                userID: row[self.userID],
                 createdAt: Date(timeIntervalSince1970: TimeInterval(row[createdAt])),
                 filename: row[filename],
                 error: row[error],
-                content: row[content]
+                content: row[content],
+                version: row[version]
             )
         }
     }
@@ -129,10 +131,12 @@ final class DatabaseService {
                 Audios(
                     id: row[self.id],
                     sessionID: row[self.sessionID],
+                    userID: row[self.userID],
                     createdAt: Date(timeIntervalSince1970: TimeInterval(row[createdAt])),
                     filename: row[filename],
                     error: row[error],
-                    content: row[content]
+                    content: row[content],
+                    version: row[version]
                 )
             }
         }
@@ -155,7 +159,7 @@ final class DatabaseService {
         }
     }
 
-    func updateAudios(id: String, error: String? = nil, content: String? = nil) throws {
+    func updateAudios(id: String, error: String? = nil, content: String? = nil, version: String? = nil) throws {
         guard let db = db else {
             throw DatabaseError.notInitialized
         }
@@ -169,6 +173,9 @@ final class DatabaseService {
             }
             if let content = content {
                 setters.append(self.content <- content)
+            }
+            if let version = version {
+                setters.append(self.version <- version)
             }
 
             guard !setters.isEmpty else {
@@ -220,10 +227,12 @@ final class DatabaseService {
                 Audios(
                     id: row[self.id],
                     sessionID: row[self.sessionID],
+                    userID: row[self.userID],
                     createdAt: Date(timeIntervalSince1970: TimeInterval(row[createdAt])),
                     filename: row[filename],
                     error: row[error],
-                    content: row[content]
+                    content: row[content],
+                    version: row[version]
                 )
             }
         }
@@ -252,15 +261,18 @@ final class DatabaseService {
 struct Audios: Codable, Identifiable {
     let id: String
     let sessionID: String
+    let userID: Int
     let createdAt: Date
     let filename: String
     let error: String?
     let content: String?
+    let version: String?
 
     var asDictionary: [String: Any] {
         var dict: [String: Any] = [
             "id": id,
             "session_id": sessionID,
+            "user_id": userID,
             "created_at": Int(createdAt.timeIntervalSince1970),
             "filename": filename,
         ]
@@ -269,6 +281,9 @@ struct Audios: Codable, Identifiable {
         }
         if let content = content {
             dict["content"] = content
+        }
+        if let version = version {
+            dict["version"] = version
         }
         return dict
     }

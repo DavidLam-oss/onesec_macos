@@ -185,21 +185,25 @@ struct UserConfig: Codable {
     struct Setting: Codable {
         let showComparison: Bool
         let hideStatusPanel: Bool
+        let historyRetention: String
 
         init() {
             showComparison = false
             hideStatusPanel = false
+            historyRetention = "forever"
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             showComparison = try container.decodeIfPresent(Bool.self, forKey: .showComparison) ?? false
             hideStatusPanel = try container.decodeIfPresent(Bool.self, forKey: .hideStatusPanel) ?? false
+            historyRetention = try container.decodeIfPresent(String.self, forKey: .historyRetention) ?? "forever"
         }
 
         enum CodingKeys: String, CodingKey {
             case showComparison = "show_comparison"
             case hideStatusPanel = "hide_status_panel"
+            case historyRetention = "history_retention"
         }
     }
 

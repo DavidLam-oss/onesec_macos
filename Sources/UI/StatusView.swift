@@ -54,21 +54,39 @@ extension StatusView {
             if Config.shared.USER_CONFIG.setting.hideStatusPanel {
                 StatusPanelManager.shared.showPanel()
             }
-        case let .recordingStopped(shouldSetResponseTimer, wssState):
+        case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer):
             guard recording.state == .recording else { return }
+
             recording.state = shouldSetResponseTimer ? .processing : .idle
             recording.volume = 0
-            if !shouldSetResponseTimer, wssState != .connected {
-                let notificationType = NotificationMessageType.networkUnavailable
+
+            // 处理网络中断情况
+            if !shouldSetResponseTimer {
+                let notificationType: NotificationMessageType = isRecordingStarted
+                    ? .recordingInterruptedByNetwork
+                    : .networkUnavailable(duringRecording: false)
+
+                let onTap = notificationType == .recordingInterruptedByNetwork
+                    ? { EventBus.shared.publish(.recordingInterrupted) }
+                    : nil
+
+                let actionButtons = notificationType == .recordingInterruptedByNetwork
+                    ? [
+                        ActionButton(title: "前往历史纪录") {
+                            EventBus.shared.publish(.recordingInterrupted)
+                        },
+                    ]
+                    : nil
+
                 showNotificationMessage(
-                    title: notificationType.title, content: notificationType.content,
+                    title: notificationType.title,
+                    content: notificationType.content,
                     type: notificationType.type,
                     autoHide: notificationType.shouldAutoHide,
+                    onTap: onTap,
+                    actionButtons: actionButtons
                 )
             }
-        // if Config.shared.USER_CONFIG.setting.hideStatusPanel && (!shouldSetResponseTimer || wssState != .connected) {
-        //     StatusPanelManager.shared.hidePanel()
-        // }
         case let .modeUpgraded(from, to):
             log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
@@ -82,6 +100,11 @@ extension StatusView {
             }
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
+
+            // 录音中断开连接不停止响应
+            if case .networkUnavailable(duringRecording: true) = notificationType {
+                return
+            }
 
             var showTimerTip = false
             var autoCloseDuration = 5
@@ -98,10 +121,24 @@ extension StatusView {
                 return
             }
 
+            let onTap = notificationType == .serverTimeout
+                ? { EventBus.shared.publish(.recordingInterrupted) }
+                : nil
+
+            let actionButtons = notificationType == .serverTimeout
+                ? [
+                    ActionButton(title: "前往历史纪录") {
+                        EventBus.shared.publish(.recordingInterrupted)
+                    },
+                ]
+                : nil
+
             showNotificationMessage(
                 title: notificationType.title, content: notificationType.content,
                 type: notificationType.type,
                 autoHide: notificationType.shouldAutoHide,
+                onTap: onTap,
+                actionButtons: actionButtons,
                 showTimerTip: showTimerTip,
                 autoCloseDuration: autoCloseDuration,
             )
@@ -214,6 +251,7 @@ extension StatusView {
         title: String, content: String,
         type: NotificationType = .warning,
         autoHide: Bool = true, onTap: (() -> Void)? = nil,
+        actionButtons: [ActionButton]? = nil,
         showTimerTip: Bool = false, autoCloseDuration: Int = 5,
     ) {
         overlay.showOverlay(
@@ -226,7 +264,8 @@ extension StatusView {
                     autoHide: autoHide,
                     showTimerTip: showTimerTip,
                     autoCloseDuration: autoCloseDuration,
-                    onTap: onTap
+                    onTap: onTap,
+                    actionButtons: actionButtons,
                 )
             },
             panelType: .notificationSystem

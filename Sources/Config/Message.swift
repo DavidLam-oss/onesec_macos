@@ -26,6 +26,7 @@ enum MessageType: String, CaseIterable {
     case hotkeySettingUpdate = "hotkey_setting_update"
     case hotkeySettingStart = "hotkey_setting_start"
     case userAudioSaved = "user_audio_saved"
+    case recordingInterrupted = "recording_interrupted"
 }
 
 struct WebSocketMessage {
@@ -78,17 +79,20 @@ enum NotificationMessageType: Equatable {
     case serverTimeout
     case recordingTimeoutWarning
     case authTokenFailed
+    case recordingInterruptedByNetwork
     case serverUnavailable(duringRecording: Bool)
-    case networkUnavailable
+    case networkUnavailable(duringRecording: Bool)
     case custom(title: String, content: String)
     case error(title: String, content: String)
 
     var title: String {
         switch self {
         case .serverTimeout:
-            "请求超时"
+            "出现了一点问题"
         case .recordingTimeoutWarning:
             "录音即将自动结束"
+        case .recordingInterruptedByNetwork:
+            "出现了一点问题"
         case .authTokenFailed:
             JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "身份验证失败" : "未登录"
         case .serverUnavailable:
@@ -105,9 +109,11 @@ enum NotificationMessageType: Equatable {
     var content: String {
         switch self {
         case .serverTimeout:
-            "服务器响应超时，请稍后重试"
+            "本次录音未成功转录。你可在历史记录中重新转录"
         case .recordingTimeoutWarning:
             "录音将在15秒后自动停止"
+        case .recordingInterruptedByNetwork:
+            "本次录音未成功转录。你可在历史记录中重新转录"
         case .authTokenFailed:
             JWTValidator.isValid(Config.shared.USER_CONFIG.authToken) ? "登录状态已失效，请重新登录" : "当前未登录，请登录后使用"
         case .serverUnavailable:
@@ -125,9 +131,9 @@ enum NotificationMessageType: Equatable {
         switch self {
         case .error,
              .authTokenFailed, .serverUnavailable,
-             .networkUnavailable, .serverTimeout:
+             .networkUnavailable:
             return .error
-        case .recordingTimeoutWarning:
+        case .recordingTimeoutWarning, .recordingInterruptedByNetwork, .serverTimeout:
             return .warning
         default:
             return .normal
@@ -136,9 +142,9 @@ enum NotificationMessageType: Equatable {
 
     var shouldAutoHide: Bool {
         switch self {
-        case .error, .authTokenFailed:
+        case .error, .authTokenFailed, .recordingInterruptedByNetwork, .serverTimeout:
             return false
-        case .networkUnavailable, .serverTimeout,
+        case .networkUnavailable,
              .recordingTimeoutWarning, .serverUnavailable:
             return true
         default:
@@ -150,6 +156,10 @@ enum NotificationMessageType: Equatable {
         switch self {
         case let .serverUnavailable(duringRecording):
             return duringRecording
+
+        case let .networkUnavailable(duringRecording):
+            return !duringRecording
+
         default:
             return true
         }

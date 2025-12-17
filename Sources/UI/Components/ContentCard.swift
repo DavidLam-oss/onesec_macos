@@ -27,6 +27,7 @@ struct ContentCard<CustomContent: View>: View {
     @State private var timerTask: Task<Void, Never>?
     @State private var isHovering = false
     @State private var hasBeenHovered = false
+    @State private var frontmostAppIcon: NSImage?
 
     init(
         panelID: UUID,
@@ -75,12 +76,23 @@ struct ContentCard<CustomContent: View>: View {
 
                     Spacer()
 
-                    Button(action: closeCard) {
-                        Image.systemSymbol("xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .symbolAppearEffect(isActive: isHovering)
+                    ZStack {
+                        if let appIcon = frontmostAppIcon {
+                            Image(nsImage: appIcon)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .opacity(isHovering ? 0 : 1)
+                                .scaleEffect(isHovering ? 0.8 : 1)
+                                .animation(.easeInOut(duration: 0.2), value: isHovering)
+                        }
+
+                        Button(action: closeCard) {
+                            Image.systemSymbol("xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .symbolAppearEffect(isActive: isHovering)
+                        }
+                        .buttonStyle(HoverIconButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
                     }
-                    .buttonStyle(HoverIconButtonStyle(normalColor: .overlayPlaceholder, hoverColor: .overlayText))
                 }
 
                 Rectangle()
@@ -166,7 +178,10 @@ struct ContentCard<CustomContent: View>: View {
                 stopAutoCloseTimer()
             }
         }
-        .onAppear { startAutoCloseTimer() }
+        .onAppear {
+            startAutoCloseTimer()
+            fetchFrontmostAppIcon()
+        }
         .onDisappear { stopAutoCloseTimer() }
     }
 
@@ -214,6 +229,12 @@ struct ContentCard<CustomContent: View>: View {
     private func stopAutoCloseTimer() {
         timerTask?.cancel()
         timerTask = nil
+    }
+
+    private func fetchFrontmostAppIcon() {
+        if let frontmostApp = NSWorkspace.shared.frontmostApplication {
+            frontmostAppIcon = frontmostApp.icon
+        }
     }
 }
 
