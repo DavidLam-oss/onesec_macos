@@ -161,21 +161,20 @@ extension StatusView {
             ])
         case let .serverResultReceived(text, _, processMode, polishedText):
             recording.state = .idle
-            if text.isEmpty {
-                return
-            }
 
             Task {
                 let canPaste = await canPasteNow()
+                if Config.shared.USER_CONFIG.setting.hideStatusPanel, canPaste {
+                    StatusPanelManager.shared.hidePanel()
+                }
+                if text.isEmpty {
+                    return
+                }
                 defer {
                     handleAlert(canPaste: canPaste, processMode: processMode, text: text, polishedText: polishedText)
                 }
 
-                if Config.shared.USER_CONFIG.setting.hideStatusPanel && canPaste {
-                    StatusPanelManager.shared.hidePanel()
-                }
-
-                if processMode == .terminal && text.newlineCount >= 1 {
+                if processMode == .terminal, text.newlineCount >= 1 {
                     return
                 }
 

@@ -50,7 +50,9 @@ class ContextService {
     }
 
     static func getSelectedText() async -> String? {
-        guard let element = AXElementAccessor.getFocusedElement() else {
+        guard let element = AXElementAccessor.getFocusedElement(),
+              !isAppWithAXReturnErrorSelectedText(bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "")
+        else {
             return await AXPasteboardController.copyCurrentSelectionAndRestore()
         }
 
@@ -58,7 +60,7 @@ class ContextService {
         if let text: String? = AXElementAccessor.getAttributeValue(
             element: element,
             attribute: kAXSelectedTextAttribute,
-        ), text!.isEmpty == false {
+        ), text != nil {
             return text
         }
 
@@ -73,7 +75,7 @@ class ContextService {
                     attribute: kAXStringForRangeParameterizedAttribute,
                     parameter: range
                 ),
-                text!.isEmpty == false
+                text != nil
             {
                 return text
             }
