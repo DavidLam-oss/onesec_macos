@@ -57,7 +57,7 @@ class ConnectionCenter: @unchecked Sendable {
     }
 
     func isWssServerConnected() -> Bool {
-        wssClient.connectionState == .connected
+        wssClient.connectionState.isConnected
     }
 
     func isNetworkAvailable() -> Bool {
@@ -72,7 +72,7 @@ class ConnectionCenter: @unchecked Sendable {
     }
 
     func hasRecordingNetworkError() -> Bool {
-        wssClient.hasRecordingNetworkError
+        wssClient.connectionState == .connected(.errorOccurred)
     }
 
     func connectWss() {
@@ -136,7 +136,7 @@ extension ConnectionCenter {
             }
             .receive(on: DispatchQueue.main)
             .sink { state in
-                guard state.previous == .connected,
+                guard case .connected = state.previous,
                       let current = state.current,
                       current == .disconnected || current == .cancelled || current == .failed,
                       self.networkState == .available
@@ -144,8 +144,8 @@ extension ConnectionCenter {
                     return
                 }
 
-                guard !self.wssClient.isRecordingStartConfirmed else {
-                    self.wssClient.hasRecordingNetworkError = true
+                guard case .connected(.idle) = self.wssClient.connectionState else {
+                    self.wssClient.connectionState = .connected(.errorOccurred)
                     return
                 }
 
@@ -160,8 +160,8 @@ extension ConnectionCenter {
             .receive(on: DispatchQueue.main)
             .sink { state in
                 guard state.previous == .available, state.current == .unavailable else { return }
-                guard !self.wssClient.isRecordingStartConfirmed else {
-                    self.wssClient.hasRecordingNetworkError = true
+                guard case .connected(.idle) = self.wssClient.connectionState else {
+                    self.wssClient.connectionState = .connected(.errorOccurred)
                     return
                 }
 

@@ -1,18 +1,8 @@
 import Combine
 import SwiftUI
 
-struct RecordingState {
-    var volume: CGFloat = 0 // 音量值 (0-1)
-    var state: RecordState = .idle
-    var mode: RecordMode = .normal
-
-    var modeColor: Color {
-        mode == .normal ? auroraGreen : starlightYellow
-    }
-}
-
 struct StatusIndicator: View {
-    let recordState: RecordState
+    let state: RecordState
     let volume: CGFloat
     let mode: RecordMode
 
@@ -32,7 +22,7 @@ struct StatusIndicator: View {
     private let baseSize: CGFloat = 20
 
     private var outerSize: CGFloat {
-        switch recordState {
+        switch state {
         case .idle:
             baseSize
         case .recording, .processing:
@@ -52,7 +42,7 @@ struct StatusIndicator: View {
             return Color.black
         }
 
-        switch recordState {
+        switch state {
         case .idle:
             return Color.clear
         case .recording, .processing:
@@ -95,7 +85,7 @@ struct StatusIndicator: View {
 
             // 内圆
             Group {
-                if recordState == .idle {
+                if state == .idle {
                     if isTranslateMode {
                         Text("译")
                             .font(.system(size: 11, weight: .medium))
@@ -106,13 +96,13 @@ struct StatusIndicator: View {
                             .frame(width: outerSize, height: outerSize)
                             .scaleEffect(innerScale)
                     }
-                } else if recordState == .recording {
+                } else if state == .recording {
                     // 录音圆
                     Circle()
                         .fill(modeColor)
                         .frame(width: outerSize, height: outerSize)
                         .scaleEffect(innerScale)
-                } else if recordState == .processing {
+                } else if state == .processing {
                     Spinner(
                         color: modeColor,
                         size: outerSize / 2
@@ -123,11 +113,11 @@ struct StatusIndicator: View {
         }
         .frame(width: outerSize, height: outerSize)
         .scaleEffect(isHovered ? 1.5 : 1.0, anchor: .bottom)
-        .offset(y: recordState == .idle ? 0 : -4 - (outerSize - baseSize) / 2)
+        .offset(y: state == .idle ? 0 : -4 - (outerSize - baseSize) / 2)
         .shadow(color: .overlaySecondaryBackground.opacity(0.2), radius: 6, x: 0, y: 0)
         .animation(.quickSpringAnimation, value: outerSize)
         .animation(.quickSpringAnimation, value: isHovered)
-        .animation(.quickSpringAnimation, value: recordState)
+        .animation(.quickSpringAnimation, value: state)
         .compatibleHover { hovering in
             guard ConnectionCenter.shared.audioRecorderState == .idle else { return }
             isHovered = hovering

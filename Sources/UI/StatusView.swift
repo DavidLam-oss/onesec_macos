@@ -3,16 +3,19 @@ import Combine
 import SwiftUI
 
 struct StatusView: View {
-    @State var recording = RecordingState()
+    @State var recordState: RecordState = .idle
+    @State var volume: CGFloat = 0
+    @State var mode: RecordMode = .normal
+    
     private var overlay: OverlayController { OverlayController.shared }
     private var menuBuilder: MenuBuilder = .shared
 
     var body: some View {
         // 状态指示器
         StatusIndicator(
-            recordState: recording.state,
-            volume: recording.volume,
-            mode: recording.mode
+            state: recordState,
+            volume: volume,
+            mode: mode
         )
         .onTapGesture {
             overlay.hideAllOverlays()
@@ -38,28 +41,28 @@ struct StatusView: View {
 extension StatusView {
     private func handleEvent(_ event: AppEvent) {
         switch event {
-        case let .recordingCacheStarted(mode):
-            guard recording.state == .idle else { return }
-            recording.mode = mode
-            recording.state = .recording
+        case let .recordingCacheStarted(newMode):
+            guard recordState == .idle else { return }
+            mode = newMode
+            recordState = .recording
         case .recordingCacheTimeout:
-            recording.state = .idle
-            recording.volume = 0
-        case let .volumeChanged(volume):
-            guard recording.state != .idle else { return }
-            recording.volume = CGFloat(volume)
-        case let .recordingStarted(mode):
-            recording.mode = mode
-            recording.state = .recording
+            recordState = .idle
+            volume = 0
+        case let .volumeChanged(newVolume):
+            guard recordState != .idle else { return }
+            volume = CGFloat(newVolume)
+        case let .recordingStarted(newMode):
+            mode = newMode
+            recordState = .recording
             if Config.shared.USER_CONFIG.setting.hideStatusPanel {
                 StatusPanelManager.shared.showPanel()
             }
             overlay.hideOverlays(.notificationSystem)
         case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer):
-            guard recording.state == .recording else { return }
+            guard recordState == .recording else { return }
 
-            recording.state = shouldSetResponseTimer ? .processing : .idle
-            recording.volume = 0
+            recordState = shouldSetResponseTimer ? .processing : .idle
+            volume = 0
 
             // 处理网络中断情况
             if !shouldSetResponseTimer {
@@ -91,7 +94,7 @@ extension StatusView {
         case let .modeUpgraded(from, to):
             log.info("Receive modeUpgraded: \(from) \(to)")
             if to == .command {
-                recording.mode = to
+                mode = to
             }
         case .userDataUpdated:
             if ConnectionCenter.shared.isAuthed,
@@ -106,8 +109,8 @@ extension StatusView {
             var autoCloseDuration = 5
             if notificationType != .recordingTimeoutWarning {
                 log.info("Reset recording state to idle")
-                recording.state = .idle
-                recording.volume = 0
+                recordState = .idle
+                volume = 0
             } else {
                 showTimerTip = true
                 autoCloseDuration = 15
@@ -156,7 +159,7 @@ extension StatusView {
                 },
             ])
         case let .serverResultReceived(text, _, processMode, polishedText):
-            recording.state = .idle
+            recordState = .idle
 
             Task {
                 let canPaste = await canPasteNow()
@@ -177,7 +180,7 @@ extension StatusView {
                 await AXPasteboardController.pasteTextToActiveApp(text)
             }
         case let .terminalLinuxChoice(_, _, _, commands):
-            recording.state = .idle
+            recordState = .idle
             log.info("Receive terminalLinuxChoice: \(commands)")
             LinuxCommandCard.show(commands: commands)
         default:
@@ -230,7 +233,7 @@ extension StatusView {
                 ], cardWidth: cardWidth, panelType: .translate(.bottom))
                 return
             }
-            if recording.mode == .command {
+            if mode == .command {
                 if ConnectionCenter.shared.currentRecordingAppContext.focusContext.selectedText.isEmpty {
                     ContentCard<EmptyView>.show(title: "执行结果", content: text, cardWidth: cardWidth, panelType: .command(.bottom))
                 } else {

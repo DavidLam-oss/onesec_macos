@@ -9,16 +9,6 @@ import Combine
 import Foundation
 import Network
 
-enum ConnState {
-    case preparing
-    case disconnected
-    case connecting
-    case failed
-    case connected
-    case cancelled
-    case manualDisconnected // 手动断开
-}
-
 enum UDSClientError: Error {
     case stringConversionFailed
     case dataConversionFailed
@@ -44,20 +34,22 @@ final class UDSClient: @unchecked Sendable {
             .sink { [weak self] event in
                 switch event {
                 case .userDataUpdated(.environment): self?.sendUserConfigUpdated()
+
                 case .notificationReceived(.authTokenFailed): self?.sendAuthTokenFailed()
-                case let .hotkeySettingUpdated(mode, hotkeyCombination):
-                    self?.sendHotkeySettingUpdate(mode: mode, hotkeyCombination: hotkeyCombination)
+
+                case let .hotkeySettingUpdated(mode, hotkeyCombination): self?.sendHotkeySettingUpdate(mode: mode, hotkeyCombination: hotkeyCombination)
+
                 case let .hotkeySettingResulted(mode, hotkeyCombination, isConflict):
                     self?.sendHotkeySettingEnd(mode: mode, hotkeyCombination: hotkeyCombination, isConflict: isConflict)
                     if !isConflict {
                         self?.sendHotkeySettingResult(mode: mode, hotkeyCombination: hotkeyCombination)
                     }
-                case let .userAudioSaved(sessionID, filename):
-                    self?.sendUserAudioSaved(sessionID: sessionID, filename: filename)
-                case .recordingInterrupted:
-                    self?.sendRecordingInterrupted()
-                default:
-                    break
+
+                case let .userAudioSaved(sessionID, filename): self?.sendUserAudioSaved(sessionID: sessionID, filename: filename)
+
+                case .recordingInterrupted: self?.sendRecordingInterrupted()
+
+                default: break
                 }
             }
             .store(in: &cancellables)
@@ -89,7 +81,7 @@ final class UDSClient: @unchecked Sendable {
 
             switch state {
             case .ready:
-                connectionState = .connected
+                connectionState = .connected(.idle)
                 startMessagePolling()
                 log.info("connected")
             case .failed:
@@ -252,7 +244,7 @@ extension UDSClient {
     }
 
     func sendAuthTokenFailed(reason: String = "UnAuth", statusCode: Int? = nil) {
-        guard connectionState == .connected else {
+        guard case .connected = connectionState else {
             log.warning("Client not connected, cant send auth token failed")
             return
         }
@@ -270,7 +262,7 @@ extension UDSClient {
     }
 
     func sendHotkeySettingResult(mode: RecordMode, hotkeyCombination: [String]) {
-        guard connectionState == .connected else {
+        guard case .connected = connectionState else {
             log.warning("Client not connected, cant send hotkey setting result")
             return
         }
@@ -285,12 +277,12 @@ extension UDSClient {
     }
 
     func sendUserConfigUpdated() {
-        guard connectionState == .connected else { return }
+        guard case .connected = connectionState else { return }
         sendJSONMessage(WebSocketMessage.create(type: .configUpdated, data: nil).toJSON())
     }
 
     func sendHotkeySettingUpdate(mode: RecordMode, hotkeyCombination: [String]) {
-        guard connectionState == .connected else { return }
+        guard case .connected = connectionState else { return }
 
         let data: [String: Any] = [
             "mode": mode.rawValue,
@@ -301,7 +293,7 @@ extension UDSClient {
     }
 
     func sendHotkeySettingEnd(mode: RecordMode, hotkeyCombination: [String], isConflict: Bool) {
-        guard connectionState == .connected else { return }
+        guard case .connected = connectionState else { return }
 
         let data: [String: Any] = [
             "mode": mode.rawValue,
@@ -313,7 +305,7 @@ extension UDSClient {
     }
 
     func sendUserAudioSaved(sessionID: String, filename: String) {
-        guard connectionState == .connected else { return }
+        guard case .connected = connectionState else { return }
 
         let data: [String: Any] = [
             "session_id": sessionID,
@@ -325,7 +317,7 @@ extension UDSClient {
     }
 
     func sendRecordingInterrupted() {
-        guard connectionState == .connected else { return }
+        guard case .connected = connectionState else { return }
         sendJSONMessage(WebSocketMessage.create(type: .recordingInterrupted, data: nil).toJSON())
     }
 

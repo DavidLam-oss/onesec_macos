@@ -509,7 +509,6 @@ class AudioUnitRecorder: @unchecked Sendable {
             for packet in oggPacketizer.append(frame: finalData) {
                 audioQueue.append(packet)
             }
-            log.info("📦 Opus encoder flushed final frame: \(finalData.count) bytes")
         }
 
         flushPendingOggPackets(final: true)

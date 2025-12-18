@@ -17,9 +17,12 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     @Published var connectionState: ConnState = .manualDisconnected {
         didSet {
-            if oldValue != .connected, connectionState == .connected {
+            let oldIsConnected = if case .connected = oldValue { true } else { false }
+            let newIsConnected = if case .connected = connectionState { true } else { false }
+
+            if !oldIsConnected, newIsConnected {
                 startPingPongTimer()
-            } else if oldValue == .connected, connectionState != .connected {
+            } else if oldIsConnected, !newIsConnected {
                 stopPingPongTimer()
             }
         }
@@ -57,10 +60,6 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     // 当前录音会话 ID
     var recordingID: String = ""
-    // 当前录音会话是否正式开始
-    var isRecordingStartConfirmed: Bool = false
-    // 当前录音会话开始后是否发生过网络错误
-    var hasRecordingNetworkError: Bool = false
 
     init() {
         initializeMessageListener()
@@ -73,7 +72,8 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             return
         }
 
-        guard connectionState != .connecting, connectionState != .connected else {
+        let isConnected = if case .connected = connectionState { true } else { false }
+        guard connectionState != .connecting, !isConnected else {
             log.info("WebSocket already \(connectionState)")
             return
         }
@@ -168,7 +168,7 @@ extension WebSocketAudioStreamer {
     }
 
     func sendAudioData(_ audioData: Data) {
-        guard connectionState == .connected, let ws else {
+        guard case .connected = connectionState, let ws else {
             return
         }
 
@@ -176,7 +176,7 @@ extension WebSocketAudioStreamer {
     }
 
     func sendMessage(_ text: String, completion _: (() -> Void)? = nil) {
-        guard connectionState == .connected, let ws else {
+        guard case .connected = connectionState, let ws else {
             return
         }
 
@@ -193,15 +193,14 @@ extension WebSocketAudioStreamer {
             "mode": Config.shared.TEXT_PROCESS_MODE.rawValue,
         ]
 
-        isRecordingStartConfirmed = false
-        hasRecordingNetworkError = false
+        connectionState = .connected(.idle)
         sendWebSocketMessage(type: .startRecording, data: data)
         scheduleRecordingStartedTimeoutTimer()
         scheduleIdleTimer()
     }
 
     func sendStopRecording(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true) {
-        guard connectionState == .connected, isRecordingStarted, shouldSetResponseTimer else {
+        guard case .connected = connectionState, isRecordingStarted, shouldSetResponseTimer else {
             return
         }
 
@@ -298,7 +297,7 @@ extension WebSocketAudioStreamer {
 
         switch messageType {
         case .recordingStarted:
-            isRecordingStartConfirmed = true
+            connectionState = .connected(.active)
             cancelRecordingStartedTimeoutTimer()
 
         case .error:
@@ -310,16 +309,8 @@ extension WebSocketAudioStreamer {
                 return
             }
 
-            guard let data = json["data"] as? [String: Any],
-                  let errorCode = data["error_code"] as? String
-            else { return }
-
-            if isRecordingStartConfirmed {
-                hasRecordingNetworkError = true
-                return
-            }
-
-            if errorCode != "ASR_LIMIT_EXCEEDED" {
+            if case .connected(.active) = connectionState {
+                connectionState = .connected(.errorOccurred)
                 return
             }
 
@@ -454,7 +445,7 @@ extension WebSocketAudioStreamer {
 
 extension WebSocketAudioStreamer {
     func ping() {
-        guard connectionState == .connected, let ws else {
+        guard case .connected = connectionState, let ws else {
             return
         }
         ws.write(ping: Data())
@@ -501,9 +492,8 @@ extension WebSocketAudioStreamer {
                 log.warning("未收到 pong 响应, 重新连接")
                 self.scheduleManualReconnect()
             }
-
-            if isRecordingStartConfirmed {
-                hasRecordingNetworkError = true
+            if case .connected(.active) = connectionState {
+                connectionState = .connected(.errorOccurred)
             }
         }
     }

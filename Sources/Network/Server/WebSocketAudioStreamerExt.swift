@@ -14,7 +14,7 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
         switch event {
         case .connected:
             log.debug("WebSocket connected")
-            connectionState = .connected
+            connectionState = .connected(.idle)
             curRetryCount = 0
 
         case let .disconnected(reason, code):
