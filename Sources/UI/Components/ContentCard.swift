@@ -205,6 +205,8 @@ struct ContentCard<CustomContent: View>: View {
                 isContentCopied = false
             }
         }
+
+        closeCard()
     }
 
     private func startAutoCloseTimer() {
