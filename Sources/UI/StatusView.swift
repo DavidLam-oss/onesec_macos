@@ -54,6 +54,7 @@ extension StatusView {
             if Config.shared.USER_CONFIG.setting.hideStatusPanel {
                 StatusPanelManager.shared.showPanel()
             }
+            overlay.hideOverlays(.notificationSystem)
         case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer):
             guard recording.state == .recording else { return }
 

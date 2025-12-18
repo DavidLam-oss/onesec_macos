@@ -200,13 +200,12 @@ struct ContentCard<CustomContent: View>: View {
         }
 
         Task {
-            try? await sleep(3000)
-            withAnimation {
-                isContentCopied = false
-            }
+            try? await sleep(1200)
+            closeCard()
+            // withAnimation {
+            //     isContentCopied = false
+            // }
         }
-
-        closeCard()
     }
 
     private func startAutoCloseTimer() {
