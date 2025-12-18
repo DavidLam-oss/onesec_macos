@@ -202,9 +202,6 @@ struct ContentCard<CustomContent: View>: View {
         Task {
             try? await sleep(1200)
             closeCard()
-            // withAnimation {
-            //     isContentCopied = false
-            // }
         }
     }
 

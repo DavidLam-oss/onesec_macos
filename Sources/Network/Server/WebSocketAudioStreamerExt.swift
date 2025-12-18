@@ -37,13 +37,12 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
             didReceiveMessage(json)
 
         case let .binary(data):
-            log.debug("WebSocket receive binary: \(data.count) 字节")
+            log.debug("WebSocket receive binary: \(data.count)")
 
         case .ping:
             ping()
 
         case .pong:
-            log.debug("WebSocket receive pong")
             updateLastPongTime()
 
         case let .viabilityChanged(isViable):

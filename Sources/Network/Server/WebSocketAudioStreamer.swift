@@ -113,7 +113,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         curRetryCount += 1
 
         guard curRetryCount <= maxRetryCount else {
-            log.error("The server is unavailable, stopping reconnection.")
+            log.error("Server is unavailable, stopping reconnection")
             return
         }
 
@@ -177,7 +177,6 @@ extension WebSocketAudioStreamer {
 
     func sendMessage(_ text: String, completion _: (() -> Void)? = nil) {
         guard connectionState == .connected, let ws else {
-            log.warning("Cannot send message: not connected")
             return
         }
 
@@ -320,7 +319,7 @@ extension WebSocketAudioStreamer {
                 return
             }
 
-            if hasRecordingNetworkError, errorCode != "ASR_LIMIT_EXCEEDED" {
+            if errorCode != "ASR_LIMIT_EXCEEDED" {
                 return
             }
 

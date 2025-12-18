@@ -30,8 +30,7 @@ final class NetworkService: ObservableObject, @unchecked Sendable {
     private func startMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
             let newStatus: NetworkStatus = path.status == .satisfied ? .available : .unavailable
-            // log.info("Network status changed to: \(newStatus)")
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.networkStatus = newStatus
             }
         }

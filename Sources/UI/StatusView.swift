@@ -102,11 +102,6 @@ extension StatusView {
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
 
-            // 录音中断开连接不停止响应
-            if case .networkUnavailable(duringRecording: true) = notificationType {
-                return
-            }
-
             var showTimerTip = false
             var autoCloseDuration = 5
             if notificationType != .recordingTimeoutWarning {
@@ -130,7 +125,7 @@ extension StatusView {
                 ? [
                     ActionButton(title: "前往历史纪录") {
                         EventBus.shared.publish(.recordingInterrupted)
-                    },
+                    }
                 ]
                 : nil
 

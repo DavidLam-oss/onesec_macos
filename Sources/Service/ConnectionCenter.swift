@@ -144,7 +144,7 @@ extension ConnectionCenter {
                     return
                 }
 
-                if self.wssClient.isRecordingStartConfirmed {
+                guard !self.wssClient.isRecordingStartConfirmed else {
                     self.wssClient.hasRecordingNetworkError = true
                     return
                 }
@@ -160,7 +160,7 @@ extension ConnectionCenter {
             .receive(on: DispatchQueue.main)
             .sink { state in
                 guard state.previous == .available, state.current == .unavailable else { return }
-                if self.wssClient.isRecordingStartConfirmed {
+                guard !self.wssClient.isRecordingStartConfirmed else {
                     self.wssClient.hasRecordingNetworkError = true
                     return
                 }
