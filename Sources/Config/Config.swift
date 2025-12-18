@@ -18,8 +18,8 @@ class Config: ObservableObject {
     @Published var TEXT_PROCESS_MODE: TextProcessMode = .auto
     @Published var USER_CONFIG = UserConfigService.shared.loadUserConfig() {
         didSet {
-            log.info("Theme changed: \(oldValue.theme) -> \(USER_CONFIG.theme)")
             if oldValue.theme != USER_CONFIG.theme {
+                log.info("Theme changed: \(oldValue.theme) -> \(USER_CONFIG.theme)")
                 applyTheme()
             }
         }
@@ -51,7 +51,7 @@ class Config: ObservableObject {
             USER_CONFIG.hotkeyConfigs.append(UserConfig.HotkeyConfig(mode: modeString, hotkeyCombination: hotkeyCombination))
         }
         UserConfigService.shared.saveUserConfig(USER_CONFIG)
-        log.info("Hotkey updated for mode: \(mode), combination: \(hotkeyCombination)")
+        log.info("Hotkey updated for: \(mode) -> \(hotkeyCombination)")
     }
 
     func setLastSyncFocusJudgmentSheetTime(_ date: Date) {

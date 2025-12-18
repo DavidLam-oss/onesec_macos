@@ -28,8 +28,7 @@ struct CommandParser: ParsableCommand {
             throw ValidationError("Invalid Server: \(server)")
         }
 
-        let userConfig = Config.shared.USER_CONFIG
-        log.info("User Config: \n\(userConfig)")
+        _ = Config.shared.USER_CONFIG
 
         Config.shared.UDS_CHANNEL = udsChannel
         Config.shared.SERVER = server

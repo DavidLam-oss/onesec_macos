@@ -160,8 +160,12 @@ extension ConnectionCenter {
             .receive(on: DispatchQueue.main)
             .sink { state in
                 guard state.previous == .available, state.current == .unavailable else { return }
-                EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: true)))
-                self.wssClient.hasRecordingNetworkError = true
+                if self.wssClient.isRecordingStartConfirmed {
+                    self.wssClient.hasRecordingNetworkError = true
+                    return
+                }
+
+                EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: self.audioRecorderState != .idle)))
             }
             .store(in: &cancellables)
     }

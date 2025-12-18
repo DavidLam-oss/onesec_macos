@@ -76,13 +76,28 @@ extension WebSocketMessage {
 // MARK: - 通知消息类型
 
 enum NotificationMessageType: Equatable {
+    // 服务器响应结果 32s 超时
     case serverTimeout
+    // 录音结束前 15s 发出警告
     case recordingTimeoutWarning
+    // 用户 Token 失效
     case authTokenFailed
+    // 确认录音开启后, 过程中网络中断
     case recordingInterruptedByNetwork
+
+    // 服务不可用
+    // 触发时机:
+    // 1. 发送 startRecording后, 3s 未收到服务器确认 -> duringRecording = true
+    // 2. wss 连接从 .connected 状态变为非已连接状态且当前未在录音过程中 -> duringRecording 值为录音器是否已启动
     case serverUnavailable(duringRecording: Bool)
+    // 网络不可用
+    // 触发时机:
+    // 1. 将要录音时网络不是 available false
+    // 2. 将要录音时 wss 连接不是 .connected 状态 -> duringRecording = false
+    // 3. 手动断开 wss 连接后, 录音开始后 2s 未连接上服务器 -> duringRecording = false
+    // 4. networkState 连接从 .available 变为未连接且当前未在录音过程中 -> duringRecording 值为录音器是否已启动
     case networkUnavailable(duringRecording: Bool)
-    case custom(title: String, content: String)
+    // 服务端返回错误  (已在录音过程中则忽略所有错误)
     case error(title: String, content: String)
 
     var title: String {
@@ -99,8 +114,6 @@ enum NotificationMessageType: Equatable {
             "服务不可用"
         case .networkUnavailable:
             "网络不可用"
-        case let .custom(title, _):
-            title
         case let .error(title, _):
             title
         }
@@ -120,8 +133,6 @@ enum NotificationMessageType: Equatable {
             "服务不可用，请检查网络连接"
         case .networkUnavailable:
             "网络不可用，请检查网络连接"
-        case let .custom(_, content):
-            content
         case let .error(_, content):
             content
         }
@@ -135,8 +146,6 @@ enum NotificationMessageType: Equatable {
             return .error
         case .recordingTimeoutWarning, .recordingInterruptedByNetwork, .serverTimeout:
             return .warning
-        default:
-            return .normal
         }
     }
 
@@ -146,8 +155,6 @@ enum NotificationMessageType: Equatable {
             return false
         case .networkUnavailable,
              .recordingTimeoutWarning, .serverUnavailable:
-            return true
-        default:
             return true
         }
     }
