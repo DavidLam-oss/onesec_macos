@@ -6,21 +6,16 @@ struct StatusView: View {
     @State var recordState: RecordState = .idle
     @State var volume: CGFloat = 0
     @State var mode: RecordMode = .normal
-    
+
     private var overlay: OverlayController { OverlayController.shared }
-    private var menuBuilder: MenuBuilder = .shared
 
     var body: some View {
         // 状态指示器
         StatusIndicator(
             state: recordState,
             volume: volume,
-            mode: mode
+            mode: mode,
         )
-        .onTapGesture {
-            overlay.hideAllOverlays()
-            menuBuilder.showMenu(in: StatusPanelManager.shared.getPanel().contentView!)
-        }
         .padding(.bottom, 4)
         .frame(width: 200, height: 80, alignment: .bottom)
         .onReceive(
@@ -45,7 +40,7 @@ extension StatusView {
             guard recordState == .idle else { return }
             mode = newMode
             recordState = .recording
-        case .recordingCacheTimeout:
+        case .recordingCacheTimeout, .recordingCancelled:
             recordState = .idle
             volume = 0
         case let .volumeChanged(newVolume):
@@ -93,7 +88,7 @@ extension StatusView {
             }
         case let .modeUpgraded(from, to):
             log.info("Receive modeUpgraded: \(from) \(to)")
-            if to == .command {
+            if to != .normal {
                 mode = to
             }
         case .userDataUpdated:
@@ -128,7 +123,7 @@ extension StatusView {
                 ? [
                     ActionButton(title: "前往历史纪录") {
                         EventBus.shared.publish(.recordingInterrupted)
-                    }
+                    },
                 ]
                 : nil
 
@@ -163,7 +158,10 @@ extension StatusView {
 
             Task {
                 let canPaste = await canPasteNow()
-                if Config.shared.USER_CONFIG.setting.hideStatusPanel, canPaste {
+                if
+                    Config.shared.USER_CONFIG.setting.hideStatusPanel,
+                    canPaste || text.isEmpty
+                {
                     StatusPanelManager.shared.hidePanel()
                 }
                 if text.isEmpty {
@@ -203,7 +201,7 @@ extension StatusView {
         let isEditable = element.map { AXElementAccessor.isEditableElement($0) } ?? false
 
         if element != nil, !isAppWithoutAXSupport() {
-            log.info("Use AX paste test")
+            log.info("Use AX paste test: \(isEditable)")
             return isEditable
         }
 

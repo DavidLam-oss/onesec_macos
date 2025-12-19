@@ -35,9 +35,15 @@ class KeyStateTracker {
     /// 上次 startMatch 的时间戳 (防抖)
     private var lastStartMatchTime: TimeInterval = 0
 
+    /// 自由模式：是否正在录音（toggle 状态）
+    private var isFreeRecording: Bool = false
+    /// 自由模式：上一次检测时 free 按键是否匹配
+    private var wasFreeKeyMatched: Bool = false
+
     private var keyConfigs: [KeyConfig] = [
         KeyConfig(keyCodes: Config.shared.USER_CONFIG.normalKeyCodes, description: "normal", mode: .normal),
         KeyConfig(keyCodes: Config.shared.USER_CONFIG.commandKeyCodes, description: "command", mode: .command),
+        KeyConfig(keyCodes: Config.shared.USER_CONFIG.freeKeyCodes, description: "free", mode: .free),
     ]
 
     init() {
@@ -50,6 +56,25 @@ class KeyStateTracker {
             }
             .sink { [weak self] _ in
                 self?.reloadKeyConfigs()
+            }
+            .store(in: &cancellables)
+
+        EventBus.shared.events
+            .filter {
+                if case .recordingCancelled = $0 { return true }
+                if case .recordingConfirmed = $0 { return true }
+                return false
+            }
+            .sink { [weak self] event in
+                self?.isFreeRecording = false
+                self?.isCurrentlyMatched = false
+                self?.currentActiveMode = nil
+
+                if case .recordingCancelled = event, Config.shared.USER_CONFIG.setting.hideStatusPanel {
+                    Task { @MainActor in
+                        StatusPanelManager.shared.hidePanel()
+                    }
+                }
             }
             .store(in: &cancellables)
     }
@@ -141,6 +166,42 @@ class KeyStateTracker {
     }
 
     private func checkMatchStatus() -> KeyMatchResult {
+        // 检查 free 模式的按键是否当前匹配
+        let freeConfig = keyConfigs.first { $0.mode == .free }
+        let isFreeKeyMatched = freeConfig.map { Set($0.keyCodes).isSubset(of: pressedKeys) } ?? false
+
+        // 自由模式：检测按键按下（从不匹配变为匹配）来 toggle 状态
+        // 命令模式下不允许切换到自由模式
+        if !wasFreeKeyMatched, isFreeKeyMatched, currentActiveMode != .command {
+            wasFreeKeyMatched = true
+            // 模式升级
+            if currentActiveMode == .normal {
+                log.info("🔄 模式升级: normal → free")
+                currentActiveMode = .free
+                isFreeRecording = true
+                return .modeUpgrade(from: .normal, to: .free)
+            }
+
+            isFreeRecording.toggle()
+            if isFreeRecording {
+                log.info("🎯 自由模式开始录音")
+                isCurrentlyMatched = true
+                currentActiveMode = .free
+                return .startMatch(.free)
+            } else {
+                log.info("❌ 自由模式停止录音")
+                isCurrentlyMatched = false
+                currentActiveMode = nil
+                return .endMatch
+            }
+        }
+        wasFreeKeyMatched = isFreeKeyMatched
+
+        // 如果正在自由录音，忽略其他按键状态
+        if isFreeRecording {
+            return .stillMatching
+        }
+
         // 没有按键按下
         if pressedKeys.isEmpty {
             if isCurrentlyMatched {
@@ -151,12 +212,9 @@ class KeyStateTracker {
             return .notMatching
         }
 
-        // 检查是否匹配任何配置（配置的按键是当前按键的子集）
-        // 如果有多个匹配，选择按键数量最多的配置（最具体的匹配）
+        // 检查是否匹配 normal/command 配置（排除 free 模式）
         let matchedConfig = keyConfigs
-            .filter { config in
-                Set(config.keyCodes).isSubset(of: pressedKeys)
-            }
+            .filter { $0.mode != .free && Set($0.keyCodes).isSubset(of: pressedKeys) }
             .max(by: { $0.keyCodes.count < $1.keyCodes.count })
 
         let isNowMatched = matchedConfig != nil
@@ -207,12 +265,15 @@ class KeyStateTracker {
         isCurrentlyMatched = false
         currentActiveMode = nil
         lastStartMatchTime = 0
+        isFreeRecording = false
+        wasFreeKeyMatched = false
     }
 
     func reloadKeyConfigs() {
         keyConfigs = [
             KeyConfig(keyCodes: Config.shared.USER_CONFIG.normalKeyCodes, description: "normal", mode: .normal),
             KeyConfig(keyCodes: Config.shared.USER_CONFIG.commandKeyCodes, description: "command", mode: .command),
+            KeyConfig(keyCodes: Config.shared.USER_CONFIG.freeKeyCodes, description: "free", mode: .free),
         ]
         log.info("✅ KeyStateTracker reload key configs")
     }

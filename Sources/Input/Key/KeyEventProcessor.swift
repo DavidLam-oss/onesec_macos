@@ -12,6 +12,7 @@ import Foundation
 enum RecordMode: String {
     case normal
     case command
+    case free
 }
 
 struct KeyConfig {
@@ -59,20 +60,24 @@ class KeyEventProcessor {
 
         if completed {
             let newKeyCodes = hotkeyCombination.compactMap { KeyMapper.stringToKeyCodeMap[$0] }.sorted()
-            let otherKeyCodes: [Int64]
-            
-            if hotkeySettingMode == .normal {
-                otherKeyCodes = Config.shared.USER_CONFIG.commandKeyCodes.sorted()
-            } else {
-                otherKeyCodes = Config.shared.USER_CONFIG.normalKeyCodes.sorted()
+            var otherKeyCodesList: [[Int64]] = []
+
+            if hotkeySettingMode != .normal {
+                otherKeyCodesList.append(Config.shared.USER_CONFIG.normalKeyCodes.sorted())
             }
-            
-            let isConflict = newKeyCodes == otherKeyCodes
-            
+            if hotkeySettingMode != .command {
+                otherKeyCodesList.append(Config.shared.USER_CONFIG.commandKeyCodes.sorted())
+            }
+            if hotkeySettingMode != .free {
+                otherKeyCodesList.append(Config.shared.USER_CONFIG.freeKeyCodes.sorted())
+            }
+
+            let isConflict = otherKeyCodesList.contains { $0 == newKeyCodes }
+
             if !isConflict {
                 Config.shared.saveHotkeySetting(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination)
             }
-            
+
             EventBus.shared.publish(.hotkeySettingResulted(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination, isConflict: isConflict))
         }
     }

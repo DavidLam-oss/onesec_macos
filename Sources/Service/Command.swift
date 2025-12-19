@@ -20,8 +20,11 @@ struct CommandParser: ParsableCommand {
     @Option(name: .shortAndLong, help: "普通模式按键组合 (如: Fn)")
     var normalKeys: String = ""
 
-    @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+Space, Fn+LCmd)")
+    @Option(name: .shortAndLong, help: "命令模式按键组合 (如: Fn+LCmd)")
     var commandKeys: String = ""
+
+    @Option(name: .shortAndLong, help: "自由模式按键组合 (如: Fn+Space)")
+    var freeKeys: String = ""
 
     mutating func run() throws {
         guard ServerValidator.isValid(server) else {
@@ -45,6 +48,11 @@ struct CommandParser: ParsableCommand {
         if !commandKeys.isEmpty {
             let commandKeyArray = commandKeys.split(separator: "+").map { String($0) }
             Config.shared.saveHotkeySetting(mode: .command, hotkeyCombination: commandKeyArray)
+        }
+
+        if !freeKeys.isEmpty {
+            let freeKeyArray = freeKeys.split(separator: "+").map { String($0) }
+            Config.shared.saveHotkeySetting(mode: .free, hotkeyCombination: freeKeyArray)
         }
     }
 }

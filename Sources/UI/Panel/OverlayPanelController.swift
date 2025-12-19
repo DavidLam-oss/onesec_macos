@@ -499,7 +499,7 @@ private extension OverlayController {
 
         if hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel {
             StatusPanelManager.shared.showPanel()
-        } else if !hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel {
+        } else if !hasStatusPanelTrigger, Config.shared.USER_CONFIG.setting.hideStatusPanel, ConnectionCenter.shared.audioRecorderState == .idle {
             StatusPanelManager.shared.hidePanel()
         }
     }

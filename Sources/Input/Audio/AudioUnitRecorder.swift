@@ -622,9 +622,9 @@ class AudioUnitRecorder: @unchecked Sendable {
         EventBus.shared.publish(.audioDataReceived(data: audioData))
     }
 
-    func handleModeUpgrade() {
-        if isRecordingStarted {
-            EventBus.shared.publish(.modeUpgraded(from: .normal, to: .command))
+    func handleModeUpgrade(from _: RecordMode, to: RecordMode) {
+        if isRecordingStarted, to != .normal {
+            EventBus.shared.publish(.modeUpgraded(from: .normal, to: to))
         } else {
             recordMode = .command
         }
@@ -819,7 +819,7 @@ extension AudioUnitRecorder {
                     guard let self, recordState == .recording else { return }
                     log.warning("Recording timeout: exceeded \(maxRecordingDuration) seconds")
                     Task { @MainActor in
-                        self.stopRecording()
+                        EventBus.shared.publish(.recordingConfirmed)
                     }
                 }
             }

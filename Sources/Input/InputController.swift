@@ -194,10 +194,8 @@ class InputController {
         }
     }
 
-    private func modeUpgrade(from _: RecordMode, to: RecordMode) {
-        if to == .command {
-            audioRecorder.handleModeUpgrade()
-        }
+    private func modeUpgrade(from: RecordMode, to: RecordMode) {
+        audioRecorder.handleModeUpgrade(from: from, to: to)
     }
 }
 
@@ -210,6 +208,12 @@ extension InputController {
                     self?.keyEventProcessor.startHotkeySetting(mode: mode)
                 case .hotkeySettingEnded, .hotkeySettingResulted:
                     self?.keyEventProcessor.endHotkeySetting()
+                case .recordingCancelled:
+                    Task { @MainActor in
+                        self?.audioRecorder.stopRecording(stopState: .idle, shouldSetResponseTimer: false)
+                    }
+                case .recordingConfirmed:
+                    self?.stopRecording()
                 default:
                     break
                 }

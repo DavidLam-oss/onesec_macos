@@ -13,6 +13,8 @@ enum AppEvent {
     case volumeChanged(volume: Float)
     case recordingStarted(mode: RecordMode)
     case recordingStopped(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true)
+    case recordingCancelled
+    case recordingConfirmed
     //
     case recordingCacheStarted(mode: RecordMode)
     case recordingCacheTimeout

@@ -43,7 +43,7 @@ class Config: ObservableObject {
     }
 
     func saveHotkeySetting(mode: RecordMode, hotkeyCombination: [String]) {
-        let modeString = mode == .normal ? "normal" : "command"
+        let modeString = mode.rawValue
 
         if let index = USER_CONFIG.hotkeyConfigs.firstIndex(where: { $0.mode == modeString }) {
             USER_CONFIG.hotkeyConfigs[index] = UserConfig.HotkeyConfig(mode: modeString, hotkeyCombination: hotkeyCombination)
@@ -159,6 +159,16 @@ struct UserConfig: Codable {
             }
         }
         return [63, 55]
+    }
+
+    var freeKeyCodes: [Int64] {
+        for config in hotkeyConfigs {
+            if config.mode == "free" {
+                let keyString = config.hotkeyCombination.joined(separator: "+")
+                return KeyMapper.parseKeyString(keyString) ?? [63, 49]
+            }
+        }
+        return [63, 49] // 默认 fn+space
     }
 
     struct Environment: Codable {

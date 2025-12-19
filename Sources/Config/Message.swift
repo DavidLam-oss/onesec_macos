@@ -11,6 +11,7 @@ enum MessageType: String, CaseIterable {
     case startRecording = "start_recording"
     case recordingStarted = "recording_started"
     case stopRecording = "stop_recording"
+    case cancelRecording = "cancel_recording"
     case recognitionSummary = "recognition_summary"
     case modeUpgrade = "mode_upgrade"
     case configUpdated = "config_updated"

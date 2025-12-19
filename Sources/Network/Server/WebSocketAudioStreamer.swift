@@ -152,6 +152,8 @@ extension WebSocketAudioStreamer {
 
                 case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer): sendStopRecording(isRecordingStarted: isRecordingStarted, shouldSetResponseTimer: shouldSetResponseTimer)
 
+                case .recordingCancelled: sendCancelRecording()
+
                 case let .modeUpgraded(from, to): sendModeUpgrade(fromMode: from, toMode: to)
 
                 case let .audioDataReceived(data): sendAudioData(data)
@@ -211,7 +213,19 @@ extension WebSocketAudioStreamer {
         }
     }
 
+    func sendCancelRecording() {
+        guard case .connected = connectionState else {
+            return
+        }
+
+        sendWebSocketMessage(type: .cancelRecording)
+    }
+
     func sendModeUpgrade(fromMode: RecordMode, toMode: RecordMode) {
+        guard case .connected = connectionState, toMode == .command else {
+            return
+        }
+
         let data: [String: Any] = [
             "from_mode": fromMode.rawValue,
             "to_mode": toMode.rawValue,
