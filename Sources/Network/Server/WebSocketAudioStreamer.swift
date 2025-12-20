@@ -37,7 +37,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     // Reconnect 配置
     var curRetryCount = 0
-    let maxRetryCount = 10
+    let maxRetryCount = 40
 
     // Server 超时配置
     private var responseTimeoutTask: Task<Void, Never>?
@@ -113,11 +113,13 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         curRetryCount += 1
 
         guard curRetryCount <= maxRetryCount else {
+            connectionState = .manualDisconnected
             log.error("Server is unavailable, stopping reconnection")
+
             return
         }
 
-        let delay = min(pow(2.0, Double(curRetryCount - 1)), 30.0)
+        let delay = 3.0
 
         log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
 
@@ -188,10 +190,14 @@ extension WebSocketAudioStreamer {
     func sendStartRecording(
         mode: RecordMode = .normal,
     ) {
+        var sendMode = mode
+        if mode == .free {
+            sendMode = .normal
+        }
         recordingID = UUID().uuidString
 
         let data: [String: Any] = [
-            "recognition_mode": mode.rawValue,
+            "recognition_mode": sendMode.rawValue,
             "mode": Config.shared.TEXT_PROCESS_MODE.rawValue,
         ]
 

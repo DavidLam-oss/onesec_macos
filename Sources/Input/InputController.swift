@@ -99,39 +99,47 @@ class InputController {
 
         os_unfair_lock_lock(&eventLock)
         defer { os_unfair_lock_unlock(&eventLock) }
-        handleCGEventInternal(proxy: proxy, type: type, event: event)
 
-        return Unmanaged.passUnretained(event)
+        return handleCGEventInternal(proxy: proxy, type: type, event: event)
     }
 
-    private func handleCGEventInternal(proxy _: CGEventTapProxy, type: CGEventType, event: CGEvent) {
+    private func handleCGEventInternal(proxy _: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         // 处理鼠标移动事件
         if type == .mouseMoved || type == .leftMouseDragged || type == .rightMouseDragged
             || type == .otherMouseDragged
         {
             handleMouseEvent(event: event)
-            return
+            return Unmanaged.passUnretained(event)
         }
 
         // 过滤非物理按键事件 (程序合成按键)
         let sourceStateID = event.getIntegerValueField(.eventSourceStateID)
         if sourceStateID != 1 { // 1 = kCGEventSourceStateHIDSystemState
-            return
+            return Unmanaged.passUnretained(event)
         }
 
         // 拦截快捷键的设置
         if keyEventProcessor.isHotkeySetting {
             keyEventProcessor.handleHotkeySettingEvent(type: type, event: event)
-            return
+            return Unmanaged.passUnretained(event)
         }
 
         // 正常处理按键监听
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        let isSpaceKey = keyCode == 49 // kVK_Space
+
         switch keyEventProcessor.handlekeyEvent(type: type, event: event) {
-        case let .startMatch(mode): startRecording(mode: mode)
-        case .endMatch: stopRecording()
-        case let .modeUpgrade(from, to): modeUpgrade(from: from, to: to)
+        case let .startMatch(mode):
+            startRecording(mode: mode)
+            return isSpaceKey ? nil : Unmanaged.passUnretained(event)
+        case .endMatch:
+            stopRecording()
+            return isSpaceKey ? nil : Unmanaged.passUnretained(event)
+        case let .modeUpgrade(from, to):
+            modeUpgrade(from: from, to: to)
+            return isSpaceKey ? nil : Unmanaged.passUnretained(event)
         case .throttled, .stillMatching, .notMatching:
-            break
+            return Unmanaged.passUnretained(event)
         }
     }
 

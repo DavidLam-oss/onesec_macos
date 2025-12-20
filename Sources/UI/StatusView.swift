@@ -100,6 +100,11 @@ extension StatusView {
         case let .notificationReceived(notificationType):
             log.info("Receive notification: \(notificationType)")
 
+            // 这种情况由 AudioUnitRecorder 处理
+            if case .serverUnavailable = notificationType {
+                return
+            }
+
             var showTimerTip = false
             var autoCloseDuration = 5
             if notificationType != .recordingTimeoutWarning {
@@ -109,10 +114,6 @@ extension StatusView {
             } else {
                 showTimerTip = true
                 autoCloseDuration = 15
-            }
-
-            if case .serverUnavailable(duringRecording: false) = notificationType {
-                return
             }
 
             let onTap = notificationType == .serverTimeout

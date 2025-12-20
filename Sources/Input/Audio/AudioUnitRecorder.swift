@@ -623,10 +623,10 @@ class AudioUnitRecorder: @unchecked Sendable {
     }
 
     func handleModeUpgrade(from _: RecordMode, to: RecordMode) {
-        if isRecordingStarted, to != .normal {
+        if isRecordingStarted {
             EventBus.shared.publish(.modeUpgraded(from: .normal, to: to))
-        } else {
-            recordMode = .command
+        } else if to != .normal {
+            recordMode = to
         }
     }
 

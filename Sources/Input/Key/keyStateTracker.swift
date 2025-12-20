@@ -132,6 +132,7 @@ class KeyStateTracker {
 
         case .keyUp:
             removeKey(keyCode)
+            return isFreeRecording || isCurrentlyMatched ? .stillMatching : .notMatching
 
         default:
             break
