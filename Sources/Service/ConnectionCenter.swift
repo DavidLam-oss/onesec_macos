@@ -29,6 +29,7 @@ class ConnectionCenter: @unchecked Sendable {
     @Published var currentMouseScreen: NSScreen? = nil
     @Published var isAuthed: Bool = JWTValidator.isValid(Config.shared.USER_CONFIG.authToken)
     @Published var currentRecordingAppContext: AppContext = .empty
+    @Published var indicatorNetworkStatus: IndicatorNetworkStatus = .normal
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -52,8 +53,16 @@ class ConnectionCenter: @unchecked Sendable {
         bind(mouseContextService.$mouseContextState, to: \.mouseContextState, name: "mouseContext")
     }
 
+    func connectWss() {
+        wssClient.connect()
+    }
+
     func canRecord() -> Bool {
         isWssServerConnected() && hasPermissions() && isNetworkAvailable()
+    }
+
+    func isInRecordingSession() -> Bool {
+        audioRecorderState == .recording
     }
 
     func isWssServerConnected() -> Bool {
@@ -75,8 +84,16 @@ class ConnectionCenter: @unchecked Sendable {
         wssClient.hasRecordingNetworkError
     }
 
-    func connectWss() {
-        wssClient.connect()
+    func canResumeAfterNetworkError() -> Bool {
+        canRecord() && hasRecordingNetworkError()
+    }
+
+    var currentRecordingSessionDuration: TimeInterval {
+        inputSerive?.audioRecorder.getCurrentRecordingSessionDuration() ?? 0
+    }
+
+    var currentRecordingSessionMode: RecordMode {
+        inputSerive?.audioRecorder.getCurrentRecordingSessionMode() ?? .normal
     }
 }
 
@@ -145,7 +162,7 @@ extension ConnectionCenter {
                 }
 
                 guard !self.wssClient.isRecordingStartConfirmed else {
-                    log.warning("WSS state changed to disconnected, but recording start confirmed, set has error flag")
+                    log.warning("WSS 断连, 但录音已开始, 设置网络错误标志")
                     self.wssClient.hasRecordingNetworkError = true
                     return
                 }
@@ -160,14 +177,16 @@ extension ConnectionCenter {
             }
             .receive(on: DispatchQueue.main)
             .sink { state in
+                if state.previous == .unavailable, state.current == .available {
+                    EventBus.shared.publish(.notificationReceived(.networkRestored))
+                }
+
                 guard state.previous == .available, state.current == .unavailable else { return }
-                guard !self.wssClient.isRecordingStartConfirmed else {
-                    log.warning("Network unavailable, but recording start confirmed, set has error flag")
+                guard !self.wssClient.isRecordingStartConfirmed, !self.isInRecordingSession() else {
+                    log.warning("网络断连, 但录音已开始, 设置网络错误标志")
                     self.wssClient.hasRecordingNetworkError = true
                     return
                 }
-
-                EventBus.shared.publish(.notificationReceived(.networkUnavailable(duringRecording: self.audioRecorderState != .idle)))
             }
             .store(in: &cancellables)
     }

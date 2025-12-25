@@ -56,11 +56,15 @@ extension StatusView {
         case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer):
             guard recordState == .recording else { return }
 
-            recordState = shouldSetResponseTimer ? .processing : .idle
+            recordState = shouldSetResponseTimer || ConnectionCenter.shared.canResumeAfterNetworkError() ? .processing : .idle
             volume = 0
 
             // 处理网络中断情况
             if !shouldSetResponseTimer {
+                if ConnectionCenter.shared.canResumeAfterNetworkError() {
+                    return
+                }
+
                 let notificationType: NotificationMessageType = isRecordingStarted
                     ? .recordingInterruptedByNetwork
                     : .networkUnavailable(duringRecording: false)
@@ -71,7 +75,7 @@ extension StatusView {
 
                 let actionButtons = notificationType == .recordingInterruptedByNetwork
                     ? [
-                        ActionButton(title: "前往历史纪录") {
+                        ActionButton(title: "前往历史记录") {
                             EventBus.shared.publish(.recordingInterrupted)
                         },
                     ]
@@ -105,6 +109,14 @@ extension StatusView {
                 return
             }
 
+            if case .networkRestored = notificationType {
+                return
+            }
+
+            if case .wssRestored = notificationType {
+                return
+            }
+
             var showTimerTip = false
             var autoCloseDuration = 5
             if notificationType != .recordingTimeoutWarning {
@@ -128,7 +140,7 @@ extension StatusView {
                 : notificationType
 
             let actionButtons = shouldShowAction
-                ? [ActionButton(title: "前往历史纪录") {
+                ? [ActionButton(title: "前往历史记录") {
                     EventBus.shared.publish(.recordingInterrupted)
                 }]
                 : nil

@@ -19,6 +19,7 @@ enum MessageType: String, CaseIterable {
     case contextUpdated = "context_update"
     case resourceRequested = "resource_requested"
     case terminalLinuxChoice = "terminal_linux_choice"
+    case audioAck = "audio_ack"
     case error
 
     //
@@ -100,6 +101,9 @@ enum NotificationMessageType: Equatable {
     case networkUnavailable(duringRecording: Bool)
     // 服务端返回错误  (已在录音过程中则忽略所有错误)
     case error(title: String, content: String, errorCode: String)
+    // 网络已恢复
+    case wssRestored
+    case networkRestored
 
     var title: String {
         switch self {
@@ -115,6 +119,10 @@ enum NotificationMessageType: Equatable {
             "服务不可用"
         case .networkUnavailable:
             "网络不可用"
+        case .networkRestored:
+            "网络已恢复"
+        case .wssRestored:
+            "连接已恢复"
         case let .error(title, _, _):
             title
         }
@@ -134,6 +142,10 @@ enum NotificationMessageType: Equatable {
             "服务不可用，请检查网络连接"
         case .networkUnavailable:
             "网络不可用，请检查网络连接"
+        case .networkRestored:
+            "网络连接已恢复"
+        case .wssRestored:
+            "连接已恢复"
         case let .error(_, content, _):
             content
         }
@@ -147,6 +159,8 @@ enum NotificationMessageType: Equatable {
             return .error
         case .recordingTimeoutWarning, .recordingInterruptedByNetwork, .serverTimeout:
             return .warning
+        case .networkRestored, .wssRestored:
+            return .warning
         }
     }
 
@@ -155,7 +169,7 @@ enum NotificationMessageType: Equatable {
         case .error, .authTokenFailed, .recordingInterruptedByNetwork, .serverTimeout:
             return false
         case .networkUnavailable,
-             .recordingTimeoutWarning, .serverUnavailable:
+             .recordingTimeoutWarning, .serverUnavailable, .networkRestored, .wssRestored:
             return true
         }
     }
@@ -167,6 +181,9 @@ enum NotificationMessageType: Equatable {
 
         case let .networkUnavailable(duringRecording):
             return !duringRecording
+
+        case .networkRestored, .wssRestored:
+            return false
 
         default:
             return true

@@ -1,6 +1,12 @@
 import Combine
 import SwiftUI
 
+enum IndicatorNetworkStatus {
+    case normal
+    case unavailable
+    case restored
+}
+
 struct StatusIndicator: View {
     let state: RecordState
     let volume: CGFloat
@@ -14,6 +20,11 @@ struct StatusIndicator: View {
     @State private var isHovered: Bool = false
     @State private var tooltipPanelId: UUID?
     @State private var isTranslateMode: Bool = Config.shared.TEXT_PROCESS_MODE == .translate
+
+    @State private var networkStatus: IndicatorNetworkStatus = ConnectionCenter.shared.indicatorNetworkStatus
+    @State private var rippleId: UUID = .init()
+    @State private var fadeOpacity: Double = 1.0
+    @State private var fadeTimer: AnyCancellable?
 
     private var modeColor: Color {
         switch mode {
@@ -64,18 +75,60 @@ struct StatusIndicator: View {
         }
     }
 
+    private func startFadeTimer() {
+        fadeOpacity = 1.0
+        fadeTimer?.cancel()
+        let duration: Double = 100
+        let interval = 0.1
+        let step = interval / duration
+        fadeTimer = Timer.publish(every: interval, on: .main, in: .common)
+            .autoconnect()
+            .sink { _ in
+                fadeOpacity -= step
+                if fadeOpacity <= 0 {
+                    fadeOpacity = 0
+                    fadeTimer?.cancel()
+                    fadeTimer = nil
+                    StatusPanelManager.shared.hidePanel()
+                    fadeOpacity = 1.0
+                }
+            }
+    }
+
+    private func cancelFadeTimer() {
+        fadeTimer?.cancel()
+        fadeTimer = nil
+        fadeOpacity = 1.0
+    }
+
+    // 网络状态边框颜色
+    private var networkBorderColor: Color {
+        if networkStatus == .normal { return borderGrey }
+        return networkStatus == .unavailable ? destructiveRed : greenTextColor
+    }
+
     // 普通模式视图
     private var normalModeView: some View {
         ZStack {
+            // 网络状态波纹效果
+            if networkStatus != .normal {
+                RippleEffect(
+                    color: networkStatus == .unavailable ? destructiveRed : greenTextColor,
+                    rippleId: rippleId
+                )
+                .frame(width: outerSize, height: outerSize)
+            }
+
             // 外圆背景
             Circle()
                 .fill(outerBackgroundColor)
                 .frame(width: outerSize, height: outerSize)
                 .overlay(
                     Circle()
-                        .strokeBorder(borderGrey, lineWidth: 1)
+                        .strokeBorder(networkBorderColor, lineWidth: 1)
                 )
                 .animation(.quickSpringAnimation, value: isHovered)
+                .animation(.spring, value: networkStatus)
 
             // 内圆
             Group {
@@ -86,7 +139,7 @@ struct StatusIndicator: View {
                             .foregroundColor(borderGrey)
                     } else {
                         Circle()
-                            .fill(borderGrey)
+                            .fill(networkBorderColor)
                             .frame(width: outerSize, height: outerSize)
                             .scaleEffect(innerScale)
                     }
@@ -179,19 +232,24 @@ struct StatusIndicator: View {
                 }
                 guard ConnectionCenter.shared.audioRecorderState == .idle else { return }
                 isHovered = hovering
-
                 // Suitable for macOS 10.15
                 Task { @MainActor in
                     StatusPanelManager.shared.ignoresMouseEvents(ignore: !hovering)
                     if hovering {
-                        let uuid = overlay.showOverlay { panelId in
-                            Tooltip(panelID: panelId, content: "按住 fn 开始语音输入 或  点击进行设置", type: .plain, showBell: false)
+                        if Config.shared.USER_CONFIG.setting.hideStatusPanel {
+                            StatusPanelManager.shared.showPanel()
                         }
+                        let uuid = overlay.showOverlay(content: { panelId in
+                            Tooltip(panelID: panelId, content: "按住 fn 开始语音输入 或  点击进行设置", type: .plain, showBell: false)
+                        }, panelType: .notification)
                         tooltipPanelId = uuid
                     } else {
                         if let panelId = tooltipPanelId {
                             overlay.hideOverlay(uuid: panelId)
                             tooltipPanelId = nil
+                        }
+                        if Config.shared.USER_CONFIG.setting.hideStatusPanel {
+                            StatusPanelManager.shared.hidePanel()
                         }
                     }
                 }
@@ -203,26 +261,80 @@ struct StatusIndicator: View {
                 overlay.hideAllOverlays()
                 menuBuilder.showMenu(in: StatusPanelManager.shared.getPanel().contentView!)
             }
+            .opacity(fadeOpacity)
             .onReceive(Config.shared.$TEXT_PROCESS_MODE) { mode in
                 isTranslateMode = mode == .translate
             }
             .onReceive(
                 EventBus.shared.eventSubject
-                    .compactMap { event in
-                        if case .recordingStarted = event {
-                            return true
-                        }
-                        return nil
-                    }
                     .receive(on: DispatchQueue.main)
-            ) { _ in
-                if isHovered {
-                    isHovered = false
-                    if let panelId = tooltipPanelId {
-                        overlay.hideOverlay(uuid: panelId)
-                        tooltipPanelId = nil
-                    }
+            ) { event in
+                handleEvent(event)
+            }
+    }
+
+    private func flushNetworkStatus(_ status: IndicatorNetworkStatus) {
+        networkStatus = status
+        ConnectionCenter.shared.indicatorNetworkStatus = status
+        if status != .normal {
+            rippleId = UUID()
+        }
+    }
+
+    private func handleEvent(_ event: AppEvent) {
+        if case .recordingStarted = event {
+            if isHovered {
+                isHovered = false
+                if let panelId = tooltipPanelId {
+                    overlay.hideOverlay(uuid: panelId)
+                    tooltipPanelId = nil
                 }
             }
+            flushNetworkStatus(.normal)
+            return
+        }
+
+        if case .notificationReceived(.networkUnavailable) = event {
+            if Config.shared.USER_CONFIG.setting.hideStatusPanel {
+                StatusPanelManager.shared.showPanel()
+                startFadeTimer()
+            }
+            flushNetworkStatus(.unavailable)
+        } else if case .notificationReceived(.wssRestored) = event, networkStatus == .unavailable {
+            handleNetworkRestored()
+        } else if case .notificationReceived(.networkRestored) = event, ConnectionCenter.shared.canRecord() {
+            handleNetworkRestored()
+        } else if case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer) = event {
+            if !shouldSetResponseTimer, !ConnectionCenter.shared.canResumeAfterNetworkError(), isRecordingStarted {
+                flushNetworkStatus(.unavailable)
+            }
+        } else if case let .notificationReceived(notificationType) = event {
+            let shouldShowAction: Bool = {
+                if case let .error(_, _, errorCode) = notificationType {
+                    return errorCode != "ASR_LIMIT_EXCEEDED"
+                }
+                return notificationType == .serverTimeout
+            }()
+            if shouldShowAction {
+                flushNetworkStatus(.unavailable)
+            }
+        }
+    }
+
+    private func handleNetworkRestored() {
+        if networkStatus != .unavailable {
+            return
+        }
+
+        cancelFadeTimer()
+        flushNetworkStatus(.restored)
+        Task { @MainActor in
+            try? await sleep(3000)
+            flushNetworkStatus(.normal)
+            guard !ConnectionCenter.shared.isInRecordingSession(),
+                  !OverlayController.shared.hasStatusPanelTrigger(),
+                  Config.shared.USER_CONFIG.setting.hideStatusPanel else { return }
+            StatusPanelManager.shared.hidePanel()
+        }
     }
 }

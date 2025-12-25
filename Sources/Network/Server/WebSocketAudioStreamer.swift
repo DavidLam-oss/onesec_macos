@@ -19,8 +19,26 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         didSet {
             if oldValue != .connected, connectionState == .connected {
                 startPingPongTimer()
+                // 录音过程中发生网络错误, 后续网络恢复
+                // 重新补发未确认的包
+                if ConnectionCenter.shared.canResumeAfterNetworkError(),
+                   ConnectionCenter.shared.isInRecordingSession()
+                {
+                    log.info("补发未确认的包".green)
+                    resumeRecordingTask = Task { [weak self] in
+                        guard let self else { return }
+                        let packets = self.getUnconfirmedPackets()
+                        for packet in packets {
+                            self.sendAudioData(packet)
+                        }
+                    }
+                }
+
+                // 启动网络恢复检查
+                startNetworkRestoredCheck()
             } else if oldValue == .connected, connectionState != .connected {
                 stopPingPongTimer()
+                stopNetworkRestoredCheck()
             }
         }
     }
@@ -38,7 +56,6 @@ class WebSocketAudioStreamer: @unchecked Sendable {
 
     // Server 超时配置
     private var responseTimeoutTask: Task<Void, Never>?
-    private let responseTimeoutDuration: TimeInterval = 32.0
     private var recordingStartedTimeoutTask: Task<Void, Never>?
     private let recordingStartedTimeoutDuration: TimeInterval = 3
 
@@ -61,6 +78,13 @@ class WebSocketAudioStreamer: @unchecked Sendable {
     var isRecordingStartConfirmed: Bool = false
     // 当前录音会话开始后是否发生过网络错误
     var hasRecordingNetworkError: Bool = false
+
+    // 重传机制：已发送但未确认的数据包
+    private var sentBuffer: [Data] = []
+    private var resumeRecordingTask: Task<Void, Never>?
+
+    // 网络恢复确认
+    private var networkRestoredCheckTask: Task<Void, Never>?
 
     init() {
         initializeMessageListener()
@@ -119,7 +143,7 @@ class WebSocketAudioStreamer: @unchecked Sendable {
             return
         }
 
-        let delay = 3.0
+        let delay = 3
 
         log.info("WebSocket reconnecting in \(delay)s, reason: \(reason), attempt: \(curRetryCount)")
 
@@ -139,6 +163,10 @@ class WebSocketAudioStreamer: @unchecked Sendable {
         ws?.disconnect()
         ws = nil
     }
+
+    func getUnconfirmedPackets() -> [Data] {
+        sentBuffer
+    }
 }
 
 // MARK: - 消息处理
@@ -152,7 +180,7 @@ extension WebSocketAudioStreamer {
                 switch event {
                 case let .recordingStarted(mode): sendRecordingContext(); sendStartRecording(mode: mode)
 
-                case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer): sendStopRecording(isRecordingStarted: isRecordingStarted, shouldSetResponseTimer: shouldSetResponseTimer)
+                case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer): handleRecordingStopped(isRecordingStarted: isRecordingStarted, shouldSetResponseTimer: shouldSetResponseTimer)
 
                 case .recordingCancelled: sendCancelRecording()
 
@@ -176,6 +204,7 @@ extension WebSocketAudioStreamer {
             return
         }
 
+        sentBuffer.append(audioData)
         ws.write(data: audioData)
     }
 
@@ -203,18 +232,26 @@ extension WebSocketAudioStreamer {
 
         isRecordingStartConfirmed = false
         hasRecordingNetworkError = false
+        sentBuffer.removeAll()
         sendWebSocketMessage(type: .startRecording, data: data)
         scheduleRecordingStartedTimeoutTimer()
         scheduleIdleTimer()
     }
 
-    func sendStopRecording(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true) {
-        guard connectionState == .connected, isRecordingStarted, shouldSetResponseTimer else {
+    func handleRecordingStopped(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true) {
+        guard connectionState == .connected, isRecordingStarted else {
             return
         }
 
+        if shouldSetResponseTimer || ConnectionCenter.shared.canResumeAfterNetworkError() {
+            sendStopRecording()
+        }
+    }
+
+    func sendStopRecording() {
         Task { [weak self] in
             await self?.contextTask?.value
+            await self?.resumeRecordingTask?.value
             self?.sendWebSocketMessage(type: .stopRecording)
             self?.startResponseTimeoutTimer()
         }
@@ -242,7 +279,8 @@ extension WebSocketAudioStreamer {
     }
 
     func sendRecordingContext() {
-        contextTask = Task {
+        contextTask = Task { [weak self] in
+            guard let self else { return }
             let appInfo = ContextService.getAppInfo()
             let hostInfo = ContextService.getHostInfo()
             let selectText = await ContextService.getSelectedText()
@@ -257,14 +295,14 @@ extension WebSocketAudioStreamer {
             let focusElementInfo = ContextService.getFocusElementInfo()
 
             let appContext = AppContext(
-                sessionID: recordingID,
+                sessionID: self.recordingID,
                 appInfo: appInfo,
                 hostInfo: hostInfo,
                 focusContext: focusContext,
                 focusElementInfo: focusElementInfo
             )
 
-            sendWebSocketMessage(type: .contextUpdated, data: appContext.toJSON())
+            self.sendWebSocketMessage(type: .contextUpdated, data: appContext.toJSON())
             EventBus.shared.publish(.recordingContextUpdated(context: appContext))
         }
     }
@@ -320,6 +358,14 @@ extension WebSocketAudioStreamer {
         case .recordingStarted:
             isRecordingStartConfirmed = true
             cancelRecordingStartedTimeoutTimer()
+
+        case .audioAck:
+            if let data = json["data"] as? [String: Any],
+               let count = data["received_count"] as? Int
+            {
+                log.info("ACK: \(count)")
+                sentBuffer.removeFirst(min(count, sentBuffer.count))
+            }
 
         case .error:
             cancelRecordingStartedTimeoutTimer()
@@ -409,14 +455,15 @@ extension WebSocketAudioStreamer {
         cancelResponseTimeoutTimer()
         cancelRecordingStartedTimeoutTimer()
 
-        responseTimeoutTask = Task { [weak self] in
-            guard let self else { return }
-            try? await sleep(Int64(responseTimeoutDuration * 1000))
+        let responseTimeout = calculateResponseTimeout()
+        responseTimeoutTask = Task {
+            try? await sleep(Int64(responseTimeout * 1000))
             guard !Task.isCancelled else { return }
-            log.warning("录音响应超时 (\(responseTimeoutDuration)s)")
+
+            log.warning("录音响应超时 (\(responseTimeout)s)")
             EventBus.shared.publish(.notificationReceived(.serverTimeout))
         }
-        log.debug("设置响应超时定时器 (\(responseTimeoutDuration)s)")
+        log.debug("设置响应超时定时器 (\(responseTimeout)s)")
     }
 
     private func cancelResponseTimeoutTimer() {
@@ -450,10 +497,10 @@ extension WebSocketAudioStreamer {
 
         connectingCheckTask = Task { [weak self] in
             guard let self else { return }
-            try? await sleep(10000) // 10秒
+            try? await sleep(5000) // 5秒
             guard !Task.isCancelled else { return }
             if connectionState == .connecting {
-                log.warning("Still connecting after 10s, reconnect")
+                log.warning("Still connecting after 5s, reconnect")
                 scheduleManualReconnect()
             }
         }
@@ -473,6 +520,19 @@ extension WebSocketAudioStreamer {
                 // Task Canceled
             }
         }
+    }
+
+    private func calculateResponseTimeout() -> TimeInterval {
+        var timeout: TimeInterval
+        let mode = ConnectionCenter.shared.currentRecordingSessionMode
+        let duration = ConnectionCenter.shared.currentRecordingSessionDuration
+
+        switch duration {
+        case ..<6: timeout = 8
+        case 6 ..< 180: timeout = 12
+        default: timeout = 18
+        }
+        return mode == .command ? timeout * 2 : timeout
     }
 }
 
@@ -518,9 +578,8 @@ extension WebSocketAudioStreamer {
             guard !Task.isCancelled else { return }
 
             if let lastPong = self.lastPongTime {
-                let timeSinceLastPong = Date().timeIntervalSince(lastPong)
-                if timeSinceLastPong >= self.pongTimeout {
-                    log.warning("wss 心跳检测超时 (\(timeSinceLastPong)s), 重新连接")
+                if Date().timeIntervalSince(lastPong) >= self.pongTimeout {
+                    log.warning("wss 心跳检测超时, 重新连接")
                     self.scheduleManualReconnect()
                 }
             } else {
@@ -537,5 +596,31 @@ extension WebSocketAudioStreamer {
         lastPongTime = Date()
         pongCheckTask?.cancel()
         pongCheckTask = nil
+
+        if networkRestoredCheckTask != nil {
+            stopNetworkRestoredCheck()
+            log.info("wss 网络恢复".yellow)
+            EventBus.shared.publish(.notificationReceived(.wssRestored))
+        }
+    }
+
+    private func startNetworkRestoredCheck() {
+        stopNetworkRestoredCheck()
+
+        networkRestoredCheckTask = Task { [weak self] in
+            // 15 秒内每 3 秒发送一次 Ping
+            for _ in 0 ..< 5 {
+                guard !Task.isCancelled else { return }
+                self?.ping()
+                try? await sleep(3000)
+            }
+
+            self?.stopNetworkRestoredCheck()
+        }
+    }
+
+    private func stopNetworkRestoredCheck() {
+        networkRestoredCheckTask?.cancel()
+        networkRestoredCheckTask = nil
     }
 }

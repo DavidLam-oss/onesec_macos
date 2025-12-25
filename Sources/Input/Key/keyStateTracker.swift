@@ -134,7 +134,6 @@ class KeyStateTracker {
 
         case .keyUp:
             removeKey(keyCode)
-            // return isFreeRecording || isCurrentlyMatched ? .stillMatching : .notMatching
 
         default:
             break
@@ -169,8 +168,6 @@ class KeyStateTracker {
     private func removeKey(_ keyCode: Int64) {
         pressedKeys.remove(keyCode)
     }
-
-    // private func
 
     private func checkMatchStatus(isKeyDown: Bool) -> KeyMatchResult {
         // 统一查找所有匹配的配置
@@ -218,8 +215,16 @@ class KeyStateTracker {
         }
         wasFreeKeyMatched = isFreeKeyMatched
 
-        // 如果正在自由录音，忽略其他按键状态
+        // 如果正在自由录音，检查是否按下了 ESC 键
         if isFreeRecording {
+            // ESC 键的 keyCode 是 53
+            if pressedKeys.contains(53) {
+                log.info("❌ ESC 取消自由模式录音")
+                isFreeRecording = false
+                isCurrentlyMatched = false
+                currentActiveMode = nil
+                return .endMatch(.free)
+            }
             return .stillMatching
         }
 

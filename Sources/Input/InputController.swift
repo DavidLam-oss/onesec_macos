@@ -133,7 +133,6 @@ class InputController {
 
         switch keyEventProcessor.handlekeyEvent(type: type, event: event) {
         case let .startMatch(mode):
-            log.debug("startMatch \(mode)".red)
             startRecording(mode: mode)
             return isSpaceKey ? nil : Unmanaged.passUnretained(event)
         case let .endMatch(mode):

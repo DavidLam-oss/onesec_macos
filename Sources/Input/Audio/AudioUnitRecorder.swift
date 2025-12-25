@@ -77,7 +77,7 @@ class AudioUnitRecorder: @unchecked Sendable {
 
     // 录音时长限制
 
-    private let maxRecordingDuration: TimeInterval = 180
+    private let maxRecordingDuration: TimeInterval = 300
     private let warningBeforeTimeout: TimeInterval = 15
     private var recordingLimitTimer: Timer?
 
@@ -506,7 +506,7 @@ class AudioUnitRecorder: @unchecked Sendable {
         recordState = .stopping
         recordingStopTime = Date()
 
-        // 只停止 Audio Unit,不销毁
+        // 停止 Audio Unit, 不销毁
         if let unit = audioUnit {
             AudioOutputUnitStop(unit)
         }
@@ -524,14 +524,13 @@ class AudioUnitRecorder: @unchecked Sendable {
         }
 
         // 处理响应
-        let hasRecordingNetworkError = ConnectionCenter.shared.hasRecordingNetworkError()
         let canRecord = ConnectionCenter.shared.canRecord()
-
-        if !canRecord || hasRecordingNetworkError {
+        let hasNetworkError = ConnectionCenter.shared.hasRecordingNetworkError()
+        if !canRecord || hasNetworkError {
             saveAudioToDatabase(error: "转录未完成，你可在此处重新转录")
         }
 
-        let shouldStopNormally = canRecord && !hasRecordingNetworkError && isRecordingStarted
+        let shouldStopNormally = canRecord && (hasNetworkError || isRecordingStarted)
 
         recordState = shouldStopNormally ? stopState : .idle
         printRecordingStatistics()
@@ -551,7 +550,7 @@ class AudioUnitRecorder: @unchecked Sendable {
         resetRecordingState()
     }
 
-    // 新增: 重置录音状态但保留 Audio Unit
+    // 重置录音状态但保留 Audio Unit
     private func resetRecordingState() {
         audioQueue.removeAll()
         recordedAudioData.removeAll()
@@ -660,7 +659,7 @@ class AudioUnitRecorder: @unchecked Sendable {
             let wavData = toWavData(fromPCM: recordedAudioData, targetFormat: targetFormat)
             try wavData.write(to: fileURL)
             try DatabaseService.shared.saveAudios(sessionID: sessionID, filename: filename, content: content, error: error)
-            log.info("Audio saved to file: \(filename)")
+            log.info("Audio saved to file: \(filename) \nError: \(error)\nContent: \(content)")
             EventBus.shared.publish(.userAudioSaved(sessionID: sessionID, filename: filename))
         } catch {
             log.error("Failed to save recording: \(error)")
@@ -675,6 +674,17 @@ class AudioUnitRecorder: @unchecked Sendable {
 
         guard let mData = buffer.audioBufferList.pointee.mBuffers.mData else { return nil }
         return Data(bytes: mData, count: realDataCount)
+    }
+
+    func getCurrentRecordingSessionDuration() -> TimeInterval {
+        if let startTime = recordingStartTime, let stopTime = recordingStopTime {
+            return stopTime.timeIntervalSince(startTime)
+        }
+        return 0
+    }
+
+    func getCurrentRecordingSessionMode() -> RecordMode {
+        recordMode
     }
 }
 
@@ -766,7 +776,7 @@ extension AudioUnitRecorder {
     }
 
     private func handleConnectionStateChange() {
-        guard recordState == .recording, ConnectionCenter.shared.canRecord() else {
+        guard recordState == .recording, ConnectionCenter.shared.canRecord(), !isRecordingStarted else {
             return
         }
 
@@ -800,8 +810,8 @@ extension AudioUnitRecorder {
             queueStartTime = Date()
             log.warning("Set queue start time")
             EventBus.shared.publish(.recordingCacheStarted(mode: recordMode))
-        } else if let startTime = queueStartTime, Date().timeIntervalSince(startTime) >= 2.0 {
-            log.error("Audio queue timeout: failed to establish connection within 2 seconds.")
+        } else if let startTime = queueStartTime, Date().timeIntervalSince(startTime) >= 3.0 {
+            log.error("Audio queue timeout: failed to establish connection within 3 seconds.")
             Task { @MainActor in
                 self.stopRecording()
                 EventBus.shared.publish(.recordingCacheTimeout)

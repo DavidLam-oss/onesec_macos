@@ -24,14 +24,17 @@ extension WebSocketAudioStreamer: WebSocketDelegate {
             scheduleReconnect(reason: "Disconnected: \(reason)")
 
         case let .text(string):
-            log.debug("WebSocket receive text: \(string)")
-
             guard let data = string.data(using: .utf8) else {
                 return
             }
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 log.error("WebSocket JSON parse failed")
                 return
+            }
+
+            // 过滤掉 audio_ack 类型的消息
+            if let type = json["type"] as? String, type != "audio_ack" {
+                log.debug("WebSocket receive: \(type) \(json["data"] ?? "")")
             }
 
             didReceiveMessage(json)

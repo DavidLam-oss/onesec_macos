@@ -185,6 +185,7 @@ extension Color {
 extension String {
     enum ANSIColor: String {
         case reset = "\u{001B}[0m"
+        case blue = "\u{001B}[38;5;39m" // SwiftyBeaver info color
         case green = "\u{001B}[38;5;35m" // SwiftyBeaver debug color
         case yellow = "\u{001B}[38;5;178m" // SwiftyBeaver warning color
         case red = "\u{001B}[38;5;197m" // SwiftyBeaver error color
@@ -194,6 +195,7 @@ extension String {
         "\(color.rawValue)\(self)\(ANSIColor.reset.rawValue)"
     }
 
+    var blue: String { colored(.blue) }
     var green: String { colored(.green) }
     var yellow: String { colored(.yellow) }
     var red: String { colored(.red) }

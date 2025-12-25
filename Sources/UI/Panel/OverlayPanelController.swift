@@ -501,8 +501,10 @@ private extension OverlayController {
     func handlePanelsChanged() {
         if hasStatusPanelTrigger(), Config.shared.USER_CONFIG.setting.hideStatusPanel {
             StatusPanelManager.shared.showPanel()
-        } else if !hasStatusPanelTrigger(), Config.shared.USER_CONFIG.setting.hideStatusPanel, ConnectionCenter.shared.audioRecorderState == .idle {
-            StatusPanelManager.shared.hidePanel()
+        } else if !hasStatusPanelTrigger(), Config.shared.USER_CONFIG.setting.hideStatusPanel, !ConnectionCenter.shared.isInRecordingSession() {
+            if ConnectionCenter.shared.indicatorNetworkStatus != .unavailable {
+                StatusPanelManager.shared.hidePanel()
+            }
         }
     }
 

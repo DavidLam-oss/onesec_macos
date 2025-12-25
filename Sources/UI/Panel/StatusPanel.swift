@@ -83,7 +83,10 @@ class StatusPanel: NSPanel {
                 Task { @MainActor in
                     self.setFrame(newFrame, display: true, animate: false)
 
-                    if !OverlayController.shared.hasStatusPanelTrigger() && Config.shared.USER_CONFIG.setting.hideStatusPanel {
+                    if !OverlayController.shared.hasStatusPanelTrigger() &&
+                        !ConnectionCenter.shared.isInRecordingSession() &&
+                        Config.shared.USER_CONFIG.setting.hideStatusPanel
+                    {
                         return
                     }
 
@@ -172,11 +175,7 @@ class StatusPanelManager {
         }
 
         // 淡入
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 1.0
-        }
+        showPanel()
     }
 
     func showPanel() {
