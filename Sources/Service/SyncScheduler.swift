@@ -31,6 +31,8 @@ class SyncScheduler {
     }
 
     func start() {
+        loadLocalConfigs()
+
         guard let lastSyncTime: Date = Config.shared.USER_CONFIG.lastSyncTime else {
             log.info("First launch, no last sync time found, immediately execute sync task")
             performSync()
@@ -73,6 +75,25 @@ class SyncScheduler {
 
         self.scheduler = scheduler
         log.info("Scheduled next sync task, interval: \(delayInterval.rounded()) seconds")
+    }
+
+    private func loadLocalConfigs() {
+        if let whitelistData = UserConfigService.shared.loadData(filename: "zero_width_char_whitelisted_apps.json"),
+
+           let apps = whitelistData["apps"] as? [[String: Any]]
+        {
+            let bundleIds = apps.compactMap { $0["bundle_id"] as? String }
+            appShouldTestWithZeroWidthChar = Set(bundleIds)
+            log.info("Loaded zero width char whitelist: \(bundleIds.count) apps")
+        }
+
+        if let blacklistData = UserConfigService.shared.loadData(filename: "ax_blacklisted_apps.json"),
+           let apps = blacklistData["apps"] as? [[String: Any]]
+        {
+            let bundleIds = apps.compactMap { $0["bundle_id"] as? String }
+            appsWithoutAXSupport = Set(bundleIds)
+            log.info("Loaded AX blacklist: \(bundleIds.count) apps")
+        }
     }
 
     private func performSync() {

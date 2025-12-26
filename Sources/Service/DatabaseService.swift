@@ -71,12 +71,25 @@ final class DatabaseService {
 
     // MARK: - Recording Operations
 
-    func saveAudios(sessionID: String, filename: String, content: String? = nil, error: String? = nil, version: String? = nil) throws {
+    func saveAudios(sessionID: String, filename: String, content: String? = nil, error: String? = nil, version: String? = nil, clearBeforeInsert: Bool = false) throws {
         guard let db = db else {
             throw DatabaseError.notInitialized
         }
 
         try queue.sync {
+            if clearBeforeInsert {
+                try db.run(audios.delete())
+                log.info("Cleared all audios before insert")
+            }
+            
+            let query = audios.filter(self.sessionID == sessionID)
+            let count = try db.scalar(query.count)
+            
+            guard count == 0 else {
+                log.info("Session \(sessionID) already has a record, skipping insert")
+                return
+            }
+            
             let insert = audios.insert(
                 self.id <- UUID().uuidString,
                 self.sessionID <- sessionID,

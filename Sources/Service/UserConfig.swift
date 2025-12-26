@@ -87,4 +87,15 @@ class UserConfigService {
         let dbDir = dir.appendingPathComponent("db.sqlite3")
         return dbDir
     }
+
+    func loadData(filename: String) -> [String: Any]? {
+        guard let dir = configDirectory else { return nil }
+        let fileURL = dir.appendingPathComponent(filename)
+        
+        guard let jsonData = try? Data(contentsOf: fileURL),
+              let data = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        else { return nil }
+
+        return data
+    }
 }

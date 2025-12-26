@@ -220,10 +220,8 @@ class KeyStateTracker {
             // ESC 键的 keyCode 是 53
             if pressedKeys.contains(53) {
                 log.info("❌ ESC 取消自由模式录音")
-                isFreeRecording = false
-                isCurrentlyMatched = false
-                currentActiveMode = nil
-                return .endMatch(.free)
+                EventBus.shared.publish(.recordingCancelled)
+                // return .endMatch(.free)
             }
             return .stillMatching
         }

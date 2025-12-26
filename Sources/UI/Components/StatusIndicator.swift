@@ -300,12 +300,12 @@ struct StatusIndicator: View {
                 startFadeTimer()
             }
             flushNetworkStatus(.unavailable)
-        } else if case .notificationReceived(.wssRestored) = event, networkStatus == .unavailable {
+        } else if case .notificationReceived(.wssRestored) = event, networkStatus != .normal {
             handleNetworkRestored()
         } else if case .notificationReceived(.networkRestored) = event, ConnectionCenter.shared.canRecord() {
             handleNetworkRestored()
         } else if case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer) = event {
-            if !shouldSetResponseTimer, !ConnectionCenter.shared.canResumeAfterNetworkError(), isRecordingStarted {
+            if !shouldSetResponseTimer, !ConnectionCenter.shared.canResumeAfterNetworkError(), isRecordingStarted, !ConnectionCenter.shared.canRecord() {
                 flushNetworkStatus(.unavailable)
             }
         } else if case let .notificationReceived(notificationType) = event {
@@ -315,22 +315,24 @@ struct StatusIndicator: View {
                 }
                 return notificationType == .serverTimeout
             }()
-            if shouldShowAction {
+            if shouldShowAction, !ConnectionCenter.shared.canRecord() {
                 flushNetworkStatus(.unavailable)
             }
         }
     }
 
     private func handleNetworkRestored() {
-        if networkStatus != .unavailable {
+        if networkStatus == .normal {
             return
         }
 
         cancelFadeTimer()
         flushNetworkStatus(.restored)
+
         Task { @MainActor in
             try? await sleep(3000)
             flushNetworkStatus(.normal)
+            log.info("indicator network restored")
             guard !ConnectionCenter.shared.isInRecordingSession(),
                   !OverlayController.shared.hasStatusPanelTrigger(),
                   Config.shared.USER_CONFIG.setting.hideStatusPanel else { return }

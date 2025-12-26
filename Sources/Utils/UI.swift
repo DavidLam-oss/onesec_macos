@@ -211,6 +211,7 @@ struct SymbolImage: View {
         "bell.fill": "🔔",
         "sparkles": "✨",
         "mic": "🎤",
+        "exclamationmark.triangle": "⚠️",
     ]
 
     private var nsImage: NSImage? {

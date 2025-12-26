@@ -526,7 +526,8 @@ class AudioUnitRecorder: @unchecked Sendable {
         // 处理响应
         let canRecord = ConnectionCenter.shared.canRecord()
         let hasNetworkError = ConnectionCenter.shared.hasRecordingNetworkError()
-        if !canRecord || hasNetworkError {
+
+        if !canRecord || hasNetworkError, !ConnectionCenter.shared.canResumeAfterNetworkError(), isRecordingStarted {
             saveAudioToDatabase(error: "转录未完成，你可在此处重新转录")
         }
 
@@ -637,9 +638,7 @@ class AudioUnitRecorder: @unchecked Sendable {
     }
 
     private func saveAudioToDatabase(content: String = "", error: String = "") {
-        guard let dir = UserConfigService.shared.audiosDirectory,
-              Config.shared.USER_CONFIG.setting.historyRetention != "never"
-        else {
+        guard let dir = UserConfigService.shared.audiosDirectory else {
             return
         }
 
@@ -651,6 +650,11 @@ class AudioUnitRecorder: @unchecked Sendable {
             }
         }
 
+        // 当设置为 "never" 且没有错误时，不保存
+        if Config.shared.USER_CONFIG.setting.historyRetention == "never", error.isEmpty {
+            return
+        }
+
         let sessionID = ConnectionCenter.shared.currentRecordingAppContext.sessionID
         let filename = "\(sessionID).wav"
         let fileURL = dir.appendingPathComponent(filename)
@@ -658,7 +662,8 @@ class AudioUnitRecorder: @unchecked Sendable {
         do {
             let wavData = toWavData(fromPCM: recordedAudioData, targetFormat: targetFormat)
             try wavData.write(to: fileURL)
-            try DatabaseService.shared.saveAudios(sessionID: sessionID, filename: filename, content: content, error: error)
+            let clearBeforeInsert = Config.shared.USER_CONFIG.setting.historyRetention == "never" && !error.isEmpty
+            try DatabaseService.shared.saveAudios(sessionID: sessionID, filename: filename, content: content, error: error, clearBeforeInsert: clearBeforeInsert)
             log.info("Audio saved to file: \(filename) \nError: \(error)\nContent: \(content)")
             EventBus.shared.publish(.userAudioSaved(sessionID: sessionID, filename: filename))
         } catch {
