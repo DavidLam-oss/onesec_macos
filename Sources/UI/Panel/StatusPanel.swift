@@ -30,7 +30,8 @@ class StatusPanel: NSPanel {
         // 设置窗口属性
         isOpaque = false
         backgroundColor = .clear
-        level = .floating
+        level = .screenSaver
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         hasShadow = false
         isMovableByWindowBackground = false
         acceptsMouseMovedEvents = true
