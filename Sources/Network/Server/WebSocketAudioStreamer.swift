@@ -302,7 +302,7 @@ extension WebSocketAudioStreamer {
                 focusElementInfo: focusElementInfo
             )
 
-            self.sendWebSocketMessage(type: .contextUpdated, data: appContext.toJSON())
+            self.sendWebSocketMessage(type: .contextUpdated, data: appContext.toJSON(), printLog: false)
             EventBus.shared.publish(.recordingContextUpdated(context: appContext))
         }
     }
@@ -337,13 +337,13 @@ extension WebSocketAudioStreamer {
         cancelResponseTimeoutTimer()
     }
 
-    private func sendWebSocketMessage(type: MessageType, data: [String: Any]? = nil) {
+    private func sendWebSocketMessage(type: MessageType, data: [String: Any]? = nil, printLog: Bool = true) {
         guard let jsonStr = WebSocketMessage.create(id: recordingID, type: type, data: data).toJSONString() else {
             log.error("Failed to create \(type) message")
             return
         }
 
-        if !Config.shared.isReleaseMode() {
+        if !Config.shared.isReleaseMode(), printLog {
             log.debug("Send to server: \(jsonStr)")
         }
         sendMessage(jsonStr)
