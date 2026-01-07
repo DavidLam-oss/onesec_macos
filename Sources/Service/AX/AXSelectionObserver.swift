@@ -11,7 +11,6 @@ class AXSelectionObserver: ObservableObject {
     private var appObserver: NSObjectProtocol?
 
     @Published var frontmostApp: NSRunningApplication?
-    @Published var isCurrentAppRecorded: Bool = false
 
     private init() {
         frontmostApp = NSWorkspace.shared.frontmostApplication

@@ -497,7 +497,8 @@ class AudioUnitRecorder: @unchecked Sendable {
     @MainActor
     func stopRecording(
         stopState: RecordState = .processing,
-        shouldSetResponseTimer: Bool = true
+        shouldSetResponseTimer: Bool = true,
+        isServerUnavailable: Bool = false
     ) {
         guard recordState == .recording else {
             return
@@ -539,7 +540,8 @@ class AudioUnitRecorder: @unchecked Sendable {
         EventBus.shared.publish(
             .recordingStopped(
                 isRecordingStarted: isRecordingStarted,
-                shouldSetResponseTimer: shouldStopNormally && shouldSetResponseTimer
+                shouldSetResponseTimer: shouldStopNormally && shouldSetResponseTimer,
+                isServerUnavailable: isServerUnavailable
             )
         )
         log.info("✅ 录音停止")
@@ -753,7 +755,7 @@ extension AudioUnitRecorder {
                                 self?.saveAudioToDatabase(error: "转录未完成，你可在此处重新转录")
                                 self?.resetState()
                             } else {
-                                self?.stopRecording(stopState: .idle, shouldSetResponseTimer: false)
+                                self?.stopRecording(stopState: .idle, shouldSetResponseTimer: false, isServerUnavailable: true)
                             }
                         }
 

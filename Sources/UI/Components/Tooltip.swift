@@ -105,8 +105,8 @@ struct Tooltip: View {
 
 extension Tooltip {
     static func show(content: String = "", customContent: AnyView? = nil, type: TooltipType = .primary, showBell: Bool = true, customIcon: NSImage? = nil, onTap: (() -> Void)? = nil) {
-        OverlayController.shared.showOverlay { panelID in
+        OverlayController.shared.showOverlay(content: { panelID in
             Tooltip(panelID: panelID, content: content, customContent: customContent, type: type, showBell: showBell, customIcon: customIcon, onTap: onTap)
-        }
+        }, spacingX: 0, spacingY: 0, extraHeight: 0, panelType: .tooltip)
     }
 }

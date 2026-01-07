@@ -12,7 +12,7 @@ import Foundation
 enum AppEvent {
     case volumeChanged(volume: Float)
     case recordingStarted(mode: RecordMode)
-    case recordingStopped(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true)
+    case recordingStopped(isRecordingStarted: Bool = true, shouldSetResponseTimer: Bool = true, isServerUnavailable: Bool = false)
     case recordingCancelled
     case recordingConfirmed
     //

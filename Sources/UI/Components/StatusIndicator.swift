@@ -316,7 +316,7 @@ struct StatusIndicator: View {
             handleNetworkRestored()
         } else if case .notificationReceived(.networkRestored) = event, ConnectionCenter.shared.canRecord() {
             handleNetworkRestored()
-        } else if case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer) = event {
+        } else if case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer, _) = event {
             if !shouldSetResponseTimer, !ConnectionCenter.shared.canResumeAfterNetworkError(), isRecordingStarted, !ConnectionCenter.shared.canRecord() {
                 flushNetworkStatus(.unavailable)
             }

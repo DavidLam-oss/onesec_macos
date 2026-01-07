@@ -32,7 +32,7 @@ class OverlayController {
         if let panelType = panelType,
            let existingUUID = findPanelByType(panelType),
            let existingPanel = panels[existingUUID],
-           existingPanel.panelType == .translate(.above) || existingPanel.panelType?.canShowStatusPanel == true
+           existingPanel.panelType == .translate(.above) || existingPanel.panelType?.canShowStatusPanel == true || existingPanel.panelType == .tooltip
 
         {
             if existingPanel.panelType == .translate(.above) {

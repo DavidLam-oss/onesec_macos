@@ -263,6 +263,7 @@ class KeyStateTracker {
             if isCurrentlyMatched {
                 isCurrentlyMatched = false
                 currentActiveMode = nil
+                log.info("❌ 按键不再匹配: \(currentActiveMode?.rawValue ?? "normal")")
                 return .endMatch(currentActiveMode ?? .normal)
             }
             return .notMatching

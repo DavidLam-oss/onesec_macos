@@ -37,8 +37,6 @@ extension StatusView {
     private func handleEvent(_ event: AppEvent) {
         switch event {
         case let .recordingCacheStarted(newMode):
-            log.info("Receive recordingCacheStarted with state: \(recordState)")
-            guard recordState == .idle else { return }
             mode = newMode
             recordState = .recording
             activePanelIfNeeded()
@@ -53,7 +51,7 @@ extension StatusView {
             recordState = .recording
             activePanelIfNeeded()
             overlay.hideOverlays(.notificationSystem)
-        case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer):
+        case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer, isServerUnavailable):
             guard recordState == .recording else { return }
 
             recordState = shouldSetResponseTimer || ConnectionCenter.shared.canResumeAfterNetworkError() ? .processing : .idle
@@ -65,7 +63,7 @@ extension StatusView {
                     return
                 }
 
-                let notificationType: NotificationMessageType = isRecordingStarted
+                let notificationType: NotificationMessageType = isRecordingStarted && !isServerUnavailable
                     ? .recordingInterruptedByNetwork
                     : .networkUnavailable(duringRecording: false)
 
@@ -175,7 +173,17 @@ extension StatusView {
         case let .serverResultReceived(text, _, processMode, polishedText):
             recordState = .idle
 
+            let pasteTask = Task {
+                if processMode == "TERMINAL", text.newlineCount >= 1 {
+                    return
+                }
+
+                await AXPasteboardController.pasteTextToActiveApp(text + (isAppShouldTestWithZeroWidthChar() ? "\u{200B}" : ""))
+            }
+
             Task {
+                await pasteTask.value
+
                 let canPaste = await canPasteNow()
                 log.info("canPaste: \(canPaste)")
                 if
@@ -187,15 +195,7 @@ extension StatusView {
                 if text.isEmpty {
                     return
                 }
-                defer {
-                    handleAlert(canPaste: canPaste, processMode: processMode, text: text, polishedText: polishedText)
-                }
-
-                if processMode == "TERMINAL", text.newlineCount >= 1 {
-                    return
-                }
-
-                await AXPasteboardController.pasteTextToActiveApp(text)
+                handleAlert(canPaste: canPaste, processMode: processMode, text: text, polishedText: polishedText)
             }
         case let .terminalLinuxChoice(_, _, _, commands):
             recordState = .idle
@@ -208,10 +208,6 @@ extension StatusView {
 
     private func activePanelIfNeeded() {
         if Config.shared.USER_CONFIG.setting.hideStatusPanel {
-            if !AXSelectionObserver.shared.isCurrentAppRecorded {
-                Tooltip.show(content: "当前处于\(Config.shared.CURRENT_PERSONA?.name ?? "默认")模式", type: .plain)
-                AXSelectionObserver.shared.isCurrentAppRecorded = true
-            }
             StatusPanelManager.shared.showPanel()
         }
     }
@@ -221,6 +217,7 @@ extension StatusView {
         // 首先根据白名单使用零宽字符复制测试方法
         if isAppShouldTestWithZeroWidthChar() {
             log.info("Use zero width char paste test")
+            try? await sleep(100)
             return await AXPasteboardController.whasTextInputFocus()
         }
 

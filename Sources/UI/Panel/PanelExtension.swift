@@ -14,6 +14,7 @@ enum PanelType: Equatable {
     case command(PanelPosition)
     case notification
     case notificationSystem
+    case tooltip
 
     var isTranslate: Bool {
         if case .translate = self { return true }

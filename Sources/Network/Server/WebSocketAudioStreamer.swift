@@ -180,7 +180,7 @@ extension WebSocketAudioStreamer {
                 switch event {
                 case let .recordingStarted(mode): sendRecordingContext(); sendStartRecording(mode: mode)
 
-                case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer): handleRecordingStopped(isRecordingStarted: isRecordingStarted, shouldSetResponseTimer: shouldSetResponseTimer)
+                case let .recordingStopped(isRecordingStarted, shouldSetResponseTimer, _): handleRecordingStopped(isRecordingStarted: isRecordingStarted, shouldSetResponseTimer: shouldSetResponseTimer)
 
                 case .recordingCancelled: sendCancelRecording()
 
@@ -523,7 +523,7 @@ extension WebSocketAudioStreamer {
     }
 
     private func calculateResponseTimeout() -> TimeInterval {
-        if Config.shared.CURRENT_PERSONA?.id != 1 {
+        if Config.shared.CURRENT_PERSONA != nil && Config.shared.CURRENT_PERSONA?.id != 1 {
             return 30
         }
 
