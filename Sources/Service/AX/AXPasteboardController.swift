@@ -123,10 +123,8 @@ class AXPasteboardController {
         let copiedText = pasteboard.string(forType: .string)
 
         if copiedText == "\u{200B}" {
-            log.debug("复制的内容是零宽")
             return nil
         }
-        log.info("CopyCurrentSelectionAndRestore Copied Text: \(copiedText), oldContents: \(oldContents)")
 
         // 恢复原剪贴板内容
         restorePasteboard(oldContents, oldChangeCount)
@@ -136,6 +134,7 @@ class AXPasteboardController {
     // 检测是否有文本输入焦点
     // 对于没有 AX 支持的应用,使用零宽字符复制测试方法
     // 策略: 粘贴零宽字符 → 选中它 → 复制 → 检测 changeCount → 撤销
+    @MainActor
     static func whasTextInputFocus(text: String) async -> Bool {
         let testMarker = "\u{200B}"
         let pasteboard = NSPasteboard.general
@@ -148,16 +147,30 @@ class AXPasteboardController {
 
         var newContent = pasteboard.string(forType: .string)
         if let newNewContent = newContent {
-            if newNewContent == " " || newNewContent.contains(text) {
+            if newNewContent == " " {
                 return true
             }
 
+            if (text.last.map { String($0) == newNewContent } ?? false) {
+                simulateRight()
+                return true
+            }
+
+            // 企微思维表格
+            if newNewContent.hasSuffix(text + testMarker) {
+                return true
+            }
+
+            // 若可粘贴, 且当前在焦点元素中
+            // 则触发条件是 simulateCopy 等待时间不够
             if newNewContent == oldContents {
+                simulateRight()
                 pasteboard.clearContents()
                 pasteboard.setString(testMarker, forType: .string)
 
                 oldChangeCount = pasteboard.changeCount
                 simulatePaste()
+                try? await sleep(100)
                 simulateShiftLeft()
                 simulateCopy()
                 try? await sleep(200)
@@ -172,13 +185,9 @@ class AXPasteboardController {
         // 所以这里判断当前复制的新内容是否为零宽字符
         let isZeroCharNotChange = newContent == testMarker
 
-        if !isZeroCharNotChange {
-            log.info("WhasTextInputFocus ZeroChar Changed: \(newContent ?? ""), oldContents: \(oldContents ?? "")")
-        }
-
         defer { restorePasteboard(oldContents) }
 
-        return (pasteboard.changeCount > oldChangeCount) && isZeroCharNotChange
+        return (pasteboard.changeCount > oldChangeCount) && isZeroCharNotChange || (newContent == nil)
     }
 
     static func pasteTextToActiveApp(_ text: String) async {
@@ -221,7 +230,7 @@ extension AXPasteboardController {
             vDown.flags = .maskCommand
             vUp.flags = .maskCommand
             vDown.post(tap: .cgSessionEventTap)
-            usleep(1000) // 1ms 延迟，模拟真实按键
+            usleep(1000) // 1ms
             vUp.post(tap: .cgSessionEventTap)
         }
     }

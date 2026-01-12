@@ -49,7 +49,6 @@ final class DatabaseService {
     private let personaCreatedAt = Expression<Int?>("created_at")
     private let personaUpdatedAt = Expression<Int?>("updated_at")
 
-
     func initialize() throws {
         guard let dbURL = UserConfigService.shared.databaseDirectory else {
             throw DatabaseError.operationFailed("Database directory not available")
@@ -381,7 +380,6 @@ final class DatabaseService {
             log.info("All personas cleared")
         }
     }
-
 }
 
 // MARK: - Data Models

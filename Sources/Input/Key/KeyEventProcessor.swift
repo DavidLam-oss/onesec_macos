@@ -52,14 +52,12 @@ class KeyEventProcessor {
     }
 
     func startHotkeyDetect() {
-        log.info("Hotkey detect start")
         keyStateTracker.clear()
         isHotkeyDetecting = true
     }
 
     func endHotkeyDetect() {
         guard isHotkeyDetecting else { return }
-        log.info("Hotkey detect done")
         isHotkeyDetecting = false
     }
 
@@ -68,7 +66,6 @@ class KeyEventProcessor {
 
         let (isCompleted, currentKeys) = keyStateTracker.handleKeyEvent(type: type, event: event)
         let hotkeyCombination = currentKeys.compactMap { KeyMapper.keyCodeMap[$0] }
-        log.info("Hotkey detect updated: \(hotkeyCombination), isCompleted: \(isCompleted)")
         EventBus.shared.publish(.hotkeyDetectUpdated(hotkeyCombination: hotkeyCombination, isCompleted: isCompleted))
     }
 
@@ -79,7 +76,6 @@ class KeyEventProcessor {
 
         // 实时发送当前按键组合
         let hotkeyCombination = currentKeys.compactMap { KeyMapper.keyCodeMap[$0] }
-        log.info("Hotkey setting updated: \(hotkeyCombination), completed: \(completed)")
         EventBus.shared.publish(.hotkeySettingUpdated(mode: hotkeySettingMode, hotkeyCombination: hotkeyCombination))
 
         if completed {

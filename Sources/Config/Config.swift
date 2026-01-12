@@ -80,7 +80,6 @@ class Config: ObservableObject {
             log.info("Persona refreshed: \(updatedPersona.name)")
         } else {
             CURRENT_PERSONA = PersonaScheduler.shared.personas.first { $0.id == 1 }
-            log.warning("Persona not found, set to default")
         }
     }
 }
